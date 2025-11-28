@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RankingHeader } from "@/components/dashboard/RankingHeader";
 import { RankingCard } from "@/components/dashboard/RankingCard";
+import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { format } from "date-fns";
 
 type Loja = {
@@ -28,9 +30,42 @@ type RankingItem = {
 };
 
 const Dashboard = () => {
+  const queryClient = useQueryClient();
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const dataHoje = format(new Date(), "yyyy-MM-dd");
   const mesAtual = new Date().getMonth() + 1;
   const anoAtual = new Date().getFullYear();
+
+  // Configurar realtime para atualizar automaticamente quando houver lançamentos
+  useEffect(() => {
+    console.log("📡 Dashboard: Configurando realtime subscription");
+
+    const channel = supabase
+      .channel("lancamentos-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Escuta INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "lancamentos_diarios",
+        },
+        (payload) => {
+          console.log("🔄 Dashboard: Lançamento atualizado", payload);
+          // Invalidar queries para recarregar dados
+          queryClient.invalidateQueries({ queryKey: ["lancamentos-dashboard"] });
+        }
+      )
+      .subscribe((status) => {
+        console.log("📡 Dashboard: Status da subscription:", status);
+        setIsRealtimeConnected(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      console.log("📡 Dashboard: Removendo subscription");
+      supabase.removeChannel(channel);
+      setIsRealtimeConnected(false);
+    };
+  }, [queryClient, dataHoje]);
 
   // Buscar todas as lojas
   const { data: lojas = [] } = useQuery({
@@ -118,7 +153,12 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-8 py-8 space-y-8">
-        <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
+          </div>
+          <RealtimeIndicator isConnected={isRealtimeConnected} />
+        </div>
 
         {ranking.length === 0 ? (
           <div className="text-center py-16 bg-card border rounded-lg">
