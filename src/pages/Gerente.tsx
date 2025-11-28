@@ -40,7 +40,15 @@ const Gerente = () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Você precisa estar logado para acessar esta página.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const { data, error } = await supabase
         .from("profiles")
@@ -50,14 +58,27 @@ const Gerente = () => {
 
       if (error) {
         console.error("Erro ao buscar perfil:", error);
+        toast({
+          title: "Erro ao carregar perfil",
+          description: "Não foi possível carregar suas informações.",
+          variant: "destructive",
+        });
         return;
+      }
+
+      if (!data?.loja_id) {
+        toast({
+          title: "Loja não vinculada",
+          description: "Seu perfil não está vinculado a nenhuma loja. Entre em contato com o administrador.",
+          variant: "destructive",
+        });
       }
 
       setGerenteLojaId(data?.loja_id || null);
     };
 
     fetchProfile();
-  }, []);
+  }, [toast]);
 
   // Buscar dados da loja
   const { data: loja } = useQuery({
@@ -194,18 +215,24 @@ const Gerente = () => {
 
   if (!gerenteLojaId) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">
-          Carregando informações do gerente...
-        </p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">
+            Carregando informações do gerente...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!loja) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando loja...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Carregando loja...</p>
+        </div>
       </div>
     );
   }
@@ -213,12 +240,12 @@ const Gerente = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold">Gerente - Meta Simples</h1>
+        <div className="container mx-auto px-4 py-3 md:py-4">
+          <h1 className="text-lg md:text-xl font-semibold">Gerente - Meta Simples</h1>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="container mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-6">
         <MetaDiariaHeader
           metaDiaria={metaMensal?.meta_diaria_calculada || 0}
           totalVendido={totalVendido}
@@ -226,17 +253,17 @@ const Gerente = () => {
         />
 
         {!metaMensal && (
-          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              Nenhuma meta mensal cadastrada para este mês. Entre em contato com
-              o administrador.
+          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 md:p-4">
+            <p className="text-xs md:text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Atenção:</strong> Nenhuma meta mensal cadastrada para este mês. 
+              Entre em contato com o administrador para configurar as metas.
             </p>
           </div>
         )}
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Lançamentos do Dia</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="space-y-3 md:space-y-4">
+          <h2 className="text-base md:text-lg font-semibold">Lançamentos do Dia</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {horarios.map((horario) => {
               const lancamento = getLancamentoByHorario(horario);
               return (

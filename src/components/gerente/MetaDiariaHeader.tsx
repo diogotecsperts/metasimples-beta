@@ -13,8 +13,11 @@ export function MetaDiariaHeader({
   lojaName,
 }: MetaDiariaHeaderProps) {
   const percentualAtingimento = metaDiaria > 0 
-    ? Math.min((totalVendido / metaDiaria) * 100, 100) 
+    ? (totalVendido / metaDiaria) * 100
     : 0;
+  
+  // Limitar progresso visual a 100% na barra
+  const progressoVisual = Math.min(percentualAtingimento, 100);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -24,11 +27,11 @@ export function MetaDiariaHeader({
   };
 
   return (
-    <div className="bg-card border rounded-lg p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-card border rounded-lg p-4 md:p-6 space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-semibold">{lojaName}</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl md:text-2xl font-semibold">{lojaName}</h2>
+          <p className="text-xs md:text-sm text-muted-foreground">
             {new Date().toLocaleDateString("pt-BR", {
               weekday: "long",
               year: "numeric",
@@ -37,37 +40,45 @@ export function MetaDiariaHeader({
             })}
           </p>
         </div>
-        <TrendingUp className="h-8 w-8 text-primary" />
+        <TrendingUp className="h-6 w-6 md:h-8 md:w-8 text-primary" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Meta Diária</p>
-          <p className="text-2xl font-bold">{formatCurrency(metaDiaria)}</p>
+          <p className="text-xs md:text-sm text-muted-foreground">Meta Diária</p>
+          <p className="text-lg md:text-2xl font-bold">
+            {metaDiaria > 0 ? formatCurrency(metaDiaria) : "—"}
+          </p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Total Vendido</p>
-          <p className="text-2xl font-bold text-primary">
+          <p className="text-xs md:text-sm text-muted-foreground">Total Vendido</p>
+          <p className="text-lg md:text-2xl font-bold text-primary">
             {formatCurrency(totalVendido)}
           </p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Atingimento</p>
-          <p className="text-2xl font-bold">
-            {percentualAtingimento.toFixed(1)}%
+          <p className="text-xs md:text-sm text-muted-foreground">Atingimento</p>
+          <p className="text-lg md:text-2xl font-bold">
+            {metaDiaria > 0 ? `${percentualAtingimento.toFixed(1)}%` : "—"}
           </p>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Progresso</span>
-          <span className="font-medium">
-            {formatCurrency(totalVendido)} / {formatCurrency(metaDiaria)}
-          </span>
+      {metaDiaria > 0 ? (
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs md:text-sm">
+            <span className="text-muted-foreground">Progresso</span>
+            <span className="font-medium">
+              {formatCurrency(totalVendido)} / {formatCurrency(metaDiaria)}
+            </span>
+          </div>
+          <Progress value={progressoVisual} className="h-2 md:h-3" />
         </div>
-        <Progress value={percentualAtingimento} className="h-3" />
-      </div>
+      ) : (
+        <div className="text-center py-2 text-sm text-muted-foreground">
+          Meta diária não configurada para este mês
+        </div>
+      )}
     </div>
   );
 }
