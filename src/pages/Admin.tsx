@@ -1,4 +1,5 @@
 import { LojasManager } from "@/components/admin/LojasManager";
+import { GerentesManager } from "@/components/admin/GerentesManager";
 
 const Admin = () => {
   return (
@@ -20,6 +21,10 @@ const Admin = () => {
         <div className="space-y-6">
           <div className="rounded-lg border bg-card p-6">
             <LojasManager />
+          </div>
+          
+          <div className="rounded-lg border bg-card p-6">
+            <GerentesManager />
           </div>
         </div>
       </main>
