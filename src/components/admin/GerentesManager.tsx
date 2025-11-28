@@ -59,37 +59,18 @@ export function GerentesManager() {
         throw new Error("Email e senha são obrigatórios");
       }
 
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.senha,
-        options: {
-          data: {
-            nome: values.nome,
-          },
+      // Call edge function to create gerente securely
+      const { data, error } = await supabase.functions.invoke('create-gerente', {
+        body: {
+          email: values.email,
+          password: values.senha,
+          nome: values.nome,
+          loja_id: values.loja_id,
         },
       });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Falha ao criar usuário");
-
-      // Atualizar profile com loja_id
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ loja_id: values.loja_id })
-        .eq("id", authData.user.id);
-
-      if (profileError) throw profileError;
-
-      // Adicionar role 'gerente'
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: authData.user.id,
-          role: "gerente",
-        });
-
-      if (roleError) throw roleError;
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gerentes"] });
