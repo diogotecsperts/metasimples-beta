@@ -133,7 +133,15 @@ const Dashboard = () => {
         percentualAtingimento,
       };
     })
-    .sort((a, b) => b.percentualAtingimento - a.percentualAtingimento);
+    .sort((a, b) => {
+      // Lojas sem meta vão para o final
+      if (a.metaDiaria === 0 && b.metaDiaria === 0) return 0;
+      if (a.metaDiaria === 0) return 1;
+      if (b.metaDiaria === 0) return -1;
+      
+      // Ordenar por percentual de atingimento (descendente)
+      return b.percentualAtingimento - a.percentualAtingimento;
+    });
 
   const dataFormatada = new Date().toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -145,33 +153,38 @@ const Dashboard = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground text-xl">Carregando dashboard...</p>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground text-lg">Carregando dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-8 py-8 space-y-8">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1">
+      <main className="container mx-auto px-4 md:px-8 py-4 md:py-8 space-y-4 md:space-y-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex-1 w-full">
             <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
           </div>
-          <RealtimeIndicator isConnected={isRealtimeConnected} />
+          <div className="w-full md:w-auto">
+            <RealtimeIndicator isConnected={isRealtimeConnected} />
+          </div>
         </div>
 
         {ranking.length === 0 ? (
-          <div className="text-center py-16 bg-card border rounded-lg">
-            <p className="text-xl text-muted-foreground">
+          <div className="text-center py-12 md:py-16 bg-card border rounded-lg">
+            <p className="text-lg md:text-xl text-muted-foreground">
               Nenhuma loja com dados para exibir no ranking.
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-xs md:text-sm text-muted-foreground mt-2">
               Certifique-se de que há lojas cadastradas e metas mensais
               configuradas.
             </p>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {ranking.map((item, index) => (
               <RankingCard
                 key={item.lojaId}
