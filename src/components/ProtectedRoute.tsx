@@ -1,40 +1,20 @@
-import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface ProtectedRouteProps {
+type ProtectedRouteProps = {
   children: React.ReactNode;
-}
+  allowedRoles?: Array<"admin" | "gerente">;
+};
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+  const { user, role, isLoading } = useAuth();
 
-  useEffect(() => {
-    // Configurar listener de autenticação PRIMEIRO
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // DEPOIS verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">Verificando autenticação...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Verificando autenticação...</p>
         </div>
       </div>
     );
@@ -44,7 +24,27 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Check role if specified
+  if (allowedRoles && allowedRoles.length > 0) {
+    if (!role || !allowedRoles.includes(role)) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-md">
+            <div className="text-5xl">🚫</div>
+            <h2 className="text-2xl font-semibold">Acesso Negado</h2>
+            <p className="text-muted-foreground">
+              Você não tem permissão para acessar esta página.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Role necessário: {allowedRoles.join(" ou ")}
+            </p>
+          </div>
+        </div>
+      );
+    }
+  }
+
   return <>{children}</>;
-};
+}
 
 export default ProtectedRoute;

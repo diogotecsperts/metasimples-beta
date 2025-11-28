@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,35 +10,29 @@ import { toast } from "@/hooks/use-toast";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
 
   useEffect(() => {
-    // Verificar se usuário já está logado
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    // Redirect if already logged in
+    if (user && role) {
+      if (role === "admin") {
         navigate("/admin");
+      } else if (role === "gerente") {
+        navigate("/gerente");
       }
-    });
-
-    // Ouvir mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        navigate("/admin");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    }
+  }, [user, role, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -56,10 +51,29 @@ const Login = () => {
             variant: "destructive",
           });
         }
+        return;
+      }
+
+      // Fetch user role to redirect appropriately
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      toast({
+        title: "Login realizado",
+        description: "Bem-vindo de volta!",
+      });
+
+      // Redirect based on role
+      if (roleData?.role === "admin") {
+        navigate("/admin");
+      } else if (roleData?.role === "gerente") {
+        navigate("/gerente");
       } else {
-        toast({
-          title: "Login realizado com sucesso",
-        });
+        // Default redirect if no role found
+        navigate("/dashboard");
       }
     } catch (error) {
       toast({
@@ -104,16 +118,21 @@ const Login = () => {
         }
       } else {
         toast({
-          title: "Cadastro realizado com sucesso",
-          description: "Você já pode fazer login",
+          title: "Cadastro realizado",
+          description: "Aguarde a atribuição de role pelo administrador para fazer login.",
         });
         
-        // Mostrar ID do usuário para facilitar criar o admin
-        if (data.user) {
+        // Mostrar ID do usuário para facilitar criar o admin (apenas em dev)
+        if (import.meta.env.DEV && data.user) {
           console.log("🔑 ID do usuário criado:", data.user.id);
           console.log("📝 Para tornar este usuário admin, execute no SQL Editor:");
           console.log(`INSERT INTO user_roles (user_id, role) VALUES ('${data.user.id}', 'admin');`);
         }
+
+        // Clear form
+        setEmail("");
+        setPassword("");
+        setNome("");
       }
     } catch (error) {
       toast({
