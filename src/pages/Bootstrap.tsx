@@ -10,6 +10,7 @@ const Bootstrap = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+  const [canShowForm, setCanShowForm] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
@@ -24,25 +25,22 @@ const Bootstrap = () => {
       
       if (error) {
         console.error('Error checking admin:', error);
-        toast({
-          title: "Erro ao verificar sistema",
-          description: "Tente novamente mais tarde",
-          variant: "destructive",
-        });
+        // Redirecionar para login em caso de erro (fail-safe)
+        navigate('/login');
         return;
       }
 
       if (data.adminExists) {
         // Admin already exists, redirect to login
         navigate('/login');
+      } else {
+        // Não existe admin, pode mostrar o formulário
+        setCanShowForm(true);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
-      toast({
-        title: "Erro ao verificar sistema",
-        description: "Tente novamente mais tarde",
-        variant: "destructive",
-      });
+      // Redirecionar para login em caso de erro inesperado
+      navigate('/login');
     } finally {
       setIsCheckingAdmin(false);
     }
@@ -93,7 +91,7 @@ const Bootstrap = () => {
     }
   };
 
-  if (isCheckingAdmin) {
+  if (isCheckingAdmin || !canShowForm) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center">
         <div className="text-center space-y-4">
