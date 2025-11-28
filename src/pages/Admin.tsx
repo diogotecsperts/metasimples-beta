@@ -1,5 +1,6 @@
 import { LojasManager } from "@/components/admin/LojasManager";
 import { GerentesManager } from "@/components/admin/GerentesManager";
+import { MetasManager } from "@/components/admin/MetasManager";
 
 const Admin = () => {
   return (
@@ -25,6 +26,10 @@ const Admin = () => {
           
           <div className="rounded-lg border bg-card p-6">
             <GerentesManager />
+          </div>
+
+          <div className="rounded-lg border bg-card p-6">
+            <MetasManager />
           </div>
         </div>
       </main>
