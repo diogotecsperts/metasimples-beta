@@ -1,3 +1,5 @@
+import { LojasManager } from "@/components/admin/LojasManager";
+
 const Admin = () => {
   return (
     <div className="min-h-screen bg-background">
@@ -16,21 +18,9 @@ const Admin = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Seções administrativas */}
-          {['Usuários', 'Configurações', 'Relatórios'].map((section) => (
-            <div key={section} className="rounded-lg border bg-card">
-              <div className="border-b bg-muted/30 px-4 py-3">
-                <h3 className="font-semibold">{section}</h3>
-              </div>
-              <div className="p-6">
-                <div className="h-24 rounded border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
-                  <span className="text-sm text-muted-foreground">
-                    Conteúdo de {section.toLowerCase()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+          <div className="rounded-lg border bg-card p-6">
+            <LojasManager />
+          </div>
         </div>
       </main>
     </div>
