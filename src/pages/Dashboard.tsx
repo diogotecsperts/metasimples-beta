@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RankingHeader } from "@/components/dashboard/RankingHeader";
 import { RankingCard } from "@/components/dashboard/RankingCard";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 type Loja = {
@@ -160,39 +161,38 @@ const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground text-lg">Carregando dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
+        <div className="space-y-6 md:space-y-8">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-64 rounded-xl" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 md:px-8 py-4 md:py-8 space-y-4 md:space-y-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex-1 w-full">
-            <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
-          </div>
-          <div className="w-full md:w-auto">
-            <RealtimeIndicator isConnected={isRealtimeConnected} />
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
+      <div className="space-y-6 md:space-y-8">
+        <div className="flex items-center justify-between gap-4">
+          <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
+          <RealtimeIndicator isConnected={isRealtimeConnected} />
         </div>
 
-        {ranking.length === 0 ? (
-          <div className="text-center py-12 md:py-16 bg-card border rounded-lg">
-            <p className="text-lg md:text-xl text-muted-foreground">
-              Nenhuma loja com dados para exibir no ranking.
+        {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
+          <div className="text-center py-16 bg-card border rounded-xl shadow-md">
+            <p className="text-xl md:text-2xl text-muted-foreground font-medium">
+              Nenhuma loja com meta configurada ainda.
             </p>
-            <p className="text-xs md:text-sm text-muted-foreground mt-2">
-              Certifique-se de que há lojas cadastradas e metas mensais
-              configuradas.
+            <p className="text-sm text-muted-foreground mt-2">
+              Configure metas mensais para visualizar o ranking.
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {ranking.map((item, index) => (
               <RankingCard
                 key={item.lojaId}
@@ -205,7 +205,7 @@ const Dashboard = () => {
             ))}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };

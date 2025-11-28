@@ -27,25 +27,25 @@ export function TimelineSlot({
       variant="outline"
       onClick={onClick}
       className={cn(
-        "h-auto flex-col gap-2 py-3 md:py-4 px-4 md:px-6 transition-all",
-        !isPendente && "border-green-500 bg-green-50 dark:bg-green-950/20"
+        "h-auto flex-col gap-3 py-4 px-4 md:px-6 transition-all shadow-sm hover:shadow-md",
+        !isPendente && "bg-green-50 dark:bg-green-950/20 border-green-500 hover:bg-green-100 dark:hover:bg-green-950/30"
       )}
     >
       <div className="flex items-center gap-2">
         {isPendente ? (
-          <Clock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+          <Clock className="h-5 w-5 text-muted-foreground" />
         ) : (
-          <Check className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
+          <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
         )}
-        <span className="font-semibold text-base md:text-lg">{horario}</span>
+        <span className="font-bold text-lg">{horario}</span>
       </div>
       {!isPendente && valor !== undefined && (
-        <span className="text-xs md:text-sm font-medium text-green-700 dark:text-green-400">
+        <span className="text-sm font-semibold text-green-700 dark:text-green-400">
           {formatCurrency(valor)}
         </span>
       )}
       {isPendente && (
-        <span className="text-xs text-muted-foreground">Pendente</span>
+        <span className="text-xs text-muted-foreground">Clique para lançar</span>
       )}
     </Button>
   );

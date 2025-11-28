@@ -73,12 +73,15 @@ export function LancamentoDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Lançamento - {horario}</DialogTitle>
+          <DialogTitle className="text-xl">Lançamento - {horario}</DialogTitle>
         </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Insira o valor acumulado de vendas até este horário.
+        </p>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="valor_acumulado"
@@ -94,17 +97,15 @@ export function LancamentoDialog({
                       autoFocus
                       {...field}
                       onChange={(e) => field.onChange(Number(e.target.value))}
+                      className="text-lg"
                     />
                   </FormControl>
                   <FormMessage />
-                  <p className="text-xs text-muted-foreground">
-                    Digite o valor total acumulado até este horário.
-                  </p>
                 </FormItem>
               )}
             />
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>

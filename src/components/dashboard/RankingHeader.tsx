@@ -7,12 +7,12 @@ type RankingHeaderProps = {
 
 export function RankingHeader({ totalLojas, dataAtual }: RankingHeaderProps) {
   return (
-    <div className="bg-card border rounded-lg p-4 md:p-8 text-center">
-      <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 mb-2 md:mb-4">
-        <Trophy className="h-8 w-8 md:h-12 md:w-12 text-primary" />
-        <h1 className="text-2xl md:text-4xl font-bold">Ranking de Performance</h1>
+    <div className="bg-card border rounded-xl p-6 md:p-10 text-center shadow-md">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6 mb-3 md:mb-4">
+        <Trophy className="h-10 w-10 md:h-16 md:w-16 text-primary" />
+        <h1 className="text-3xl md:text-5xl font-bold">Ranking de Performance</h1>
       </div>
-      <p className="text-sm md:text-xl text-muted-foreground">
+      <p className="text-base md:text-2xl text-muted-foreground capitalize">
         {dataAtual} • {totalLojas} {totalLojas === 1 ? "Loja" : "Lojas"}
       </p>
     </div>

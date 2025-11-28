@@ -1,5 +1,5 @@
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 type MetaDiariaHeaderProps = {
   metaDiaria: number;
@@ -10,13 +10,9 @@ type MetaDiariaHeaderProps = {
 export function MetaDiariaHeader({
   metaDiaria,
   totalVendido,
-  lojaName,
 }: MetaDiariaHeaderProps) {
-  const percentualAtingimento = metaDiaria > 0 
-    ? (totalVendido / metaDiaria) * 100
-    : 0;
-  
-  // Limitar progresso visual a 100% na barra
+  const percentualAtingimento =
+    metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
   const progressoVisual = Math.min(percentualAtingimento, 100);
 
   const formatCurrency = (value: number) => {
@@ -26,59 +22,52 @@ export function MetaDiariaHeader({
     }).format(value);
   };
 
+  const getStatusColor = () => {
+    if (percentualAtingimento >= 100) return "text-green-600 dark:text-green-400";
+    if (percentualAtingimento >= 80) return "text-yellow-600 dark:text-yellow-400";
+    return "text-red-600 dark:text-red-400";
+  };
+
   return (
-    <div className="bg-card border rounded-lg p-4 md:p-6 space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <div>
-          <h2 className="text-xl md:text-2xl font-semibold">{lojaName}</h2>
-          <p className="text-xs md:text-sm text-muted-foreground">
-            {new Date().toLocaleDateString("pt-BR", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        </div>
-        <TrendingUp className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 md:gap-4">
-        <div>
-          <p className="text-xs md:text-sm text-muted-foreground">Meta Diária</p>
-          <p className="text-lg md:text-2xl font-bold">
-            {metaDiaria > 0 ? formatCurrency(metaDiaria) : "—"}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs md:text-sm text-muted-foreground">Total Vendido</p>
-          <p className="text-lg md:text-2xl font-bold text-primary">
-            {formatCurrency(totalVendido)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs md:text-sm text-muted-foreground">Atingimento</p>
-          <p className="text-lg md:text-2xl font-bold">
-            {metaDiaria > 0 ? `${percentualAtingimento.toFixed(1)}%` : "—"}
-          </p>
-        </div>
-      </div>
-
-      {metaDiaria > 0 ? (
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs md:text-sm">
-            <span className="text-muted-foreground">Progresso</span>
-            <span className="font-medium">
-              {formatCurrency(totalVendido)} / {formatCurrency(metaDiaria)}
-            </span>
+    <Card className="p-6 shadow-md">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground font-medium">Meta Diária</p>
+            <p className="text-2xl md:text-3xl font-bold">
+              {metaDiaria > 0 ? formatCurrency(metaDiaria) : "—"}
+            </p>
           </div>
-          <Progress value={progressoVisual} className="h-2 md:h-3" />
+
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground font-medium">Total Vendido</p>
+            <p className="text-2xl md:text-3xl font-bold text-primary">
+              {formatCurrency(totalVendido)}
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground font-medium">Atingimento</p>
+            <p className={`text-2xl md:text-3xl font-bold ${getStatusColor()}`}>
+              {metaDiaria > 0 ? `${percentualAtingimento.toFixed(1)}%` : "—"}
+            </p>
+          </div>
         </div>
-      ) : (
-        <div className="text-center py-2 text-sm text-muted-foreground">
-          Meta diária não configurada para este mês
-        </div>
-      )}
-    </div>
+
+        {metaDiaria > 0 ? (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Progresso</span>
+              <span className="font-medium">{progressoVisual.toFixed(1)}%</span>
+            </div>
+            <Progress value={progressoVisual} className="h-3" />
+          </div>
+        ) : (
+          <p className="text-sm text-center text-muted-foreground py-2 border rounded-lg bg-muted/30">
+            Meta diária não configurada para este mês
+          </p>
+        )}
+      </div>
+    </Card>
   );
 }

@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { MetaDiariaHeader } from "@/components/gerente/MetaDiariaHeader";
 import { TimelineSlot } from "@/components/gerente/TimelineSlot";
 import { LancamentoDialog } from "@/components/gerente/LancamentoDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 type Loja = {
@@ -32,6 +37,8 @@ const Gerente = () => {
   const [gerenteLojaId, setGerenteLojaId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const dataHoje = format(new Date(), "yyyy-MM-dd");
 
   // Buscar perfil do gerente
@@ -213,85 +220,85 @@ const Gerente = () => {
     return lancamentos.find((l) => l.horario === horario);
   };
 
-  if (!gerenteLojaId) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">
-            Carregando informações do gerente...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
-  if (!loja) {
+  if (!gerenteLojaId || !loja) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Carregando loja...</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <AppHeader title="Carregando..." showLogout={false} />
+        <PageContainer>
+          <div className="space-y-4">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </PageContainer>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-3 md:py-4">
-          <h1 className="text-lg md:text-xl font-semibold">Gerente - Meta Simples</h1>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-6">
-        <MetaDiariaHeader
-          metaDiaria={metaMensal?.meta_diaria_calculada || 0}
-          totalVendido={totalVendido}
-          lojaName={loja.nome}
-        />
-
-        {!metaMensal && (
-          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 md:p-4">
-            <p className="text-xs md:text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Atenção:</strong> Nenhuma meta mensal cadastrada para este mês. 
-              Entre em contato com o administrador para configurar as metas.
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-3 md:space-y-4">
-          <h2 className="text-base md:text-lg font-semibold">Lançamentos do Dia</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {horarios.map((horario) => {
-              const lancamento = getLancamentoByHorario(horario);
-              return (
-                <TimelineSlot
-                  key={horario}
-                  horario={horario}
-                  valor={lancamento?.valor_acumulado}
-                  isPendente={!lancamento}
-                  onClick={() => setSelectedHorario(horario)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </main>
-
-      <LancamentoDialog
-        isOpen={!!selectedHorario}
-        onClose={() => setSelectedHorario(null)}
-        horario={selectedHorario || ""}
-        valorAtual={
-          selectedHorario
-            ? getLancamentoByHorario(selectedHorario)?.valor_acumulado
-            : undefined
-        }
-        onSubmit={handleSubmitLancamento}
-        isSubmitting={saveLancamentoMutation.isPending}
+      <AppHeader
+        title={loja.nome}
+        subtitle={new Date().toLocaleDateString("pt-BR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}
+        onLogout={handleLogout}
       />
+
+      <PageContainer maxWidth="lg">
+        <div className="space-y-6">
+          <MetaDiariaHeader
+            metaDiaria={metaMensal?.meta_diaria_calculada || 0}
+            totalVendido={totalVendido}
+            lojaName={loja.nome}
+          />
+
+          {!metaMensal && (
+            <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 shadow-sm">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>Atenção:</strong> Nenhuma meta mensal cadastrada para este mês. 
+                Entre em contato com o administrador.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Lançamentos do Dia</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+              {horarios.map((horario) => {
+                const lancamento = getLancamentoByHorario(horario);
+                return (
+                  <TimelineSlot
+                    key={horario}
+                    horario={horario}
+                    valor={lancamento?.valor_acumulado}
+                    isPendente={!lancamento}
+                    onClick={() => setSelectedHorario(horario)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </PageContainer>
+
+      {selectedHorario && (
+        <LancamentoDialog
+          isOpen={!!selectedHorario}
+          onClose={() => setSelectedHorario(null)}
+          horario={selectedHorario}
+          valorAtual={getLancamentoByHorario(selectedHorario)?.valor_acumulado}
+          onSubmit={handleSubmitLancamento}
+          isSubmitting={saveLancamentoMutation.isPending}
+        />
+      )}
     </div>
   );
 };
