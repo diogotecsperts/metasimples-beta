@@ -14,7 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      lancamentos_diarios: {
+        Row: {
+          created_at: string
+          data: string
+          horario: Database["public"]["Enums"]["horario_lancamento"] | null
+          id: string
+          loja_id: string
+          updated_at: string
+          valor_acumulado: number
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          horario?: Database["public"]["Enums"]["horario_lancamento"] | null
+          id?: string
+          loja_id: string
+          updated_at?: string
+          valor_acumulado: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          horario?: Database["public"]["Enums"]["horario_lancamento"] | null
+          id?: string
+          loja_id?: string
+          updated_at?: string
+          valor_acumulado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_diarios_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lojas: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          possui_fechamento_tardio: boolean
+          tipo_operacional: Database["public"]["Enums"]["tipo_operacional"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          possui_fechamento_tardio?: boolean
+          tipo_operacional?: Database["public"]["Enums"]["tipo_operacional"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          possui_fechamento_tardio?: boolean
+          tipo_operacional?: Database["public"]["Enums"]["tipo_operacional"]
+        }
+        Relationships: []
+      }
+      metas_mensais: {
+        Row: {
+          ano: number
+          created_at: string
+          id: string
+          loja_id: string
+          mes: number
+          meta_diaria_calculada: number
+          meta_mensal: number
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          id?: string
+          loja_id: string
+          mes: number
+          meta_diaria_calculada: number
+          meta_mensal: number
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          id?: string
+          loja_id?: string
+          mes?: number
+          meta_diaria_calculada?: number
+          meta_mensal?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_mensais_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          loja_id: string | null
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          loja_id?: string | null
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          loja_id?: string | null
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +154,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      horario_lancamento: "10:00" | "14:00" | "16:00" | "19:00" | "23:00"
+      tipo_operacional: "A" | "B"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +282,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      horario_lancamento: ["10:00", "14:00", "16:00", "19:00", "23:00"],
+      tipo_operacional: ["A", "B"],
+    },
   },
 } as const
