@@ -15,13 +15,11 @@ Deno.serve(async (req) => {
     // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing environment variables:', { 
         hasUrl: !!supabaseUrl, 
         hasServiceKey: !!supabaseServiceKey,
-        hasAnonKey: !!supabaseAnonKey 
       });
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
@@ -38,20 +36,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with service role for admin operations
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Create regular Supabase client to verify the caller
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Get the authenticated user from the token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
       console.error('Authentication error:', userError);
