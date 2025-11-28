@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { LojasManager } from "@/components/admin/LojasManager";
 import { GerentesManager } from "@/components/admin/GerentesManager";
 import { MetasManager } from "@/components/admin/MetasManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Store, Users, Target } from "lucide-react";
 
 const Admin = () => {
   const { signOut } = useAuth();
@@ -17,38 +19,48 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Administração - Meta Simples</h1>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sair
-          </Button>
-        </div>
-      </header>
+      <AppHeader
+        title="Meta Simples"
+        subtitle="Painel Administrativo"
+        onLogout={handleLogout}
+      />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold mb-2">Painel Administrativo</h2>
-          <p className="text-muted-foreground">
-            Configurações e gerenciamento do sistema
-          </p>
-        </div>
+      <PageContainer>
+        <Tabs defaultValue="lojas" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="lojas" className="gap-2">
+              <Store className="h-4 w-4" />
+              <span className="hidden sm:inline">Lojas</span>
+            </TabsTrigger>
+            <TabsTrigger value="gerentes" className="gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Gerentes</span>
+            </TabsTrigger>
+            <TabsTrigger value="metas" className="gap-2">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">Metas</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-6">
-          <div className="rounded-lg border bg-card p-6">
-            <LojasManager />
-          </div>
-          
-          <div className="rounded-lg border bg-card p-6">
-            <GerentesManager />
-          </div>
+          <TabsContent value="lojas" className="space-y-6">
+            <div className="rounded-xl border bg-card shadow-sm p-6">
+              <LojasManager />
+            </div>
+          </TabsContent>
 
-          <div className="rounded-lg border bg-card p-6">
-            <MetasManager />
-          </div>
-        </div>
-      </main>
+          <TabsContent value="gerentes" className="space-y-6">
+            <div className="rounded-xl border bg-card shadow-sm p-6">
+              <GerentesManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="metas" className="space-y-6">
+            <div className="rounded-xl border bg-card shadow-sm p-6">
+              <MetasManager />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </PageContainer>
     </div>
   );
 };

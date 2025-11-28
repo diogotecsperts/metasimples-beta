@@ -146,13 +146,16 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30">
-      <div className="w-full max-w-md">
-        <div className="rounded-lg border bg-card p-8 shadow-sm">
-          <div className="mb-6 text-center">
-            <h1 className="text-2xl font-semibold text-foreground">Meta Simples</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Sistema de gestão empresarial
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md shadow-lg">
+        <div className="rounded-xl border bg-card p-8">
+          <div className="mb-6 text-center space-y-3">
+            <div className="mx-auto w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+              <div className="text-3xl font-bold text-primary">MS</div>
+            </div>
+            <h1 className="text-3xl font-bold">Meta Simples</h1>
+            <p className="text-base text-muted-foreground">
+              Sistema de gestão empresarial moderno
             </p>
           </div>
 

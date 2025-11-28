@@ -34,37 +34,39 @@ export function RankingCard({
 
   const getStatusBg = () => {
     if (!temMeta)
-      return "bg-muted/30 border-muted";
+      return "bg-muted/50 border-muted-foreground/20";
     if (percentualAtingimento >= 100)
-      return "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800";
+      return "bg-green-50 dark:bg-green-950/20 border-green-500/30";
     if (percentualAtingimento >= 80)
-      return "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800";
-    return "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800";
+      return "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-500/30";
+    return "bg-red-50 dark:bg-red-950/20 border-red-500/30";
   };
 
   const getIcon = () => {
-    if (!temMeta) return <Minus className="h-8 md:h-12 w-8 md:w-12" />;
+    if (!temMeta) return <Minus className="h-10 md:h-14 w-10 md:w-14" />;
     if (percentualAtingimento >= 100)
-      return <TrendingUp className="h-8 md:h-12 w-8 md:w-12" />;
+      return <TrendingUp className="h-10 md:h-14 w-10 md:w-14" />;
     if (percentualAtingimento >= 80)
-      return <Minus className="h-8 md:h-12 w-8 md:w-12" />;
-    return <TrendingDown className="h-8 md:h-12 w-8 md:w-12" />;
+      return <Minus className="h-10 md:h-14 w-10 md:w-14" />;
+    return <TrendingDown className="h-10 md:h-14 w-10 md:w-14" />;
   };
 
   return (
     <div
       className={cn(
-        "rounded-lg border-2 p-4 md:p-6 transition-all hover:scale-105",
+        "rounded-xl border-2 p-6 md:p-8 transition-all shadow-md hover:shadow-lg",
         getStatusBg()
       )}
     >
-      <div className="flex items-start justify-between mb-3 md:mb-4">
-        <div className="flex items-center gap-2 md:gap-4">
-          <div className="text-2xl md:text-4xl font-bold text-muted-foreground">
+      <div className="flex items-start justify-between mb-4 md:mb-6">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="text-3xl md:text-5xl font-bold text-muted-foreground/60">
             #{posicao}
           </div>
           <div>
-            <h3 className="text-lg md:text-2xl font-bold break-words">{nomeLoja}</h3>
+            <h3 className="text-xl md:text-3xl font-bold break-words leading-tight">
+              {nomeLoja}
+            </h3>
           </div>
         </div>
         <div className={cn("flex items-center flex-shrink-0", getStatusColor())}>
@@ -72,23 +74,23 @@ export function RankingCard({
         </div>
       </div>
 
-      <div className="space-y-2 md:space-y-3">
+      <div className="space-y-3 md:space-y-4">
         <div className="flex justify-between items-baseline gap-2">
-          <span className="text-xs md:text-sm text-muted-foreground">Meta Diária:</span>
-          <span className="text-sm md:text-lg font-semibold">
+          <span className="text-sm md:text-base text-muted-foreground">Meta Diária:</span>
+          <span className="text-lg md:text-xl font-semibold">
             {temMeta ? formatCurrency(metaDiaria) : "—"}
           </span>
         </div>
 
         <div className="flex justify-between items-baseline gap-2">
-          <span className="text-xs md:text-sm text-muted-foreground">Total Vendido:</span>
-          <span className="text-sm md:text-lg font-bold">{formatCurrency(totalVendido)}</span>
+          <span className="text-sm md:text-base text-muted-foreground">Total Vendido:</span>
+          <span className="text-lg md:text-xl font-bold">{formatCurrency(totalVendido)}</span>
         </div>
 
-        <div className="pt-2 md:pt-3 border-t">
+        <div className="pt-3 md:pt-4 border-t border-border/50">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs md:text-sm font-medium">Atingimento:</span>
-            <span className={cn("text-3xl md:text-5xl font-bold", getStatusColor())}>
+            <span className="text-sm md:text-base font-medium">Atingimento:</span>
+            <span className={cn("text-4xl md:text-6xl font-bold", getStatusColor())}>
               {temMeta ? `${percentualAtingimento.toFixed(1)}%` : "—"}
             </span>
           </div>
