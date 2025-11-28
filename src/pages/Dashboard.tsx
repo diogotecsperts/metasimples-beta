@@ -38,7 +38,9 @@ const Dashboard = () => {
 
   // Configurar realtime para atualizar automaticamente quando houver lançamentos
   useEffect(() => {
-    console.log("📡 Dashboard: Configurando realtime subscription");
+    if (import.meta.env.DEV) {
+      console.log("📡 Dashboard: Configurando realtime subscription");
+    }
 
     const channel = supabase
       .channel("lancamentos-realtime")
@@ -50,18 +52,24 @@ const Dashboard = () => {
           table: "lancamentos_diarios",
         },
         (payload) => {
-          console.log("🔄 Dashboard: Lançamento atualizado", payload);
+          if (import.meta.env.DEV) {
+            console.log("🔄 Dashboard: Lançamento atualizado", payload);
+          }
           // Invalidar queries para recarregar dados
           queryClient.invalidateQueries({ queryKey: ["lancamentos-dashboard"] });
         }
       )
       .subscribe((status) => {
-        console.log("📡 Dashboard: Status da subscription:", status);
+        if (import.meta.env.DEV) {
+          console.log("📡 Dashboard: Status da subscription:", status);
+        }
         setIsRealtimeConnected(status === "SUBSCRIBED");
       });
 
     return () => {
-      console.log("📡 Dashboard: Removendo subscription");
+      if (import.meta.env.DEV) {
+        console.log("📡 Dashboard: Removendo subscription");
+      }
       supabase.removeChannel(channel);
       setIsRealtimeConnected(false);
     };
