@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.create-gerente]
 verify_jwt = true
+
+[functions.check-admin-exists]
+verify_jwt = false
+
+[functions.create-first-admin]
+verify_jwt = false
