@@ -148,9 +148,13 @@ export function GerentesManager() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Deletar o usuário do auth (cascade vai deletar profile e user_roles)
-      const { error } = await supabase.auth.admin.deleteUser(id);
+      // Call edge function to delete user securely
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: id },
+      });
+      
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gerentes"] });
