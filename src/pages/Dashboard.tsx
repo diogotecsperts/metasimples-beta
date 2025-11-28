@@ -1,44 +1,149 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { RankingHeader } from "@/components/dashboard/RankingHeader";
+import { RankingCard } from "@/components/dashboard/RankingCard";
+import { format } from "date-fns";
+
+type Loja = {
+  id: string;
+  nome: string;
+};
+
+type MetaMensal = {
+  loja_id: string;
+  meta_diaria_calculada: number;
+};
+
+type Lancamento = {
+  loja_id: string;
+  valor_acumulado: number;
+};
+
+type RankingItem = {
+  lojaId: string;
+  nomeLoja: string;
+  metaDiaria: number;
+  totalVendido: number;
+  percentualAtingimento: number;
+};
+
 const Dashboard = () => {
+  const dataHoje = format(new Date(), "yyyy-MM-dd");
+  const mesAtual = new Date().getMonth() + 1;
+  const anoAtual = new Date().getFullYear();
+
+  // Buscar todas as lojas
+  const { data: lojas = [] } = useQuery({
+    queryKey: ["lojas-dashboard"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lojas")
+        .select("id, nome")
+        .order("nome", { ascending: true });
+
+      if (error) throw error;
+      return data as Loja[];
+    },
+  });
+
+  // Buscar metas mensais do mês atual
+  const { data: metas = [] } = useQuery({
+    queryKey: ["metas-dashboard", mesAtual, anoAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("metas_mensais")
+        .select("loja_id, meta_diaria_calculada")
+        .eq("mes", mesAtual)
+        .eq("ano", anoAtual);
+
+      if (error) throw error;
+      return data as MetaMensal[];
+    },
+  });
+
+  // Buscar lançamentos do dia
+  const { data: lancamentos = [], isLoading } = useQuery({
+    queryKey: ["lancamentos-dashboard", dataHoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lancamentos_diarios")
+        .select("loja_id, valor_acumulado")
+        .eq("data", dataHoje);
+
+      if (error) throw error;
+      return data as Lancamento[];
+    },
+  });
+
+  // Processar ranking
+  const ranking: RankingItem[] = lojas
+    .map((loja) => {
+      const meta = metas.find((m) => m.loja_id === loja.id);
+      const lancamentosLoja = lancamentos.filter(
+        (l) => l.loja_id === loja.id
+      );
+      const totalVendido =
+        lancamentosLoja.length > 0
+          ? Math.max(...lancamentosLoja.map((l) => l.valor_acumulado))
+          : 0;
+      const metaDiaria = meta?.meta_diaria_calculada || 0;
+      const percentualAtingimento =
+        metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
+
+      return {
+        lojaId: loja.id,
+        nomeLoja: loja.nome,
+        metaDiaria,
+        totalVendido,
+        percentualAtingimento,
+      };
+    })
+    .sort((a, b) => b.percentualAtingimento - a.percentualAtingimento);
+
+  const dataFormatada = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground text-xl">Carregando dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold">Dashboard - Meta Simples</h1>
-        </div>
-      </header>
-      
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold mb-2">Dashboard Principal</h2>
-          <p className="text-muted-foreground">
-            Visão geral e métricas do sistema
-          </p>
-        </div>
+      <main className="container mx-auto px-8 py-8 space-y-8">
+        <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
 
-        <div className="grid gap-6">
-          {/* Área de métricas principais */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((item) => (
-              <div
-                key={item}
-                className="h-24 rounded-lg border bg-card p-4 shadow-sm"
-              >
-                <div className="h-full flex items-center justify-center">
-                  <span className="text-sm text-muted-foreground">
-                    Métrica {item}
-                  </span>
-                </div>
-              </div>
+        {ranking.length === 0 ? (
+          <div className="text-center py-16 bg-card border rounded-lg">
+            <p className="text-xl text-muted-foreground">
+              Nenhuma loja com dados para exibir no ranking.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Certifique-se de que há lojas cadastradas e metas mensais
+              configuradas.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {ranking.map((item, index) => (
+              <RankingCard
+                key={item.lojaId}
+                posicao={index + 1}
+                nomeLoja={item.nomeLoja}
+                metaDiaria={item.metaDiaria}
+                totalVendido={item.totalVendido}
+                percentualAtingimento={item.percentualAtingimento}
+              />
             ))}
           </div>
-
-          {/* Área de gráficos/tabelas */}
-          <div className="rounded-lg border-2 border-dashed border-muted-foreground/20 bg-card p-8 h-64 flex items-center justify-center">
-            <span className="text-sm text-muted-foreground">
-              Área para gráficos e visualizações
-            </span>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
