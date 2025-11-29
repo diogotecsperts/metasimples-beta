@@ -273,6 +273,7 @@ const Gerente = () => {
           year: "numeric",
         })}
         onLogout={handleLogout}
+        showLogo={true}
       />
 
       <PageContainer maxWidth="lg">

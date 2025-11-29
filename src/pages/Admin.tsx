@@ -21,9 +21,10 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader
-        title="Meta Simples"
-        subtitle="Painel Administrativo"
+        title="Painel Administrativo"
+        subtitle="Gestão de lojas, gerentes, metas e administradores"
         onLogout={handleLogout}
+        showLogo={true}
       />
       
       <PageContainer>
