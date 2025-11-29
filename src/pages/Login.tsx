@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
+import { Code } from "lucide-react";
 const Login = () => {
   const navigate = useNavigate();
   const {
@@ -103,6 +104,12 @@ const Login = () => {
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
+
+          {/* Aviso de desenvolvimento */}
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-6 pt-4 border-t border-border/50">
+            <Code className="h-3 w-3" />
+            <span>Aplicativo em desenvolvimento</span>
+          </div>
         </div>
       </div>
     </div>;
