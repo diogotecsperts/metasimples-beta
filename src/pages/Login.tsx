@@ -86,7 +86,7 @@ const Login = () => {
       <div className="w-full max-w-md shadow-lg">
         <div className="rounded-xl border bg-card p-8">
           <div className="mb-6 text-center space-y-4">
-            <img alt="Meta Simples" className="w-full max-w-full h-auto object-contain" src="/lovable-uploads/55a6a00a-4734-48a3-8221-c5c663c545fd.png" />
+            <img alt="Meta Simples" className="w-full max-w-full h-auto object-contain drop-shadow-md" src="/lovable-uploads/55a6a00a-4734-48a3-8221-c5c663c545fd.png" />
             
           </div>
 
