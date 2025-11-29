@@ -22,29 +22,52 @@ const adminFormSchema = z.object({
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
 });
 
+const adminEditSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
+  username: z.string()
+    .min(3, "Username deve ter no mínimo 3 caracteres")
+    .max(20, "Username deve ter no máximo 20 caracteres")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username deve conter apenas letras, números e underscore"),
+  email: z.string().email("Email inválido"),
+  senha: z.string().optional().or(z.literal('')),
+});
+
 export type AdminFormValues = z.infer<typeof adminFormSchema>;
+export type AdminEditValues = z.infer<typeof adminEditSchema>;
 
 export type Admin = {
   id: string;
   nome: string;
+  username?: string;
   email: string;
   created_at: string;
 };
 
 type AdminFormProps = {
-  onSubmit: (values: AdminFormValues) => Promise<void>;
+  onSubmit: (values: AdminFormValues | AdminEditValues) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
+  initialData?: Admin | null;
+  mode?: 'create' | 'edit';
 };
 
 export function AdminForm({
   onSubmit,
   onCancel,
   isSubmitting,
+  initialData,
+  mode = 'create',
 }: AdminFormProps) {
-  const form = useForm<AdminFormValues>({
-    resolver: zodResolver(adminFormSchema),
-    defaultValues: {
+  const isEditMode = mode === 'edit';
+  
+  const form = useForm<AdminFormValues | AdminEditValues>({
+    resolver: zodResolver(isEditMode ? adminEditSchema : adminFormSchema),
+    defaultValues: isEditMode && initialData ? {
+      nome: initialData.nome,
+      username: initialData.username || "",
+      email: initialData.email,
+      senha: "",
+    } : {
       nome: "",
       username: "",
       email: "",
@@ -110,11 +133,13 @@ export function AdminForm({
           name="senha"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Senha</FormLabel>
+              <FormLabel>
+                {isEditMode ? "Nova Senha (opcional)" : "Senha"}
+              </FormLabel>
               <FormControl>
                 <Input
                   type="password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={isEditMode ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
                   {...field}
                 />
               </FormControl>
@@ -128,7 +153,12 @@ export function AdminForm({
             Cancelar
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Salvando..." : "Criar Administrador"}
+            {isSubmitting 
+              ? "Salvando..." 
+              : isEditMode 
+                ? "Salvar Alterações" 
+                : "Criar Administrador"
+            }
           </Button>
         </div>
       </form>

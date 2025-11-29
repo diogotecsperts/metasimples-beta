@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
       .select(`
         id,
         nome,
+        username,
         created_at,
         user_roles!inner(role)
       `)
@@ -108,6 +109,7 @@ Deno.serve(async (req) => {
         return {
           id: profile.id,
           nome: profile.nome,
+          username: profile.username,
           email: userData?.user?.email || '',
           created_at: profile.created_at,
         };

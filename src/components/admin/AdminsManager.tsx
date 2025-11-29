@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AdminForm, type AdminFormValues, type Admin } from "./AdminForm";
+import { AdminForm, type AdminFormValues, type AdminEditValues, type Admin } from "./AdminForm";
 import { AdminsList } from "./AdminsList";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 const MASTER_ADMIN_EMAIL = 'diogomixcds@gmail.com';
 export function AdminsManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const {
     toast
   } = useToast();
@@ -73,6 +74,39 @@ export function AdminsManager() {
     }
   });
 
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async (values: AdminEditValues & { userId: string }) => {
+      const { data, error } = await supabase.functions.invoke('update-admin', {
+        body: {
+          userId: values.userId,
+          nome: values.nome,
+          email: values.email,
+          username: values.username,
+          senha: values.senha || undefined,
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+      setIsDialogOpen(false);
+      setEditingAdmin(null);
+      toast({
+        title: "Administrador atualizado",
+        description: "Os dados foram atualizados com sucesso."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar administrador",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -105,17 +139,31 @@ export function AdminsManager() {
       });
     }
   });
-  const handleSubmit = async (values: AdminFormValues) => {
-    await createMutation.mutateAsync(values);
+
+  const handleSubmit = async (values: AdminFormValues | AdminEditValues) => {
+    if (editingAdmin) {
+      await updateMutation.mutateAsync({ ...values, userId: editingAdmin.id } as AdminEditValues & { userId: string });
+    } else {
+      await createMutation.mutateAsync(values as AdminFormValues);
+    }
   };
   const handleDelete = async (id: string) => {
     await deleteMutation.mutateAsync(id);
   };
-  const handleOpenDialog = () => {
+
+  const handleEdit = (admin: Admin) => {
+    setEditingAdmin(admin);
     setIsDialogOpen(true);
   };
+
+  const handleOpenDialog = () => {
+    setEditingAdmin(null);
+    setIsDialogOpen(true);
+  };
+
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
+    setEditingAdmin(null);
   };
   return <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -131,14 +179,28 @@ export function AdminsManager() {
         </Button>
       </div>
 
-      <AdminsList admins={admins} onDelete={handleDelete} isLoading={isLoading} masterAdminEmail={MASTER_ADMIN_EMAIL} />
+      <AdminsList 
+        admins={admins} 
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        isLoading={isLoading} 
+        masterAdminEmail={MASTER_ADMIN_EMAIL} 
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo Administrador</DialogTitle>
+            <DialogTitle>
+              {editingAdmin ? "Editar Administrador" : "Novo Administrador"}
+            </DialogTitle>
           </DialogHeader>
-          <AdminForm onSubmit={handleSubmit} onCancel={handleCloseDialog} isSubmitting={createMutation.isPending} />
+          <AdminForm 
+            onSubmit={handleSubmit} 
+            onCancel={handleCloseDialog} 
+            isSubmitting={editingAdmin ? updateMutation.isPending : createMutation.isPending}
+            initialData={editingAdmin}
+            mode={editingAdmin ? 'edit' : 'create'}
+          />
         </DialogContent>
       </Dialog>
     </div>;
