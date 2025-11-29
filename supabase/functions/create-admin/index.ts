@@ -15,13 +15,11 @@ Deno.serve(async (req) => {
     // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing environment variables:', { 
         hasUrl: !!supabaseUrl, 
         hasServiceKey: !!supabaseServiceKey,
-        hasAnonKey: !!supabaseAnonKey 
       });
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
@@ -38,20 +36,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with service role for admin operations
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Create regular Supabase client to verify the caller
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Get the authenticated user from the token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
       console.error('Authentication error:', userError);
@@ -81,50 +78,76 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get the userId to delete from request body
-    const { userId } = await req.json();
+    // Get admin data from request body
+    const { email, password, nome } = await req.json();
     
-    if (!userId) {
+    if (!email || !password || !nome) {
       return new Response(
-        JSON.stringify({ error: 'userId is required' }),
+        JSON.stringify({ error: 'Missing required fields: email, password, nome' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Admin user', user.id, 'attempting to delete user', userId);
+    console.log('Admin user', user.id, 'creating admin:', email);
 
-    // Check if trying to delete master admin
-    const MASTER_ADMIN_EMAIL = 'diogomixcds@gmail.com';
-    const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-    
-    if (targetUser?.user?.email === MASTER_ADMIN_EMAIL) {
-      console.error('Attempt to delete master admin blocked');
+    // Create user in Supabase Auth using admin client
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nome,
+      },
+    });
+
+    if (authError) {
+      console.error('Error creating user:', authError);
       return new Response(
-        JSON.stringify({ error: 'Não é possível deletar o administrador master' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Delete the user using admin client
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-    if (deleteError) {
-      console.error('Error deleting user:', deleteError);
-      return new Response(
-        JSON.stringify({ error: deleteError.message }),
+        JSON.stringify({ error: authError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Successfully deleted user', userId);
+    if (!authData.user) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to create user' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = authData.user.id;
+    console.log('User created successfully:', userId);
+
+    // Add admin role
+    const { error: roleInsertError } = await supabaseAdmin
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: 'admin',
+      });
+
+    if (roleInsertError) {
+      console.error('Error inserting role:', roleInsertError);
+      // Rollback: delete the user (cascade will delete profile)
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return new Response(
+        JSON.stringify({ error: 'Error assigning role: ' + roleInsertError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Admin created successfully:', userId);
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        user_id: userId,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Unexpected error in delete-user function:', error);
+    console.error('Unexpected error in create-admin function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ error: errorMessage }),
