@@ -93,7 +93,7 @@ const Login = () => {
             <img 
               src={logo} 
               alt="Meta Simples" 
-              className="mx-auto h-20 w-auto object-contain"
+              className="w-full max-w-full h-auto object-contain"
             />
             <p className="text-base text-muted-foreground">
               Sistema de gestão empresarial de metas
