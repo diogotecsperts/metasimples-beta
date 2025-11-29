@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,8 +11,11 @@ import { TimelineSlot } from "@/components/gerente/TimelineSlot";
 import { LancamentoDialog } from "@/components/gerente/LancamentoDialog";
 import { SalesEvolutionChart } from "@/components/gerente/SalesEvolutionChart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { generateSalesReport } from "@/lib/generateSalesReport";
 
 type Loja = {
   id: string;
@@ -37,6 +40,8 @@ const HORARIO_TARDIO = "23:00";
 const Gerente = () => {
   const [selectedHorario, setSelectedHorario] = useState<string | null>(null);
   const [gerenteLojaId, setGerenteLojaId] = useState<string | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
@@ -264,6 +269,36 @@ const Gerente = () => {
     return false; // Liberado - todos os anteriores preenchidos
   };
 
+  const handleExportPDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      await generateSalesReport({
+        lojaName: loja?.nome || '',
+        data: dataHoje,
+        metaDiaria: metaMensal?.meta_diaria_calculada || 0,
+        totalVendido,
+        percentualAtingimento: metaMensal?.meta_diaria_calculada 
+          ? (totalVendido / metaMensal.meta_diaria_calculada) * 100 
+          : 0,
+        lancamentos,
+        horarios,
+      }, chartRef);
+      
+      toast({
+        title: "PDF gerado com sucesso",
+        description: "O relatório foi baixado para seu dispositivo.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível gerar o relatório.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
@@ -306,6 +341,7 @@ const Gerente = () => {
           />
 
           <SalesEvolutionChart
+            ref={chartRef}
             lancamentos={lancamentos}
             metaDiaria={metaMensal?.meta_diaria_calculada || 0}
             horarios={horarios}
@@ -321,7 +357,19 @@ const Gerente = () => {
           )}
 
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Lançamentos do Dia</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Lançamentos do Dia</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                disabled={isGeneratingPDF || lancamentos.length === 0}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                {isGeneratingPDF ? "Gerando..." : "Exportar PDF"}
+              </Button>
+            </div>
             <div className={cn(
               "grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4",
               loja.possui_fechamento_tardio ? "lg:grid-cols-5" : "lg:grid-cols-4"
