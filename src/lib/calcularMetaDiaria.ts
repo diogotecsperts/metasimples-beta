@@ -32,10 +32,10 @@ export function calcularMetaDiaria(
   const totalDiasDoMes = getDaysInMonth(new Date(ano, mes - 1));
 
   if (tipoOperacional === "A") {
-    // Tipo A: Domingo a Domingo - todos os dias contam
+    // Dom a Dom: Domingo a Domingo - todos os dias contam
     return Number((metaMensal / totalDiasDoMes).toFixed(2));
   } else {
-    // Tipo B: Segunda a Sábado - exclui domingos
+    // Seg a Sáb: Segunda a Sábado - exclui domingos
     const quantidadeDeDomingos = contarDomingos(mes, ano);
     const diasUteis = totalDiasDoMes - quantidadeDeDomingos;
     

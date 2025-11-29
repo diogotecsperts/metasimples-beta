@@ -94,8 +94,8 @@ export function LojaForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="A">Tipo A - Domingo a Domingo</SelectItem>
-                  <SelectItem value="B">Tipo B - Segunda a Sábado</SelectItem>
+                  <SelectItem value="A">Dom a Dom (Domingo a Domingo)</SelectItem>
+                  <SelectItem value="B">Seg a Sáb (Segunda a Sábado)</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

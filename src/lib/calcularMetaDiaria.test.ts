@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { calcularMetaDiaria } from "./calcularMetaDiaria";
 
 describe("calcularMetaDiaria", () => {
-  describe("Tipo A (Domingo a Domingo)", () => {
+  describe("Dom a Dom (Domingo a Domingo)", () => {
     it("deve calcular meta diária para mês com 31 dias", () => {
       // Janeiro 2024 tem 31 dias
       const resultado = calcularMetaDiaria(31000, "A", 1, 2024);
@@ -34,7 +34,7 @@ describe("calcularMetaDiaria", () => {
     });
   });
 
-  describe("Tipo B (Segunda a Sábado)", () => {
+  describe("Seg a Sáb (Segunda a Sábado)", () => {
     it("deve calcular meta diária excluindo domingos", () => {
       // Janeiro 2024 tem 31 dias e 4 domingos (dias 7, 14, 21, 28)
       // 31 - 4 = 27 dias úteis
