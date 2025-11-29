@@ -177,7 +177,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
       <div className="space-y-6 md:space-y-8">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
           <RealtimeIndicator isConnected={isRealtimeConnected} />
         </div>
