@@ -24,6 +24,7 @@ export type Gerente = {
   id: string;
   nome: string;
   loja_id: string | null;
+  telefone: string | null;
   created_at: string;
 };
 
@@ -73,17 +74,19 @@ export function GerentesList({
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Loja</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Loja</TableHead>
+              <TableHead>Telefone</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
         </TableHeader>
         <TableBody>
           {gerentes.map((gerente) => (
             <TableRow key={gerente.id}>
               <TableCell className="font-medium">{gerente.nome}</TableCell>
               <TableCell>{getLojaName(gerente.loja_id)}</TableCell>
+              <TableCell>{gerente.telefone || "—"}</TableCell>
               <TableCell className="text-right">
                 <div className="flex gap-2 justify-end">
                   <Button
