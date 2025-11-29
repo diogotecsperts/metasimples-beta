@@ -86,10 +86,9 @@ Deno.serve(async (req) => {
     console.log('Admin user', user.id, 'attempting to delete user', userId);
 
     // Check if trying to delete master admin
-    const MASTER_ADMIN_EMAIL = 'diogomixcds@gmail.com';
-    const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const MASTER_ADMIN_ID = 'ca936b16-8a15-43f4-976d-6be91e294099';
     
-    if (targetUser?.user?.email === MASTER_ADMIN_EMAIL) {
+    if (userId === MASTER_ADMIN_ID) {
       console.error('Attempt to delete master admin blocked');
       return new Response(
         JSON.stringify({ error: 'Não é possível deletar o administrador master' }),
