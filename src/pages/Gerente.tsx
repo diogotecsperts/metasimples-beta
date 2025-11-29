@@ -9,6 +9,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { MetaDiariaHeader } from "@/components/gerente/MetaDiariaHeader";
 import { TimelineSlot } from "@/components/gerente/TimelineSlot";
 import { LancamentoDialog } from "@/components/gerente/LancamentoDialog";
+import { SalesEvolutionChart } from "@/components/gerente/SalesEvolutionChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -302,6 +303,12 @@ const Gerente = () => {
             metaDiaria={metaMensal?.meta_diaria_calculada || 0}
             totalVendido={totalVendido}
             lojaName={loja.nome}
+          />
+
+          <SalesEvolutionChart
+            lancamentos={lancamentos}
+            metaDiaria={metaMensal?.meta_diaria_calculada || 0}
+            horarios={horarios}
           />
 
           {!metaMensal && (
