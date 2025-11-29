@@ -47,7 +47,8 @@ export function AdminsManager() {
         body: {
           email: values.email,
           password: values.senha,
-          nome: values.nome
+          nome: values.nome,
+          username: values.username,
         }
       });
       if (error) throw error;

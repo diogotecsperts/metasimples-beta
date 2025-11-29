@@ -25,6 +25,7 @@ export type Gerente = {
   nome: string;
   loja_id: string | null;
   telefone: string | null;
+  username: string | null;
   created_at: string;
 };
 
@@ -77,6 +78,7 @@ export function GerentesList({
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Loja</TableHead>
+              <TableHead>ID de Acesso</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -86,6 +88,7 @@ export function GerentesList({
             <TableRow key={gerente.id}>
               <TableCell className="font-medium">{gerente.nome}</TableCell>
               <TableCell>{getLojaName(gerente.loja_id)}</TableCell>
+              <TableCell className="font-mono text-sm">{gerente.username || "—"}</TableCell>
               <TableCell>{gerente.telefone || "—"}</TableCell>
               <TableCell className="text-right">
                 <div className="flex gap-2 justify-end">

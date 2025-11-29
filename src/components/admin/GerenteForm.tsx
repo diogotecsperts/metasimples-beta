@@ -23,6 +23,12 @@ const gerenteFormSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   loja_id: z.string().uuid("Selecione uma loja válida"),
   telefone: z.string().optional(),
+  username: z.string()
+    .min(3, "Username deve ter no mínimo 3 caracteres")
+    .max(20, "Username deve ter no máximo 20 caracteres")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username deve conter apenas letras, números e underscore")
+    .optional()
+    .or(z.literal("")),
   email: z.string().email("Email inválido").optional(),
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional(),
 });
@@ -34,6 +40,7 @@ export type Gerente = {
   nome: string;
   loja_id: string | null;
   telefone: string | null;
+  username: string | null;
   created_at: string;
 };
 
@@ -65,6 +72,7 @@ export function GerenteForm({
       nome: defaultValues?.nome || "",
       loja_id: defaultValues?.loja_id || "",
       telefone: defaultValues?.telefone || "",
+      username: defaultValues?.username || "",
       email: "",
       senha: "",
     },
@@ -122,6 +130,24 @@ export function GerenteForm({
                 <Input
                   type="tel"
                   placeholder="(81) 99999-9999"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>ID de Acesso {!isEditing && "(obrigatório)"}</FormLabel>
+              <FormControl>
+                <Input
+                  type="text"
+                  placeholder="Ex: maria123"
                   {...field}
                 />
               </FormControl>

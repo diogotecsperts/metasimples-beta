@@ -15,7 +15,7 @@ const Login = () => {
     role
   } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // Can be email or username
   const [password, setPassword] = useState("");
   useEffect(() => {
     // Redirect if already logged in
@@ -31,11 +31,32 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
+      let emailToUse = identifier;
+
+      // If identifier doesn't look like an email, try to find email by username
+      if (!identifier.includes('@')) {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('get-email-by-username', {
+          body: { username: identifier }
+        });
+
+        if (emailError || !emailData?.email) {
+          toast({
+            title: "Usuário não encontrado",
+            description: "Verifique o ID de acesso informado",
+            variant: "destructive"
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        emailToUse = emailData.email;
+      }
+
       const {
         data,
         error
       } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailToUse,
         password
       });
       if (error) {
@@ -93,8 +114,8 @@ const Login = () => {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
-              <Input id="login-email" type="email" placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={isLoading} autoFocus />
+              <Label htmlFor="login-identifier">Email ou ID de acesso</Label>
+              <Input id="login-identifier" type="text" placeholder="seu@email.com ou seu.id" value={identifier} onChange={e => setIdentifier(e.target.value)} required disabled={isLoading} autoFocus />
             </div>
             <div className="space-y-2">
               <Label htmlFor="login-password">Senha</Label>

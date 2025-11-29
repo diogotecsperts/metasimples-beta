@@ -14,6 +14,10 @@ import { Input } from "@/components/ui/input";
 
 const adminFormSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
+  username: z.string()
+    .min(3, "Username deve ter no mínimo 3 caracteres")
+    .max(20, "Username deve ter no máximo 20 caracteres")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username deve conter apenas letras, números e underscore"),
   email: z.string().email("Email inválido"),
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
 });
@@ -42,6 +46,7 @@ export function AdminForm({
     resolver: zodResolver(adminFormSchema),
     defaultValues: {
       nome: "",
+      username: "",
       email: "",
       senha: "",
     },
@@ -58,6 +63,24 @@ export function AdminForm({
               <FormLabel>Nome do Administrador</FormLabel>
               <FormControl>
                 <Input placeholder="Digite o nome" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>ID de Acesso</FormLabel>
+              <FormControl>
+                <Input
+                  type="text"
+                  placeholder="Ex: admin123"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

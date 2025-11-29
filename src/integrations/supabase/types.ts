@@ -124,6 +124,7 @@ export type Database = {
           loja_id: string | null
           nome: string
           telefone: string | null
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -131,6 +132,7 @@ export type Database = {
           loja_id?: string | null
           nome: string
           telefone?: string | null
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -138,6 +140,7 @@ export type Database = {
           loja_id?: string | null
           nome?: string
           telefone?: string | null
+          username?: string | null
         }
         Relationships: [
           {

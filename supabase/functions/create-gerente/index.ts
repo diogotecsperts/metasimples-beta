@@ -79,13 +79,43 @@ Deno.serve(async (req) => {
     }
 
     // Get gerente data from request body
-    const { email, password, nome, loja_id, telefone } = await req.json();
+    const { email, password, nome, loja_id, telefone, username } = await req.json();
     
     if (!email || !password || !nome || !loja_id) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: email, password, nome, loja_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Validate username if provided
+    if (username) {
+      if (username.length < 3 || username.length > 20) {
+        return new Response(
+          JSON.stringify({ error: 'Username deve ter entre 3 e 20 caracteres' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return new Response(
+          JSON.stringify({ error: 'Username deve conter apenas letras, números e underscore' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check if username is already taken
+      const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (existingProfile) {
+        return new Response(
+          JSON.stringify({ error: 'Username já está em uso' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log('Admin user', user.id, 'creating gerente:', email);
@@ -127,12 +157,13 @@ Deno.serve(async (req) => {
     const userId = authData.user.id;
     console.log('User created successfully:', userId);
 
-    // Update profile with loja_id and telefone (profile is created by trigger)
+    // Update profile with loja_id, telefone, and username (profile is created by trigger)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({ 
         loja_id,
-        telefone: telefone || null 
+        telefone: telefone || null,
+        username: username || null,
       })
       .eq('id', userId);
 

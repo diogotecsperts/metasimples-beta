@@ -79,11 +79,39 @@ Deno.serve(async (req) => {
     }
 
     // Get admin data from request body
-    const { email, password, nome } = await req.json();
+    const { email, password, nome, username } = await req.json();
     
-    if (!email || !password || !nome) {
+    if (!email || !password || !nome || !username) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: email, password, nome' }),
+        JSON.stringify({ error: 'Missing required fields: email, password, nome, username' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate username
+    if (username.length < 3 || username.length > 20) {
+      return new Response(
+        JSON.stringify({ error: 'Username deve ter entre 3 e 20 caracteres' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return new Response(
+        JSON.stringify({ error: 'Username deve conter apenas letras, números e underscore' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if username is already taken
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (existingProfile) {
+      return new Response(
+        JSON.stringify({ error: 'Username já está em uso' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -117,6 +145,22 @@ Deno.serve(async (req) => {
 
     const userId = authData.user.id;
     console.log('User created successfully:', userId);
+
+    // Update profile with username (profile is created by trigger)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ username })
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('Error updating profile with username:', profileError);
+      // Rollback: delete the user
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return new Response(
+        JSON.stringify({ error: 'Error setting username: ' + profileError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Add admin role
     const { error: roleInsertError } = await supabaseAdmin
