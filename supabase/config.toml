@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.create-first-admin]
 verify_jwt = false
+
+[functions.get-email-by-username]
+verify_jwt = false

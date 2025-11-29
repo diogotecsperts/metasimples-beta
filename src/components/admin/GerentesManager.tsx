@@ -71,6 +71,7 @@ export function GerentesManager() {
           nome: values.nome,
           loja_id: values.loja_id,
           telefone: values.telefone,
+          username: values.username,
         },
       });
       
@@ -109,6 +110,7 @@ export function GerentesManager() {
           nome: values.nome,
           loja_id: values.loja_id,
           telefone: values.telefone,
+          username: values.username || null,
         })
         .eq("id", id);
 
