@@ -115,7 +115,7 @@ const Login = () => {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="login-identifier">Email ou ID de acesso</Label>
-              <Input id="login-identifier" type="text" placeholder="seu@email.com ou seu.id" value={identifier} onChange={e => setIdentifier(e.target.value)} required disabled={isLoading} autoFocus />
+              <Input id="login-identifier" type="text" placeholder="seu@email.com ou seu ID" value={identifier} onChange={e => setIdentifier(e.target.value)} required disabled={isLoading} autoFocus />
             </div>
             <div className="space-y-2">
               <Label htmlFor="login-password">Senha</Label>
