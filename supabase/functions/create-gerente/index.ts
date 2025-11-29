@@ -102,9 +102,18 @@ Deno.serve(async (req) => {
 
     if (authError) {
       console.error('Error creating user:', authError);
+      
+      // Traduz mensagem de email duplicado para português
+      let errorMessage = authError.message;
+      if (authError.message.includes('already registered') || 
+          authError.message.includes('already been registered') ||
+          authError.message.includes('User already registered')) {
+        errorMessage = 'Este email já está cadastrado no sistema. Use outro email ou edite o gerente existente.';
+      }
+      
       return new Response(
-        JSON.stringify({ error: authError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: errorMessage }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
