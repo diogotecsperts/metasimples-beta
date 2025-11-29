@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import logo from "@/assets/logo.png";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -88,11 +89,12 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md shadow-lg">
         <div className="rounded-xl border bg-card p-8">
-          <div className="mb-6 text-center space-y-3">
-            <div className="mx-auto w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-              <div className="text-3xl font-bold text-primary">MS</div>
-            </div>
-            <h1 className="text-3xl font-bold">Meta Simples</h1>
+          <div className="mb-6 text-center space-y-4">
+            <img 
+              src={logo} 
+              alt="Meta Simples" 
+              className="mx-auto h-20 w-auto object-contain"
+            />
             <p className="text-base text-muted-foreground">
               Sistema de gestão empresarial de metas
             </p>
