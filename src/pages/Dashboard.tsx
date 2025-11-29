@@ -185,7 +185,7 @@ const Dashboard = () => {
         {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
           <div className="text-center py-16 bg-card border rounded-xl shadow-md">
             <p className="text-xl md:text-2xl text-muted-foreground font-medium">
-              Nenhuma loja com meta configurada ainda.
+              Nenhuma loja com meta<br />configurada ainda.
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               Configure metas mensais para visualizar o ranking.
