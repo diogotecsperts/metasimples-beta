@@ -7,7 +7,7 @@ import { AdminsList } from "./AdminsList";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-const MASTER_ADMIN_EMAIL = 'diogomixcds@gmail.com';
+const MASTER_ADMIN_ID = 'ca936b16-8a15-43f4-976d-6be91e294099';
 export function AdminsManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
@@ -184,7 +184,7 @@ export function AdminsManager() {
         onDelete={handleDelete}
         onEdit={handleEdit}
         isLoading={isLoading} 
-        masterAdminEmail={MASTER_ADMIN_EMAIL} 
+        masterAdminId={MASTER_ADMIN_ID} 
       />
 
       <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>

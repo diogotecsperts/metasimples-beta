@@ -36,7 +36,7 @@ type AdminsListProps = {
   onDelete: (id: string) => void;
   onEdit: (admin: Admin) => void;
   isLoading: boolean;
-  masterAdminEmail: string;
+  masterAdminId: string;
 };
 
 export function AdminsList({
@@ -44,12 +44,12 @@ export function AdminsList({
   onDelete,
   onEdit,
   isLoading,
-  masterAdminEmail,
+  masterAdminId,
 }: AdminsListProps) {
   const { user } = useAuth();
   const [deletingAdmin, setDeletingAdmin] = useState<Admin | null>(null);
   
-  const isMasterAdmin = (email: string) => email === masterAdminEmail;
+  const isMasterAdmin = (adminId: string) => adminId === masterAdminId;
   const isSelfDelete = deletingAdmin?.email === user?.email;
 
   if (isLoading) {
@@ -82,8 +82,8 @@ export function AdminsList({
         </TableHeader>
         <TableBody>
           {admins.map((admin) => {
-            const isMaster = isMasterAdmin(admin.email);
-            const isSelf = admin.email === user?.email;
+            const isMaster = isMasterAdmin(admin.id);
+            const isSelf = admin.id === user?.id;
             
             // Permissões: pode editar se for você mesmo OU se o admin não for master
             const canEdit = isSelf || !isMaster;
