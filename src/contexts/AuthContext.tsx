@@ -20,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRoleLoading, setIsRoleLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,11 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fetch role when user signs in
         if (currentSession?.user && event === 'SIGNED_IN') {
+          setIsRoleLoading(true);
           setTimeout(() => {
             fetchUserRole(currentSession.user.id);
           }, 0);
         } else if (!currentSession?.user) {
           setRole(null);
+          setIsRoleLoading(false);
         }
       }
     );
@@ -56,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserRole = async (userId: string) => {
+    setIsRoleLoading(true);
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -73,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Error fetching user role:", error);
       setRole(null);
     } finally {
+      setIsRoleLoading(false);
       setIsLoading(false);
     }
   };
@@ -99,8 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const combinedIsLoading = isLoading || isRoleLoading;
+
   return (
-    <AuthContext.Provider value={{ user, session, role, isLoading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, isLoading: combinedIsLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
