@@ -83,6 +83,12 @@ export function AdminsList({
         <TableBody>
           {admins.map((admin) => {
             const isMaster = isMasterAdmin(admin.email);
+            const isSelf = admin.email === user?.email;
+            
+            // Permissões: pode editar se for você mesmo OU se o admin não for master
+            const canEdit = isSelf || !isMaster;
+            // Nunca pode deletar o master
+            const canDelete = !isMaster;
             
             return (
               <TableRow key={admin.id}>
@@ -104,37 +110,18 @@ export function AdminsList({
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
-                    {isMaster ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled
-                          className="opacity-30 cursor-not-allowed"
-                          title="Não é possível editar o administrador master"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled
-                          className="opacity-30 cursor-not-allowed"
-                          title="Não é possível deletar o administrador master"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEdit(admin)}
-                          title="Editar administrador"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!canEdit}
+                      className={!canEdit ? "opacity-30 cursor-not-allowed" : ""}
+                      onClick={() => canEdit && onEdit(admin)}
+                      title={!canEdit ? "Não é possível editar o administrador master" : "Editar administrador"}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    
+                    {canDelete ? (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button 
@@ -148,10 +135,10 @@ export function AdminsList({
                         <AlertDialogContent className="bg-background">
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              {isSelfDelete ? "⚠️ Auto-exclusão de administrador" : "Confirmar exclusão"}
+                              {isSelf ? "⚠️ Auto-exclusão de administrador" : "Confirmar exclusão"}
                             </AlertDialogTitle>
                             <AlertDialogDescription className="space-y-2">
-                              {isSelfDelete ? (
+                              {isSelf ? (
                                 <>
                                   <p className="font-semibold text-destructive">
                                     Você está prestes a deletar sua própria conta de administrador!
@@ -179,12 +166,21 @@ export function AdminsList({
                               }}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              {isSelfDelete ? "Confirmar auto-exclusão" : "Excluir"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                      </>
+                              {isSelf ? "Confirmar auto-exclusão" : "Excluir"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="opacity-30 cursor-not-allowed"
+                        title="Não é possível deletar o administrador master"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
                 </TableCell>
