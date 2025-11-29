@@ -15,13 +15,11 @@ Deno.serve(async (req) => {
     // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing environment variables:', { 
         hasUrl: !!supabaseUrl, 
-        hasServiceKey: !!supabaseServiceKey,
-        hasAnonKey: !!supabaseAnonKey 
+        hasServiceKey: !!supabaseServiceKey
       });
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
@@ -41,17 +39,11 @@ Deno.serve(async (req) => {
     // Create Supabase client with service role for admin operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Create regular Supabase client to verify the caller
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Extract JWT from Authorization header and verify it
+    const jwt = authHeader.replace('Bearer ', '');
+    
+    // Get the authenticated user using admin client
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(jwt);
     
     if (userError || !user) {
       console.error('Authentication error:', userError);
