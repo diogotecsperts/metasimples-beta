@@ -94,7 +94,7 @@ const Login = () => {
             </div>
             <h1 className="text-3xl font-bold">Meta Simples</h1>
             <p className="text-base text-muted-foreground">
-              Sistema de gestão empresarial moderno
+              Sistema de gestão empresarial de metas
             </p>
           </div>
 
