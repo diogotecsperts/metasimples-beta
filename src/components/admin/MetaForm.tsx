@@ -92,7 +92,7 @@ export function MetaForm({
       loja_id: defaultValues?.loja_id || "",
       mes: defaultValues?.mes || new Date().getMonth() + 1,
       ano: defaultValues?.ano || currentYear,
-      meta_mensal: defaultValues?.meta_mensal || 0,
+      meta_mensal: defaultValues?.meta_mensal,
     },
   });
 
@@ -183,9 +183,13 @@ export function MetaForm({
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="0.00"
+                  placeholder="Ex: 50000.00"
                   {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value === "" ? undefined : Number(value));
+                  }}
                 />
               </FormControl>
               <FormMessage />
