@@ -70,6 +70,7 @@ export function GerentesManager() {
           password: values.senha,
           nome: values.nome,
           loja_id: values.loja_id,
+          telefone: values.telefone,
         },
       });
       
@@ -107,6 +108,7 @@ export function GerentesManager() {
         .update({
           nome: values.nome,
           loja_id: values.loja_id,
+          telefone: values.telefone,
         })
         .eq("id", id);
 

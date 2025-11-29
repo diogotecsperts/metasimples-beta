@@ -123,18 +123,21 @@ export type Database = {
           id: string
           loja_id: string | null
           nome: string
+          telefone: string | null
         }
         Insert: {
           created_at?: string
           id: string
           loja_id?: string | null
           nome: string
+          telefone?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           loja_id?: string | null
           nome?: string
+          telefone?: string | null
         }
         Relationships: [
           {

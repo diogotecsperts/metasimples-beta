@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     }
 
     // Get gerente data from request body
-    const { email, password, nome, loja_id } = await req.json();
+    const { email, password, nome, loja_id, telefone } = await req.json();
     
     if (!email || !password || !nome || !loja_id) {
       return new Response(
@@ -127,10 +127,13 @@ Deno.serve(async (req) => {
     const userId = authData.user.id;
     console.log('User created successfully:', userId);
 
-    // Update profile with loja_id (profile is created by trigger)
+    // Update profile with loja_id and telefone (profile is created by trigger)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .update({ loja_id })
+      .update({ 
+        loja_id,
+        telefone: telefone || null 
+      })
       .eq('id', userId);
 
     if (profileError) {

@@ -22,6 +22,7 @@ import {
 const gerenteFormSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   loja_id: z.string().uuid("Selecione uma loja válida"),
+  telefone: z.string().optional(),
   email: z.string().email("Email inválido").optional(),
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional(),
 });
@@ -32,6 +33,7 @@ export type Gerente = {
   id: string;
   nome: string;
   loja_id: string | null;
+  telefone: string | null;
   created_at: string;
 };
 
@@ -62,6 +64,7 @@ export function GerenteForm({
     defaultValues: {
       nome: defaultValues?.nome || "",
       loja_id: defaultValues?.loja_id || "",
+      telefone: defaultValues?.telefone || "",
       email: "",
       senha: "",
     },
@@ -104,6 +107,24 @@ export function GerenteForm({
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="telefone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Telefone (opcional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="tel"
+                  placeholder="(81) 99999-9999"
+                  {...field}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
