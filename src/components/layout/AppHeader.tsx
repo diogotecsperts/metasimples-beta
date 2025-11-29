@@ -25,7 +25,7 @@ export function AppHeader({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {showLogo && (
-              <img src={logo} alt="Meta Simples" className="h-10 w-auto" />
+              <img src={logo} alt="Meta Simples" className="h-14 w-auto" />
             )}
             <div className="space-y-1">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h1>
