@@ -220,6 +220,16 @@ const Gerente = () => {
     return lancamentos.find((l) => l.horario === horario);
   };
 
+  const isHorarioAtrasado = (horario: string): boolean => {
+    const agora = new Date();
+    const [hora, minuto] = horario.split(':').map(Number);
+    
+    const horarioSlot = new Date();
+    horarioSlot.setHours(hora, minuto + 1, 0, 0); // +1 minuto de tolerância
+    
+    return agora > horarioSlot;
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
@@ -280,6 +290,7 @@ const Gerente = () => {
                     horario={horario}
                     valor={lancamento?.valor_acumulado}
                     isPendente={!lancamento}
+                    isAtrasado={!lancamento && isHorarioAtrasado(horario)}
                     onClick={() => setSelectedHorario(horario)}
                   />
                 );
