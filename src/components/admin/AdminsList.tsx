@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ import {
 export type Admin = {
   id: string;
   nome: string;
+  username?: string;
   email: string;
   created_at: string;
 };
@@ -33,6 +34,7 @@ export type Admin = {
 type AdminsListProps = {
   admins: Admin[];
   onDelete: (id: string) => void;
+  onEdit: (admin: Admin) => void;
   isLoading: boolean;
   masterAdminEmail: string;
 };
@@ -40,6 +42,7 @@ type AdminsListProps = {
 export function AdminsList({
   admins,
   onDelete,
+  onEdit,
   isLoading,
   masterAdminEmail,
 }: AdminsListProps) {
@@ -72,6 +75,7 @@ export function AdminsList({
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>ID de Acesso</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -85,6 +89,11 @@ export function AdminsList({
                 <TableCell className="font-medium">{admin.nome}</TableCell>
                 <TableCell>{admin.email}</TableCell>
                 <TableCell>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    {admin.username || '—'}
+                  </code>
+                </TableCell>
+                <TableCell>
                   {isMaster ? (
                     <Badge variant="default" className="bg-primary">
                       🔒 Master
@@ -96,16 +105,36 @@ export function AdminsList({
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
                     {isMaster ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled
-                        className="opacity-30 cursor-not-allowed"
-                        title="Não é possível deletar o administrador master"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="opacity-30 cursor-not-allowed"
+                          title="Não é possível editar o administrador master"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="opacity-30 cursor-not-allowed"
+                          title="Não é possível deletar o administrador master"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEdit(admin)}
+                          title="Editar administrador"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button 
@@ -151,10 +180,11 @@ export function AdminsList({
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               {isSelfDelete ? "Confirmar auto-exclusão" : "Excluir"}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                      </>
                     )}
                   </div>
                 </TableCell>
