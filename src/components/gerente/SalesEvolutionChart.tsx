@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Area, AreaChart, XAxis, YAxis, ReferenceLine, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Card } from "@/components/ui/card";
@@ -14,7 +15,8 @@ type SalesEvolutionChartProps = {
   horarios: string[];
 };
 
-export function SalesEvolutionChart({ lancamentos, metaDiaria, horarios }: SalesEvolutionChartProps) {
+export const SalesEvolutionChart = forwardRef<HTMLDivElement, SalesEvolutionChartProps>(
+  ({ lancamentos, metaDiaria, horarios }, ref) => {
   // Preparar dados para o gráfico
   const chartData = horarios.map(horario => {
     const lancamento = lancamentos.find(l => l.horario === horario);
@@ -35,7 +37,7 @@ export function SalesEvolutionChart({ lancamentos, metaDiaria, horarios }: Sales
   const hasData = lancamentos.length > 0;
 
   return (
-    <Card className="p-4 md:p-6 shadow-md">
+    <Card ref={ref} className="p-4 md:p-6 shadow-md">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Evolução das Vendas</h3>
@@ -95,4 +97,6 @@ export function SalesEvolutionChart({ lancamentos, metaDiaria, horarios }: Sales
       )}
     </Card>
   );
-}
+});
+
+SalesEvolutionChart.displayName = "SalesEvolutionChart";
