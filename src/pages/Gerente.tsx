@@ -11,6 +11,7 @@ import { TimelineSlot } from "@/components/gerente/TimelineSlot";
 import { LancamentoDialog } from "@/components/gerente/LancamentoDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type Loja = {
   id: string;
@@ -295,7 +296,10 @@ const Gerente = () => {
 
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Lançamentos do Dia</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+            <div className={cn(
+              "grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4",
+              loja.possui_fechamento_tardio ? "lg:grid-cols-5" : "lg:grid-cols-4"
+            )}>
               {horarios.map((horario) => {
                 const lancamento = getLancamentoByHorario(horario);
                 return (
