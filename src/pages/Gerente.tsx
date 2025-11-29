@@ -244,6 +244,25 @@ const Gerente = () => {
     return diferencaMinutos > 0 && diferencaMinutos <= 5;
   };
 
+  const isHorarioBloqueado = (horario: string): boolean => {
+    const indexHorario = horarios.indexOf(horario);
+    
+    // Primeiro horário nunca está bloqueado
+    if (indexHorario === 0) return false;
+    
+    // Verificar se todos os horários anteriores foram preenchidos
+    for (let i = 0; i < indexHorario; i++) {
+      const horarioAnterior = horarios[i];
+      const lancamentoAnterior = getLancamentoByHorario(horarioAnterior);
+      
+      if (!lancamentoAnterior) {
+        return true; // Bloqueado - horário anterior não preenchido
+      }
+    }
+    
+    return false; // Liberado - todos os anteriores preenchidos
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
@@ -310,6 +329,7 @@ const Gerente = () => {
                     isPendente={!lancamento}
                     isAtrasado={!lancamento && isHorarioAtrasado(horario)}
                     isProximoDeVencer={!lancamento && !isHorarioAtrasado(horario) && isHorarioProximoDeVencer(horario)}
+                    isBlocked={!lancamento && isHorarioBloqueado(horario)}
                     onClick={() => setSelectedHorario(horario)}
                   />
                 );
