@@ -1,5 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
 import {
   Table,
   TableBody,
@@ -90,7 +91,7 @@ export function LojasList({ lojas, onEdit, onDelete, isLoading }: LojasListProps
                 <TableCell className="font-medium">{loja.nome}</TableCell>
                 <TableCell>
                   <Badge variant={loja.tipo_operacional === "A" ? "default" : "secondary"}>
-                    Tipo {loja.tipo_operacional}
+                    {getTipoOperacionalLabel(loja.tipo_operacional)}
                   </Badge>
                 </TableCell>
                 <TableCell>
