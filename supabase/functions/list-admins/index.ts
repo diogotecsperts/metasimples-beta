@@ -15,13 +15,11 @@ Deno.serve(async (req) => {
     // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing environment variables:', { 
         hasUrl: !!supabaseUrl, 
         hasServiceKey: !!supabaseServiceKey,
-        hasAnonKey: !!supabaseAnonKey 
       });
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
@@ -38,20 +36,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with service role for admin operations
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Create regular Supabase client to verify the caller
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Get the authenticated user from the token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
       console.error('Authentication error:', userError);
@@ -81,50 +78,51 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get the userId to delete from request body
-    const { userId } = await req.json();
-    
-    if (!userId) {
+    console.log('Admin user', user.id, 'fetching admins list');
+
+    // Get all profiles with admin role
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select(`
+        id,
+        nome,
+        created_at,
+        user_roles!inner(role)
+      `)
+      .eq('user_roles.role', 'admin')
+      .order('created_at', { ascending: false });
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
       return new Response(
-        JSON.stringify({ error: 'userId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Admin user', user.id, 'attempting to delete user', userId);
-
-    // Check if trying to delete master admin
-    const MASTER_ADMIN_EMAIL = 'diogomixcds@gmail.com';
-    const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-    
-    if (targetUser?.user?.email === MASTER_ADMIN_EMAIL) {
-      console.error('Attempt to delete master admin blocked');
-      return new Response(
-        JSON.stringify({ error: 'Não é possível deletar o administrador master' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Delete the user using admin client
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-    if (deleteError) {
-      console.error('Error deleting user:', deleteError);
-      return new Response(
-        JSON.stringify({ error: deleteError.message }),
+        JSON.stringify({ error: profilesError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Successfully deleted user', userId);
+    // Get emails from auth.users for each profile
+    const adminsWithEmails = await Promise.all(
+      profiles.map(async (profile) => {
+        const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+        
+        return {
+          id: profile.id,
+          nome: profile.nome,
+          email: userData?.user?.email || '',
+          created_at: profile.created_at,
+        };
+      })
+    );
+
+    console.log('Successfully fetched', adminsWithEmails.length, 'admins');
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ admins: adminsWithEmails }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Unexpected error in delete-user function:', error);
+    console.error('Unexpected error in list-admins function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ error: errorMessage }),

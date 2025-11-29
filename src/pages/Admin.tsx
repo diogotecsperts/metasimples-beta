@@ -6,7 +6,8 @@ import { LojasManager } from "@/components/admin/LojasManager";
 import { GerentesManager } from "@/components/admin/GerentesManager";
 import { MetasManager } from "@/components/admin/MetasManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Store, Users, Target } from "lucide-react";
+import { Store, Users, Target, Shield } from "lucide-react";
+import { AdminsManager } from "@/components/admin/AdminsManager";
 
 const Admin = () => {
   const { signOut } = useAuth();
@@ -27,7 +28,7 @@ const Admin = () => {
       
       <PageContainer>
         <Tabs defaultValue="lojas" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="lojas" className="gap-2">
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Lojas</span>
@@ -39,6 +40,10 @@ const Admin = () => {
             <TabsTrigger value="metas" className="gap-2">
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Metas</span>
+            </TabsTrigger>
+            <TabsTrigger value="admins" className="gap-2">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Admins</span>
             </TabsTrigger>
           </TabsList>
 
@@ -57,6 +62,12 @@ const Admin = () => {
           <TabsContent value="metas" className="space-y-6">
             <div className="rounded-xl border bg-card shadow-sm p-6">
               <MetasManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="admins" className="space-y-6">
+            <div className="rounded-xl border bg-card shadow-sm p-6">
+              <AdminsManager />
             </div>
           </TabsContent>
         </Tabs>
