@@ -230,6 +230,19 @@ const Gerente = () => {
     return agora > horarioSlot;
   };
 
+  const isHorarioProximoDeVencer = (horario: string): boolean => {
+    const agora = new Date();
+    const [hora, minuto] = horario.split(':').map(Number);
+    
+    const horarioSlot = new Date();
+    horarioSlot.setHours(hora, minuto, 0, 0);
+    
+    const diferencaMinutos = (horarioSlot.getTime() - agora.getTime()) / (1000 * 60);
+    
+    // Retorna true se faltam entre 0 e 5 minutos
+    return diferencaMinutos > 0 && diferencaMinutos <= 5;
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
@@ -291,6 +304,7 @@ const Gerente = () => {
                     valor={lancamento?.valor_acumulado}
                     isPendente={!lancamento}
                     isAtrasado={!lancamento && isHorarioAtrasado(horario)}
+                    isProximoDeVencer={!lancamento && !isHorarioAtrasado(horario) && isHorarioProximoDeVencer(horario)}
                     onClick={() => setSelectedHorario(horario)}
                   />
                 );
