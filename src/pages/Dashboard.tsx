@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { RankingHeader } from "@/components/dashboard/RankingHeader";
 import { RankingCard } from "@/components/dashboard/RankingCard";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
-import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { MonthlyEvolutionChart } from "@/components/dashboard/MonthlyEvolutionChart";
 import { PeriodComparison } from "@/components/dashboard/PeriodComparison";
 import { AlertasPerformance } from "@/components/dashboard/AlertasPerformance";
@@ -286,70 +285,117 @@ const Dashboard = () => {
                 <div className="flex flex-col gap-4">
                   <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
                   
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                      <PeriodFilter
-                        mesSelecionado={mesSelecionado}
-                        anoSelecionado={anoSelecionado}
-                        onMesChange={setMesSelecionado}
-                        onAnoChange={setAnoSelecionado}
-                        onResetToAtual={handleResetToAtual}
-                        isAtual={isAtual}
-                      />
-                      {isAtual && <RealtimeIndicator isConnected={isRealtimeConnected} />}
-                    </div>
+                  {/* Barra unificada de filtros */}
+                  <div className="flex flex-wrap items-center gap-2 p-4 bg-card border rounded-xl">
+                    <Select
+                      value={mesSelecionado.toString()}
+                      onValueChange={(value) => setMesSelecionado(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          { value: 1, label: "Janeiro" },
+                          { value: 2, label: "Fevereiro" },
+                          { value: 3, label: "Março" },
+                          { value: 4, label: "Abril" },
+                          { value: 5, label: "Maio" },
+                          { value: 6, label: "Junho" },
+                          { value: 7, label: "Julho" },
+                          { value: 8, label: "Agosto" },
+                          { value: 9, label: "Setembro" },
+                          { value: 10, label: "Outubro" },
+                          { value: 11, label: "Novembro" },
+                          { value: 12, label: "Dezembro" },
+                        ].map((mes) => (
+                          <SelectItem key={mes.value} value={mes.value.toString()}>
+                            {mes.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                    {/* Filtros adicionais */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-4 bg-card border rounded-xl">
-                      <div className="flex items-center gap-2 flex-1">
-                        <Select
-                          value={filtroTipoOperacional}
-                          onValueChange={(value) => setFiltroTipoOperacional(value as "todos" | "A" | "B")}
+                    <Select
+                      value={anoSelecionado.toString()}
+                      onValueChange={(value) => setAnoSelecionado(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 5 }, (_, i) => {
+                          const ano = new Date().getFullYear() - i;
+                          return (
+                            <SelectItem key={ano} value={ano.toString()}>
+                              {ano}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={filtroTipoOperacional}
+                      onValueChange={(value) => setFiltroTipoOperacional(value as "todos" | "A" | "B")}
+                    >
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os Tipos</SelectItem>
+                        <SelectItem value="A">{getTipoOperacionalLabel("A")}</SelectItem>
+                        <SelectItem value="B">{getTipoOperacionalLabel("B")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={filtroFechamentoTardio}
+                      onValueChange={(value) => setFiltroFechamentoTardio(value as "todos" | "sim" | "nao")}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="sim">Com 23:00</SelectItem>
+                        <SelectItem value="nao">Sem 23:00</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {!isAtual && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetToAtual}
+                        className="whitespace-nowrap"
+                      >
+                        Período Atual
+                      </Button>
+                    )}
+
+                    {temFiltrosAtivos && (
+                      <>
+                        <Badge variant="secondary" className="text-xs">
+                          {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleLimparFiltros}
+                          className="gap-1.5"
                         >
-                          <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Tipo Operacional" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos os Tipos</SelectItem>
-                            <SelectItem value="A">{getTipoOperacionalLabel("A")}</SelectItem>
-                            <SelectItem value="B">{getTipoOperacionalLabel("B")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <X className="h-3.5 w-3.5" />
+                          Limpar
+                        </Button>
+                      </>
+                    )}
 
-                        <Select
-                          value={filtroFechamentoTardio}
-                          onValueChange={(value) => setFiltroFechamentoTardio(value as "todos" | "sim" | "nao")}
-                        >
-                          <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Fechamento Tardio" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos</SelectItem>
-                            <SelectItem value="sim">Com 23:00</SelectItem>
-                            <SelectItem value="nao">Sem 23:00</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    {isAtual && (
+                      <div className="ml-auto">
+                        <RealtimeIndicator isConnected={isRealtimeConnected} />
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        {temFiltrosAtivos && (
-                          <>
-                            <Badge variant="secondary" className="text-xs">
-                              {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleLimparFiltros}
-                              className="gap-2"
-                            >
-                              <X className="h-4 w-4" />
-                              Limpar Filtros
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Alertas de performance */}
