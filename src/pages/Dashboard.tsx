@@ -348,10 +348,11 @@ const Dashboard = () => {
       />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="ranking" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="evolucao">Evolução Mensal</TabsTrigger>
             <TabsTrigger value="comparacao">Comparação</TabsTrigger>
+            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
           </TabsList>
 
           <TabsContent value="ranking" className="space-y-6">
@@ -365,16 +366,13 @@ const Dashboard = () => {
               <>
                 {/* Resumo Geral - Apenas no período atual */}
                 {isAtual && (
-                  <>
-                    <ResumoGeral 
-                      metaTotal={metaTotal}
-                      vendasTotal={vendasTotal}
-                      atingimentoGeral={atingimentoGeral}
-                      lojasComMeta={lojasComMeta.length}
-                      totalLojas={lojas.length}
-                    />
-                    <RelatoriosAutomaticos />
-                  </>
+                  <ResumoGeral 
+                    metaTotal={metaTotal}
+                    vendasTotal={vendasTotal}
+                    atingimentoGeral={atingimentoGeral}
+                    lojasComMeta={lojasComMeta.length}
+                    totalLojas={lojas.length}
+                  />
                 )}
 
                 <div className="flex flex-col gap-4">
@@ -559,6 +557,10 @@ const Dashboard = () => {
 
           <TabsContent value="comparacao">
             <PeriodComparison />
+          </TabsContent>
+
+          <TabsContent value="relatorios">
+            <RelatoriosAutomaticos />
           </TabsContent>
         </Tabs>
       </div>
