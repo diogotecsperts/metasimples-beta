@@ -5,8 +5,14 @@ import { RankingHeader } from "@/components/dashboard/RankingHeader";
 import { RankingCard } from "@/components/dashboard/RankingCard";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
+import { MonthlyEvolutionChart } from "@/components/dashboard/MonthlyEvolutionChart";
+import { PeriodComparison } from "@/components/dashboard/PeriodComparison";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, endOfMonth } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 type Loja = {
   id: string;
@@ -32,6 +38,8 @@ type RankingItem = {
 };
 
 const Dashboard = () => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
@@ -193,63 +201,89 @@ const Dashboard = () => {
     month: "long",
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
-        <div className="space-y-6 md:space-y-8">
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-64 rounded-xl" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
-      <div className="space-y-6 md:space-y-8">
-        <div className="flex flex-col gap-4">
-          <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
-          
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <PeriodFilter
-              mesSelecionado={mesSelecionado}
-              anoSelecionado={anoSelecionado}
-              onMesChange={setMesSelecionado}
-              onAnoChange={setAnoSelecionado}
-              onResetToAtual={handleResetToAtual}
-              isAtual={isAtual}
-            />
-            {isAtual && <RealtimeIndicator isConnected={isRealtimeConnected} />}
-          </div>
-        </div>
+    <div className="min-h-screen bg-background">
+      <AppHeader
+        title="Ranking de Performance"
+        showLogo={true}
+        showLogout={true}
+        onLogout={signOut}
+        rightContent={
+          <button
+            onClick={() => navigate("/admin")}
+            className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+          >
+            Painel Admin
+          </button>
+        }
+      />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <Tabs defaultValue="ranking" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="ranking">Ranking</TabsTrigger>
+            <TabsTrigger value="evolucao">Evolução Mensal</TabsTrigger>
+            <TabsTrigger value="comparacao">Comparação</TabsTrigger>
+          </TabsList>
 
-        {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
-          <div className="text-center py-16 bg-card border rounded-xl shadow-md">
-            <p className="text-xl md:text-2xl text-muted-foreground font-medium">
-              Nenhuma meta configurada para<br />{nomeMesSelecionado} de {anoSelecionado}.
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Configure metas mensais para o {isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {ranking.map((item, index) => (
-              <RankingCard
-                key={item.lojaId}
-                posicao={index + 1}
-                nomeLoja={item.nomeLoja}
-                metaDiaria={item.metaDiaria}
-                totalVendido={item.totalVendido}
-                percentualAtingimento={item.percentualAtingimento}
-              />
-            ))}
-          </div>
-        )}
+          <TabsContent value="ranking" className="space-y-6">
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-32" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-4">
+                  <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <PeriodFilter
+                      mesSelecionado={mesSelecionado}
+                      anoSelecionado={anoSelecionado}
+                      onMesChange={setMesSelecionado}
+                      onAnoChange={setAnoSelecionado}
+                      onResetToAtual={handleResetToAtual}
+                      isAtual={isAtual}
+                    />
+                    {isAtual && <RealtimeIndicator isConnected={isRealtimeConnected} />}
+                  </div>
+                </div>
+
+                {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
+                  <div className="bg-card border rounded-xl p-8 text-center">
+                    <p className="text-muted-foreground mb-2">
+                      Nenhuma meta configurada para {nomeMesSelecionado} de {anoSelecionado}.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Configure metas mensais para o {isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {ranking.map((item, index) => (
+                      <RankingCard
+                        key={item.lojaId}
+                        posicao={index + 1}
+                        nomeLoja={item.nomeLoja}
+                        metaDiaria={item.metaDiaria}
+                        totalVendido={item.totalVendido}
+                        percentualAtingimento={item.percentualAtingimento}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="evolucao">
+            <MonthlyEvolutionChart />
+          </TabsContent>
+
+          <TabsContent value="comparacao">
+            <PeriodComparison />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
