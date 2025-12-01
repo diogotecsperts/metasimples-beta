@@ -36,8 +36,12 @@ const Admin = () => {
       />
       
       <PageContainer>
-        <Tabs defaultValue="lojas" className="space-y-6">
+        <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="dashboard" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
             <TabsTrigger value="lojas" className="gap-2">
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Lojas</span>
@@ -54,11 +58,11 @@ const Admin = () => {
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Admins</span>
             </TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard" className="space-y-6">
+            <Dashboard />
+          </TabsContent>
 
           <TabsContent value="lojas" className="space-y-6">
             <div className="rounded-xl border bg-card shadow-sm p-6">
@@ -82,10 +86,6 @@ const Admin = () => {
             <div className="rounded-xl border bg-card shadow-sm p-6">
               <AdminsManager />
             </div>
-          </TabsContent>
-
-          <TabsContent value="dashboard" className="space-y-6">
-            <Dashboard />
           </TabsContent>
         </Tabs>
       </PageContainer>
