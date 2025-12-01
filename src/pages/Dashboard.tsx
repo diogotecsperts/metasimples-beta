@@ -7,16 +7,24 @@ import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { MonthlyEvolutionChart } from "@/components/dashboard/MonthlyEvolutionChart";
 import { PeriodComparison } from "@/components/dashboard/PeriodComparison";
+import { AlertasPerformance } from "@/components/dashboard/AlertasPerformance";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { format, endOfMonth } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
+import { X } from "lucide-react";
 
 type Loja = {
   id: string;
   nome: string;
+  tipo_operacional: "A" | "B";
+  possui_fechamento_tardio: boolean;
 };
 
 type MetaMensal = {
@@ -44,6 +52,8 @@ const Dashboard = () => {
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [filtroTipoOperacional, setFiltroTipoOperacional] = useState<"todos" | "A" | "B">("todos");
+  const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
   
   const dataHoje = format(new Date(), "yyyy-MM-dd");
   const isAtual = mesSelecionado === (new Date().getMonth() + 1) && 
@@ -99,7 +109,7 @@ const Dashboard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lojas")
-        .select("id, nome")
+        .select("id, nome, tipo_operacional, possui_fechamento_tardio")
         .order("nome", { ascending: true });
 
       if (error) throw error;
@@ -153,7 +163,7 @@ const Dashboard = () => {
   });
 
   // Processar ranking
-  const ranking: RankingItem[] = lojas
+  const rankingCompleto: RankingItem[] = lojas
     .map((loja) => {
       const meta = metas.find((m) => m.loja_id === loja.id);
       const lancamentosLoja = lancamentos.filter(
@@ -184,6 +194,45 @@ const Dashboard = () => {
       // Ordenar por percentual de atingimento (descendente)
       return b.percentualAtingimento - a.percentualAtingimento;
     });
+
+  // Aplicar filtros
+  const ranking = rankingCompleto.filter((item) => {
+    const loja = lojas.find((l) => l.id === item.lojaId);
+    if (!loja) return false;
+
+    // Filtro por tipo operacional
+    if (filtroTipoOperacional !== "todos" && loja.tipo_operacional !== filtroTipoOperacional) {
+      return false;
+    }
+
+    // Filtro por fechamento tardio
+    if (filtroFechamentoTardio !== "todos") {
+      const hasFechamento = loja.possui_fechamento_tardio;
+      if (filtroFechamentoTardio === "sim" && !hasFechamento) return false;
+      if (filtroFechamentoTardio === "nao" && hasFechamento) return false;
+    }
+
+    return true;
+  });
+
+  const temFiltrosAtivos = filtroTipoOperacional !== "todos" || filtroFechamentoTardio !== "todos";
+
+  const handleLimparFiltros = () => {
+    setFiltroTipoOperacional("todos");
+    setFiltroFechamentoTardio("todos");
+  };
+
+  // Preparar dados para componente de alertas
+  const lojasComMeta = lojas
+    .map((loja) => {
+      const meta = metas.find((m) => m.loja_id === loja.id);
+      return {
+        id: loja.id,
+        nome: loja.nome,
+        meta_diaria: meta?.meta_diaria_calculada || 0,
+      };
+    })
+    .filter((loja) => loja.meta_diaria > 0);
 
   const dataFormatada = isAtual
     ? new Date().toLocaleDateString("pt-BR", {
@@ -236,40 +285,106 @@ const Dashboard = () => {
               <>
                 <div className="flex flex-col gap-4">
                   <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <PeriodFilter
-                      mesSelecionado={mesSelecionado}
-                      anoSelecionado={anoSelecionado}
-                      onMesChange={setMesSelecionado}
-                      onAnoChange={setAnoSelecionado}
-                      onResetToAtual={handleResetToAtual}
-                      isAtual={isAtual}
-                    />
-                    {isAtual && <RealtimeIndicator isConnected={isRealtimeConnected} />}
+                  
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <PeriodFilter
+                        mesSelecionado={mesSelecionado}
+                        anoSelecionado={anoSelecionado}
+                        onMesChange={setMesSelecionado}
+                        onAnoChange={setAnoSelecionado}
+                        onResetToAtual={handleResetToAtual}
+                        isAtual={isAtual}
+                      />
+                      {isAtual && <RealtimeIndicator isConnected={isRealtimeConnected} />}
+                    </div>
+
+                    {/* Filtros adicionais */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-4 bg-card border rounded-xl">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Select
+                          value={filtroTipoOperacional}
+                          onValueChange={(value) => setFiltroTipoOperacional(value as "todos" | "A" | "B")}
+                        >
+                          <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Tipo Operacional" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todos">Todos os Tipos</SelectItem>
+                            <SelectItem value="A">{getTipoOperacionalLabel("A")}</SelectItem>
+                            <SelectItem value="B">{getTipoOperacionalLabel("B")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={filtroFechamentoTardio}
+                          onValueChange={(value) => setFiltroFechamentoTardio(value as "todos" | "sim" | "nao")}
+                        >
+                          <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Fechamento Tardio" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todos">Todos</SelectItem>
+                            <SelectItem value="sim">Com 23:00</SelectItem>
+                            <SelectItem value="nao">Sem 23:00</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {temFiltrosAtivos && (
+                          <>
+                            <Badge variant="secondary" className="text-xs">
+                              {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleLimparFiltros}
+                              className="gap-2"
+                            >
+                              <X className="h-4 w-4" />
+                              Limpar Filtros
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Alertas de performance */}
+                  <AlertasPerformance isAtual={isAtual} lojas={lojasComMeta} />
                 </div>
 
-                {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
+{ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
                   <div className="bg-card border rounded-xl p-8 text-center">
                     <p className="text-muted-foreground mb-2">
-                      Nenhuma meta configurada para {nomeMesSelecionado} de {anoSelecionado}.
+                      {temFiltrosAtivos
+                        ? "Nenhuma loja encontrada com os filtros aplicados."
+                        : `Nenhuma meta configurada para ${nomeMesSelecionado} de ${anoSelecionado}.`}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Configure metas mensais para o {isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.
+                      {temFiltrosAtivos
+                        ? "Tente ajustar os filtros para ver mais resultados."
+                        : `Configure metas mensais para o ${isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.`}
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {ranking.map((item, index) => (
-                      <RankingCard
-                        key={item.lojaId}
-                        posicao={index + 1}
-                        nomeLoja={item.nomeLoja}
-                        metaDiaria={item.metaDiaria}
-                        totalVendido={item.totalVendido}
-                        percentualAtingimento={item.percentualAtingimento}
-                      />
-                    ))}
+                    {ranking.map((item, index) => {
+                      const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
+                      return (
+                        <RankingCard
+                          key={item.lojaId}
+                          posicao={index + 1}
+                          nomeLoja={item.nomeLoja}
+                          metaDiaria={item.metaDiaria}
+                          totalVendido={item.totalVendido}
+                          percentualAtingimento={item.percentualAtingimento}
+                          isEmAlerta={isEmAlerta}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </>
