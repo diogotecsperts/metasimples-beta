@@ -61,7 +61,7 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
-            <Dashboard />
+            <Dashboard embedded={true} />
           </TabsContent>
 
           <TabsContent value="lojas" className="space-y-6">

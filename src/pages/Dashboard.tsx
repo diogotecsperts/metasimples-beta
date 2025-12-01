@@ -47,7 +47,11 @@ type RankingItem = {
   tendencia: number | null;
 };
 
-const Dashboard = () => {
+type DashboardProps = {
+  embedded?: boolean;
+};
+
+const Dashboard = ({ embedded = false }: DashboardProps) => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -332,20 +336,22 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader
-        title="Ranking de Performance"
-        showLogo={true}
-        showLogout={true}
-        onLogout={signOut}
-        rightContent={
-          <button
-            onClick={() => navigate("/admin")}
-            className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-          >
-            Painel Admin
-          </button>
-        }
-      />
+      {!embedded && (
+        <AppHeader
+          title="Ranking de Performance"
+          showLogo={true}
+          showLogout={true}
+          onLogout={signOut}
+          rightContent={
+            <button
+              onClick={() => navigate("/admin")}
+              className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              Painel Admin
+            </button>
+          }
+        />
+      )}
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="ranking" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
