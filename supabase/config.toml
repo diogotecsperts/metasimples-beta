@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.get-email-by-username]
 verify_jwt = false
+
+[functions.send-report]
+verify_jwt = true
