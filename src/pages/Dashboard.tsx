@@ -360,13 +360,13 @@ const Dashboard = () => {
                   <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
                   
                   {/* Barra unificada de filtros */}
-                  <div className="flex flex-wrap items-center gap-2 p-4 bg-card border rounded-xl">
+                  <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-2 p-4 bg-card border rounded-xl">
                     {/* Select de lojas */}
                     <Select
                       value={filtroLoja}
                       onValueChange={setFiltroLoja}
                     >
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-full col-span-2 md:w-[180px] md:col-span-1">
                         <SelectValue placeholder="Todas as lojas" />
                       </SelectTrigger>
                       <SelectContent>
@@ -383,7 +383,7 @@ const Dashboard = () => {
                       value={mesSelecionado.toString()}
                       onValueChange={(value) => setMesSelecionado(parseInt(value))}
                     >
-                      <SelectTrigger className="w-[130px]">
+                      <SelectTrigger className="w-full md:w-[130px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -412,7 +412,7 @@ const Dashboard = () => {
                       value={anoSelecionado.toString()}
                       onValueChange={(value) => setAnoSelecionado(parseInt(value))}
                     >
-                      <SelectTrigger className="w-[100px]">
+                      <SelectTrigger className="w-full md:w-[100px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -431,7 +431,7 @@ const Dashboard = () => {
                       value={filtroTipoOperacional}
                       onValueChange={(value) => setFiltroTipoOperacional(value as "todos" | "A" | "B")}
                     >
-                      <SelectTrigger className="w-[150px]">
+                      <SelectTrigger className="w-full md:w-[150px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -445,7 +445,7 @@ const Dashboard = () => {
                       value={filtroFechamentoTardio}
                       onValueChange={(value) => setFiltroFechamentoTardio(value as "todos" | "sim" | "nao")}
                     >
-                      <SelectTrigger className="w-[130px]">
+                      <SelectTrigger className="w-full md:w-[130px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -455,39 +455,41 @@ const Dashboard = () => {
                       </SelectContent>
                     </Select>
 
-                    {!isAtual && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleResetToAtual}
-                        className="whitespace-nowrap"
-                      >
-                        Período Atual
-                      </Button>
-                    )}
-
-                    {temFiltrosAtivos && (
-                      <>
-                        <Badge variant="secondary" className="text-xs">
-                          {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
-                        </Badge>
+                    <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1">
+                      {!isAtual && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={handleLimparFiltros}
-                          className="gap-1.5"
+                          onClick={handleResetToAtual}
+                          className="whitespace-nowrap"
                         >
-                          <X className="h-3.5 w-3.5" />
-                          Limpar
+                          Período Atual
                         </Button>
-                      </>
-                    )}
+                      )}
 
-                    {isAtual && (
-                      <div className="ml-auto">
-                        <RealtimeIndicator isConnected={isRealtimeConnected} />
-                      </div>
-                    )}
+                      {temFiltrosAtivos && (
+                        <>
+                          <Badge variant="secondary" className="text-xs">
+                            {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleLimparFiltros}
+                            className="gap-1.5"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Limpar
+                          </Button>
+                        </>
+                      )}
+
+                      {isAtual && (
+                        <div className="ml-auto">
+                          <RealtimeIndicator isConnected={isRealtimeConnected} />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Alertas de performance */}
