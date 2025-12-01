@@ -7,6 +7,8 @@ import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { MonthlyEvolutionChart } from "@/components/dashboard/MonthlyEvolutionChart";
 import { PeriodComparison } from "@/components/dashboard/PeriodComparison";
 import { AlertasPerformance } from "@/components/dashboard/AlertasPerformance";
+import { ResumoGeral } from "@/components/dashboard/ResumoGeral";
+import { RelatoriosAutomaticos } from "@/components/dashboard/RelatoriosAutomaticos";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -323,6 +325,11 @@ const Dashboard = () => {
     month: "long",
   });
 
+  // Calcular totais para Resumo Geral
+  const metaTotal = metas.reduce((acc, m) => acc + m.meta_diaria_calculada, 0);
+  const vendasTotal = ranking.reduce((acc, r) => acc + r.totalVendido, 0);
+  const atingimentoGeral = metaTotal > 0 ? (vendasTotal / metaTotal) * 100 : 0;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader
@@ -356,6 +363,20 @@ const Dashboard = () => {
               </div>
             ) : (
               <>
+                {/* Resumo Geral - Apenas no período atual */}
+                {isAtual && (
+                  <>
+                    <ResumoGeral 
+                      metaTotal={metaTotal}
+                      vendasTotal={vendasTotal}
+                      atingimentoGeral={atingimentoGeral}
+                      lojasComMeta={lojasComMeta.length}
+                      totalLojas={lojas.length}
+                    />
+                    <RelatoriosAutomaticos />
+                  </>
+                )}
+
                 <div className="flex flex-col gap-4">
                   <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
                   
