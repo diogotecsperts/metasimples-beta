@@ -6,8 +6,10 @@ import { LojasManager } from "@/components/admin/LojasManager";
 import { GerentesManager } from "@/components/admin/GerentesManager";
 import { MetasManager } from "@/components/admin/MetasManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Store, Users, Target, Shield } from "lucide-react";
+import { Store, Users, Target, Shield, BarChart3 } from "lucide-react";
 import { AdminsManager } from "@/components/admin/AdminsManager";
+import { Button } from "@/components/ui/button";
+import Dashboard from "./Dashboard";
 
 const Admin = () => {
   const { signOut } = useAuth();
@@ -25,11 +27,17 @@ const Admin = () => {
         subtitle="Gestão de lojas, gerentes, metas e administradores"
         onLogout={handleLogout}
         showLogo={true}
+        rightContent={
+          <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+            <BarChart3 className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Ver Ranking</span>
+          </Button>
+        }
       />
       
       <PageContainer>
         <Tabs defaultValue="lojas" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="lojas" className="gap-2">
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Lojas</span>
@@ -45,6 +53,10 @@ const Admin = () => {
             <TabsTrigger value="admins" className="gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Admins</span>
+            </TabsTrigger>
+            <TabsTrigger value="dashboard" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
           </TabsList>
 
@@ -70,6 +82,10 @@ const Admin = () => {
             <div className="rounded-xl border bg-card shadow-sm p-6">
               <AdminsManager />
             </div>
+          </TabsContent>
+
+          <TabsContent value="dashboard" className="space-y-6">
+            <Dashboard />
           </TabsContent>
         </Tabs>
       </PageContainer>
