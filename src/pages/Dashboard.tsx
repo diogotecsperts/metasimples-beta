@@ -13,11 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format, endOfMonth } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { format, endOfMonth, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
-import { X } from "lucide-react";
+import { X, Search } from "lucide-react";
 
 type Loja = {
   id: string;
@@ -42,6 +43,7 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
+  tendencia: number | null;
 };
 
 const Dashboard = () => {
@@ -53,8 +55,10 @@ const Dashboard = () => {
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [filtroTipoOperacional, setFiltroTipoOperacional] = useState<"todos" | "A" | "B">("todos");
   const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
+  const [buscaNome, setBuscaNome] = useState("");
   
   const dataHoje = format(new Date(), "yyyy-MM-dd");
+  const dataOntem = format(subDays(new Date(), 1), "yyyy-MM-dd");
   const isAtual = mesSelecionado === (new Date().getMonth() + 1) && 
                   anoSelecionado === new Date().getFullYear();
 
@@ -161,6 +165,21 @@ const Dashboard = () => {
     },
   });
 
+  // Buscar lançamentos de ontem para calcular tendência
+  const { data: lancamentosOntem = [] } = useQuery({
+    queryKey: ["lancamentos-ontem", dataOntem],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lancamentos_diarios")
+        .select("loja_id, valor_acumulado")
+        .eq("data", dataOntem);
+      
+      if (error) throw error;
+      return data as Lancamento[];
+    },
+    enabled: isAtual,
+  });
+
   // Processar ranking
   const rankingCompleto: RankingItem[] = lojas
     .map((loja) => {
@@ -176,12 +195,24 @@ const Dashboard = () => {
       const percentualAtingimento =
         metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
+      // Calcular tendência comparando com ontem
+      let tendencia: number | null = null;
+      if (isAtual && meta && metaDiaria > 0) {
+        const lancamentoOntem = lancamentosOntem.find((l) => l.loja_id === loja.id);
+        if (lancamentoOntem) {
+          const totalOntem = lancamentoOntem.valor_acumulado;
+          const percentualOntem = (totalOntem / metaDiaria) * 100;
+          tendencia = percentualAtingimento - percentualOntem;
+        }
+      }
+
       return {
         lojaId: loja.id,
         nomeLoja: loja.nome,
         metaDiaria,
         totalVendido,
         percentualAtingimento,
+        tendencia,
       };
     })
     .sort((a, b) => {
@@ -211,14 +242,20 @@ const Dashboard = () => {
       if (filtroFechamentoTardio === "nao" && hasFechamento) return false;
     }
 
+    // Filtro por nome da loja
+    if (buscaNome && !item.nomeLoja.toLowerCase().includes(buscaNome.toLowerCase())) {
+      return false;
+    }
+
     return true;
   });
 
-  const temFiltrosAtivos = filtroTipoOperacional !== "todos" || filtroFechamentoTardio !== "todos";
+  const temFiltrosAtivos = filtroTipoOperacional !== "todos" || filtroFechamentoTardio !== "todos" || buscaNome.length > 0;
 
   const handleLimparFiltros = () => {
     setFiltroTipoOperacional("todos");
     setFiltroFechamentoTardio("todos");
+    setBuscaNome("");
   };
 
   // Preparar dados para componente de alertas
@@ -287,6 +324,17 @@ const Dashboard = () => {
                   
                   {/* Barra unificada de filtros */}
                   <div className="flex flex-wrap items-center gap-2 p-4 bg-card border rounded-xl">
+                    {/* Filtro de busca por nome */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar loja..."
+                        value={buscaNome}
+                        onChange={(e) => setBuscaNome(e.target.value)}
+                        className="w-[180px] pl-9"
+                      />
+                    </div>
+
                     <Select
                       value={mesSelecionado.toString()}
                       onValueChange={(value) => setMesSelecionado(parseInt(value))}
@@ -427,6 +475,7 @@ const Dashboard = () => {
                           metaDiaria={item.metaDiaria}
                           totalVendido={item.totalVendido}
                           percentualAtingimento={item.percentualAtingimento}
+                          tendencia={item.tendencia}
                           isEmAlerta={isEmAlerta}
                         />
                       );

@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -8,6 +8,7 @@ type RankingCardProps = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
+  tendencia?: number | null;
   isEmAlerta?: boolean;
 };
 
@@ -17,6 +18,7 @@ export function RankingCard({
   metaDiaria,
   totalVendido,
   percentualAtingimento,
+  tendencia,
   isEmAlerta = false,
 }: RankingCardProps) {
   const formatCurrency = (value: number) => {
@@ -108,6 +110,34 @@ export function RankingCard({
               {temMeta ? `${percentualAtingimento.toFixed(1)}%` : "—"}
             </span>
           </div>
+
+          {/* Indicador de tendência vs dia anterior */}
+          {tendencia !== null && tendencia !== undefined && (
+            <div className="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border/30">
+              {tendencia > 0 ? (
+                <>
+                  <ArrowUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                    +{tendencia.toFixed(1)}% vs ontem
+                  </span>
+                </>
+              ) : tendencia < 0 ? (
+                <>
+                  <ArrowDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                    {tendencia.toFixed(1)}% vs ontem
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Minus className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    = vs ontem
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
