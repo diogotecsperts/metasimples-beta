@@ -159,6 +159,10 @@ const Dashboard = () => {
     day: "numeric",
   });
 
+  const nomeMesAtual = new Date(anoAtual, mesAtual - 1).toLocaleDateString("pt-BR", {
+    month: "long",
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
@@ -185,10 +189,10 @@ const Dashboard = () => {
         {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
           <div className="text-center py-16 bg-card border rounded-xl shadow-md">
             <p className="text-xl md:text-2xl text-muted-foreground font-medium">
-              Nenhuma loja com meta<br />configurada ainda.
+              Nenhuma meta configurada para<br />{nomeMesAtual} de {anoAtual}.
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Configure metas mensais para visualizar o ranking.
+              Configure metas mensais para o mês atual para visualizar o ranking.
             </p>
           </div>
         ) : (
