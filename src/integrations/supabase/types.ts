@@ -152,6 +152,33 @@ export type Database = {
           },
         ]
       }
+      report_settings: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          emails: string[]
+          horarios_ativos: string[]
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          emails?: string[]
+          horarios_ativos?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          emails?: string[]
+          horarios_ativos?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

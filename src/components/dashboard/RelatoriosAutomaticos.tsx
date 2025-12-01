@@ -1,76 +1,388 @@
-import { Mail, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Mail, Plus, X, Send, Loader2, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+const HORARIOS = [
+  { id: "10:00", label: "10:00" },
+  { id: "14:00", label: "14:00" },
+  { id: "16:00", label: "16:00" },
+  { id: "19:00", label: "19:00" },
+  { id: "23:00", label: "23:00" },
+];
+
+interface ReportSettings {
+  id?: string;
+  emails: string[];
+  horarios_ativos: string[];
+  ativo: boolean;
+}
+
 export function RelatoriosAutomaticos() {
-  const horarios = [{
-    id: "10:00",
-    label: "10:00"
-  }, {
-    id: "14:00",
-    label: "14:00"
-  }, {
-    id: "16:00",
-    label: "16:00"
-  }, {
-    id: "19:00",
-    label: "19:00"
-  }, {
-    id: "23:00",
-    label: "23:00"
-  }];
-  return <div className="bg-card border rounded-xl p-4 md:p-6">
+  const [settings, setSettings] = useState<ReportSettings>({
+    emails: [],
+    horarios_ativos: [],
+    ativo: false,
+  });
+  const [newEmail, setNewEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("report_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSettings({
+          id: data.id,
+          emails: data.emails || [],
+          horarios_ativos: data.horarios_ativos || [],
+          ativo: data.ativo || false,
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configurações:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleHorarioToggle = (horarioId: string) => {
+    setSettings(prev => {
+      const newHorarios = prev.horarios_ativos.includes(horarioId)
+        ? prev.horarios_ativos.filter(h => h !== horarioId)
+        : [...prev.horarios_ativos, horarioId];
+      return { ...prev, horarios_ativos: newHorarios };
+    });
+    setHasChanges(true);
+  };
+
+  const handleAddEmail = () => {
+    const email = newEmail.trim().toLowerCase();
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Email inválido",
+        description: "Por favor, insira um email válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (settings.emails.includes(email)) {
+      toast({
+        title: "Email já existe",
+        description: "Este email já está na lista.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSettings(prev => ({
+      ...prev,
+      emails: [...prev.emails, email],
+    }));
+    setNewEmail("");
+    setHasChanges(true);
+  };
+
+  const handleRemoveEmail = (email: string) => {
+    setSettings(prev => ({
+      ...prev,
+      emails: prev.emails.filter(e => e !== email),
+    }));
+    setHasChanges(true);
+  };
+
+  const handleAtivoToggle = (checked: boolean) => {
+    setSettings(prev => ({ ...prev, ativo: checked }));
+    setHasChanges(true);
+  };
+
+  const handleSave = async () => {
+    if (settings.emails.length === 0) {
+      toast({
+        title: "Adicione pelo menos um email",
+        description: "É necessário ter pelo menos um email para receber os relatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (settings.id) {
+        // Update existing
+        const { error } = await supabase
+          .from("report_settings")
+          .update({
+            emails: settings.emails,
+            horarios_ativos: settings.horarios_ativos,
+            ativo: settings.ativo,
+          })
+          .eq("id", settings.id);
+
+        if (error) throw error;
+      } else {
+        // Create new
+        const { data, error } = await supabase
+          .from("report_settings")
+          .insert({
+            emails: settings.emails,
+            horarios_ativos: settings.horarios_ativos,
+            ativo: settings.ativo,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setSettings(prev => ({ ...prev, id: data.id }));
+      }
+
+      toast({
+        title: "Configurações salvas",
+        description: "As configurações de relatórios foram atualizadas com sucesso.",
+      });
+      setHasChanges(false);
+    } catch (error: any) {
+      console.error("Erro ao salvar:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: error.message || "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    if (settings.emails.length === 0) {
+      toast({
+        title: "Adicione pelo menos um email",
+        description: "É necessário ter pelo menos um email para enviar o teste.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save settings first if there are changes
+    if (hasChanges || !settings.id) {
+      await handleSave();
+    }
+
+    setIsSendingTest(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke("send-report", {
+        body: { horario: "Teste", isTest: true },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.success) {
+        toast({
+          title: "Relatório de teste enviado!",
+          description: `Verifique a caixa de entrada de: ${settings.emails.join(", ")}`,
+        });
+      } else {
+        throw new Error(response.data?.message || "Erro desconhecido");
+      }
+    } catch (error: any) {
+      console.error("Erro ao enviar teste:", error);
+      toast({
+        title: "Erro ao enviar teste",
+        description: error.message || "Não foi possível enviar o relatório de teste.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-card border rounded-xl p-6 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border rounded-xl p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Mail className="h-6 w-6 text-primary" />
           <h2 className="text-xl md:text-2xl font-semibold">Relatórios Automáticos</h2>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge variant="secondary" className="gap-1">
-                <Info className="h-3 w-3" />
-                Em desenvolvimento
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="max-w-xs">
-                Funcionalidade em desenvolvimento. Em breve você poderá receber relatórios automáticos por email nos horários de lançamento.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-3">
+          <Label htmlFor="ativo-switch" className="text-sm text-muted-foreground">
+            {settings.ativo ? "Ativo" : "Inativo"}
+          </Label>
+          <Switch
+            id="ativo-switch"
+            checked={settings.ativo}
+            onCheckedChange={handleAtivoToggle}
+          />
+        </div>
       </div>
 
-      <p className="text-sm text-muted-foreground mb-4">Receba relatórios consolidados automaticamente nos horários de lançamento</p>
+      <p className="text-sm text-muted-foreground mb-6">
+        Receba relatórios consolidados automaticamente nos horários de lançamento
+      </p>
 
       {/* Horários */}
-      <div className="mb-4">
+      <div className="mb-6">
         <p className="text-sm font-medium mb-3">Horários de Envio:</p>
         <div className="flex flex-wrap gap-4">
-          {horarios.map(horario => <div key={horario.id} className="flex items-center gap-2">
-              <Checkbox id={horario.id} disabled className="opacity-50 cursor-not-allowed" />
-              <label htmlFor={horario.id} className="text-sm opacity-50 cursor-not-allowed">
+          {HORARIOS.map(horario => (
+            <div key={horario.id} className="flex items-center gap-2">
+              <Checkbox
+                id={horario.id}
+                checked={settings.horarios_ativos.includes(horario.id)}
+                onCheckedChange={() => handleHorarioToggle(horario.id)}
+              />
+              <label
+                htmlFor={horario.id}
+                className="text-sm cursor-pointer select-none"
+              >
                 {horario.label}
               </label>
-            </div>)}
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Email Input */}
       <div className="mb-4">
-        <label className="text-sm font-medium mb-2 block opacity-50">
-          Email de Destino:
+        <label className="text-sm font-medium mb-2 block">
+          Emails de Destino:
         </label>
-        <Input type="email" placeholder="seu@email.com" disabled className="opacity-50 cursor-not-allowed" />
+        <div className="flex gap-2">
+          <Input
+            type="email"
+            placeholder="Digite um email e pressione Adicionar"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddEmail();
+              }
+            }}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAddEmail}
+            disabled={!newEmail.trim()}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Botão Salvar */}
-      <Button disabled className="opacity-50 cursor-not-allowed">
-        Salvar Configuração
-      </Button>
-    </div>;
+      {/* Email List */}
+      {settings.emails.length > 0 && (
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2">
+            {settings.emails.map(email => (
+              <Badge
+                key={email}
+                variant="secondary"
+                className="pl-3 pr-1 py-1.5 flex items-center gap-1"
+              >
+                {email}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveEmail(email)}
+                  className="ml-1 p-0.5 hover:bg-muted rounded"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {settings.emails.length === 0 && (
+        <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <AlertCircle className="h-4 w-4" />
+          <span>Nenhum email adicionado ainda</span>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3">
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" />
+              Salvar Configuração
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleSendTest}
+          disabled={isSendingTest || settings.emails.length === 0}
+        >
+          {isSendingTest ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Enviando...
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4" />
+              Enviar Teste Agora
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Status info */}
+      {settings.ativo && settings.horarios_ativos.length > 0 && settings.emails.length > 0 && (
+        <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+          <p className="text-sm text-primary font-medium">
+            ✓ Relatórios ativos para: {settings.horarios_ativos.sort().join(", ")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Os emails serão enviados automaticamente nos horários selecionados
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
