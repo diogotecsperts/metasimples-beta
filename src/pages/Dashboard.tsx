@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { RankingHeader } from "@/components/dashboard/RankingHeader";
 import { RankingCard } from "@/components/dashboard/RankingCard";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
+import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { format, endOfMonth } from "date-fns";
 
 type Loja = {
   id: string;
@@ -33,9 +34,17 @@ type RankingItem = {
 const Dashboard = () => {
   const queryClient = useQueryClient();
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
+  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  
   const dataHoje = format(new Date(), "yyyy-MM-dd");
-  const mesAtual = new Date().getMonth() + 1;
-  const anoAtual = new Date().getFullYear();
+  const isAtual = mesSelecionado === (new Date().getMonth() + 1) && 
+                  anoSelecionado === new Date().getFullYear();
+
+  const handleResetToAtual = () => {
+    setMesSelecionado(new Date().getMonth() + 1);
+    setAnoSelecionado(new Date().getFullYear());
+  };
 
   // Configurar realtime para atualizar automaticamente quando houver lançamentos
   useEffect(() => {
@@ -90,32 +99,48 @@ const Dashboard = () => {
     },
   });
 
-  // Buscar metas mensais do mês atual
+  // Buscar metas mensais do período selecionado
   const { data: metas = [] } = useQuery({
-    queryKey: ["metas-dashboard", mesAtual, anoAtual],
+    queryKey: ["metas-dashboard", mesSelecionado, anoSelecionado],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("metas_mensais")
         .select("loja_id, meta_diaria_calculada")
-        .eq("mes", mesAtual)
-        .eq("ano", anoAtual);
+        .eq("mes", mesSelecionado)
+        .eq("ano", anoSelecionado);
 
       if (error) throw error;
       return data as MetaMensal[];
     },
   });
 
-  // Buscar lançamentos do dia
+  // Buscar lançamentos do dia (atual) ou do mês (histórico)
   const { data: lancamentos = [], isLoading } = useQuery({
-    queryKey: ["lancamentos-dashboard", dataHoje],
+    queryKey: ["lancamentos-dashboard", mesSelecionado, anoSelecionado, isAtual ? dataHoje : null],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_diarios")
-        .select("loja_id, valor_acumulado")
-        .eq("data", dataHoje);
+      if (isAtual) {
+        // Mês atual: busca apenas hoje
+        const { data, error } = await supabase
+          .from("lancamentos_diarios")
+          .select("loja_id, valor_acumulado")
+          .eq("data", dataHoje);
 
-      if (error) throw error;
-      return data as Lancamento[];
+        if (error) throw error;
+        return data as Lancamento[];
+      } else {
+        // Mês anterior: busca todo o mês
+        const inicioMes = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
+        const fimMes = format(endOfMonth(new Date(anoSelecionado, mesSelecionado - 1)), "yyyy-MM-dd");
+        
+        const { data, error } = await supabase
+          .from("lancamentos_diarios")
+          .select("loja_id, valor_acumulado, data")
+          .gte("data", inicioMes)
+          .lte("data", fimMes);
+
+        if (error) throw error;
+        return data as Lancamento[];
+      }
     },
   });
 
@@ -152,14 +177,19 @@ const Dashboard = () => {
       return b.percentualAtingimento - a.percentualAtingimento;
     });
 
-  const dataFormatada = new Date().toLocaleDateString("pt-BR", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const dataFormatada = isAtual
+    ? new Date().toLocaleDateString("pt-BR", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : new Date(anoSelecionado, mesSelecionado - 1).toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+      });
 
-  const nomeMesAtual = new Date(anoAtual, mesAtual - 1).toLocaleDateString("pt-BR", {
+  const nomeMesSelecionado = new Date(anoSelecionado, mesSelecionado - 1).toLocaleDateString("pt-BR", {
     month: "long",
   });
 
@@ -181,18 +211,29 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-4 md:p-8">
       <div className="space-y-6 md:space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
-          <RealtimeIndicator isConnected={isRealtimeConnected} />
+          
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <PeriodFilter
+              mesSelecionado={mesSelecionado}
+              anoSelecionado={anoSelecionado}
+              onMesChange={setMesSelecionado}
+              onAnoChange={setAnoSelecionado}
+              onResetToAtual={handleResetToAtual}
+              isAtual={isAtual}
+            />
+            {isAtual && <RealtimeIndicator isConnected={isRealtimeConnected} />}
+          </div>
         </div>
 
         {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
           <div className="text-center py-16 bg-card border rounded-xl shadow-md">
             <p className="text-xl md:text-2xl text-muted-foreground font-medium">
-              Nenhuma meta configurada para<br />{nomeMesAtual} de {anoAtual}.
+              Nenhuma meta configurada para<br />{nomeMesSelecionado} de {anoSelecionado}.
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Configure metas mensais para o mês atual para visualizar o ranking.
+              Configure metas mensais para o {isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.
             </p>
           </div>
         ) : (
