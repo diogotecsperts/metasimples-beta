@@ -13,12 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { format, endOfMonth, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
-import { X, Search } from "lucide-react";
+import { X } from "lucide-react";
 
 type Loja = {
   id: string;
@@ -55,7 +54,7 @@ const Dashboard = () => {
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [filtroTipoOperacional, setFiltroTipoOperacional] = useState<"todos" | "A" | "B">("todos");
   const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
-  const [buscaNome, setBuscaNome] = useState("");
+  const [filtroLoja, setFiltroLoja] = useState<string>("todas");
   
   const dataHoje = format(new Date(), "yyyy-MM-dd");
   const dataOntem = format(subDays(new Date(), 1), "yyyy-MM-dd");
@@ -67,18 +66,18 @@ const Dashboard = () => {
     setAnoSelecionado(new Date().getFullYear());
   };
 
-  // Configurar realtime para atualizar automaticamente quando houver lançamentos
+  // Configurar realtime para atualizar automaticamente quando houver lançamentos, lojas e metas
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log("📡 Dashboard: Configurando realtime subscription");
+      console.log("📡 Dashboard: Configurando realtime subscriptions");
     }
 
-    const channel = supabase
+    const lancamentosChannel = supabase
       .channel("lancamentos-realtime")
       .on(
         "postgres_changes",
         {
-          event: "*", // Escuta INSERT, UPDATE, DELETE
+          event: "*",
           schema: "public",
           table: "lancamentos_diarios",
         },
@@ -86,22 +85,60 @@ const Dashboard = () => {
           if (import.meta.env.DEV) {
             console.log("🔄 Dashboard: Lançamento atualizado", payload);
           }
-          // Invalidar queries para recarregar dados
           queryClient.invalidateQueries({ queryKey: ["lancamentos-dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["lancamentos-ontem"] });
         }
       )
       .subscribe((status) => {
         if (import.meta.env.DEV) {
-          console.log("📡 Dashboard: Status da subscription:", status);
+          console.log("📡 Dashboard: Status da subscription de lançamentos:", status);
         }
         setIsRealtimeConnected(status === "SUBSCRIBED");
       });
 
+    const lojasChannel = supabase
+      .channel("lojas-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "lojas",
+        },
+        () => {
+          if (import.meta.env.DEV) {
+            console.log("🔄 Dashboard: Lojas atualizadas");
+          }
+          queryClient.invalidateQueries({ queryKey: ["lojas-dashboard"] });
+        }
+      )
+      .subscribe();
+
+    const metasChannel = supabase
+      .channel("metas-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "metas_mensais",
+        },
+        () => {
+          if (import.meta.env.DEV) {
+            console.log("🔄 Dashboard: Metas atualizadas");
+          }
+          queryClient.invalidateQueries({ queryKey: ["metas-dashboard"] });
+        }
+      )
+      .subscribe();
+
     return () => {
       if (import.meta.env.DEV) {
-        console.log("📡 Dashboard: Removendo subscription");
+        console.log("📡 Dashboard: Removendo subscriptions");
       }
-      supabase.removeChannel(channel);
+      supabase.removeChannel(lancamentosChannel);
+      supabase.removeChannel(lojasChannel);
+      supabase.removeChannel(metasChannel);
       setIsRealtimeConnected(false);
     };
   }, [queryClient, dataHoje]);
@@ -242,20 +279,20 @@ const Dashboard = () => {
       if (filtroFechamentoTardio === "nao" && hasFechamento) return false;
     }
 
-    // Filtro por nome da loja
-    if (buscaNome && !item.nomeLoja.toLowerCase().includes(buscaNome.toLowerCase())) {
+    // Filtro por loja específica
+    if (filtroLoja !== "todas" && item.lojaId !== filtroLoja) {
       return false;
     }
 
     return true;
   });
 
-  const temFiltrosAtivos = filtroTipoOperacional !== "todos" || filtroFechamentoTardio !== "todos" || buscaNome.length > 0;
+  const temFiltrosAtivos = filtroTipoOperacional !== "todos" || filtroFechamentoTardio !== "todos" || filtroLoja !== "todas";
 
   const handleLimparFiltros = () => {
     setFiltroTipoOperacional("todos");
     setFiltroFechamentoTardio("todos");
-    setBuscaNome("");
+    setFiltroLoja("todas");
   };
 
   // Preparar dados para componente de alertas
@@ -324,16 +361,23 @@ const Dashboard = () => {
                   
                   {/* Barra unificada de filtros */}
                   <div className="flex flex-wrap items-center gap-2 p-4 bg-card border rounded-xl">
-                    {/* Filtro de busca por nome */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar loja..."
-                        value={buscaNome}
-                        onChange={(e) => setBuscaNome(e.target.value)}
-                        className="w-[180px] pl-9"
-                      />
-                    </div>
+                    {/* Select de lojas */}
+                    <Select
+                      value={filtroLoja}
+                      onValueChange={setFiltroLoja}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Todas as lojas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas as lojas</SelectItem>
+                        {lojas.map((loja) => (
+                          <SelectItem key={loja.id} value={loja.id}>
+                            {loja.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
                     <Select
                       value={mesSelecionado.toString()}
