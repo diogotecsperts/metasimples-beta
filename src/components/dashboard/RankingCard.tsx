@@ -1,5 +1,6 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 type RankingCardProps = {
   posicao: number;
@@ -7,6 +8,7 @@ type RankingCardProps = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
+  isEmAlerta?: boolean;
 };
 
 export function RankingCard({
@@ -15,6 +17,7 @@ export function RankingCard({
   metaDiaria,
   totalVendido,
   percentualAtingimento,
+  isEmAlerta = false,
 }: RankingCardProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -54,10 +57,21 @@ export function RankingCard({
   return (
     <div
       className={cn(
-        "rounded-xl border-2 p-6 md:p-8 transition-all shadow-md hover:shadow-lg",
-        getStatusBg()
+        "rounded-xl border-2 p-6 md:p-8 transition-all shadow-md hover:shadow-lg relative",
+        getStatusBg(),
+        isEmAlerta && "ring-2 ring-red-500 ring-offset-2"
       )}
     >
+      {isEmAlerta && (
+        <Badge
+          variant="destructive"
+          className="absolute -top-2 -right-2 gap-1 shadow-lg animate-pulse"
+        >
+          <AlertTriangle className="h-3 w-3" />
+          Alerta
+        </Badge>
+      )}
+      
       <div className="flex items-start justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-3 md:gap-4">
           <div className="text-3xl md:text-5xl font-bold text-muted-foreground/60">
