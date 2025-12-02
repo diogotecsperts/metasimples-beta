@@ -37,7 +37,8 @@ const Admin = () => {
       
       <PageContainer>
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <div className="flex justify-center">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -58,7 +59,8 @@ const Admin = () => {
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Admins</span>
             </TabsTrigger>
-          </TabsList>
+            </TabsList>
+          </div>
 
           <TabsContent value="dashboard" className="space-y-6">
             <Dashboard embedded={true} />
