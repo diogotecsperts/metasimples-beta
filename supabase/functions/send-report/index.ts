@@ -107,22 +107,40 @@ function generateEmailHTML(
         <!-- Resumo Geral -->
         <div style="padding: 24px;">
           <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #374151;">📈 Resumo Geral</h2>
-          <div style="display: grid; gap: 12px;">
-            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #6b7280;">Meta do Dia</span>
-              <span style="font-weight: 600; font-size: 18px;">${formatCurrency(metaTotal)}</span>
-            </div>
-            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #6b7280;">Total Vendido</span>
-              <span style="font-weight: 600; font-size: 18px;">${formatCurrency(vendasTotal)}</span>
-            </div>
-            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #6b7280;">Atingimento</span>
-              <span style="font-weight: 700; font-size: 20px; color: ${getColorHex(percentualGeral)};">
-                ${getColorEmoji(percentualGeral)} ${percentualGeral.toFixed(1)}%
-              </span>
-            </div>
-          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: separate; border-spacing: 0 8px;">
+            <tr>
+              <td style="background-color: #f9fafb; border-radius: 8px; padding: 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color: #6b7280;">Meta do Dia</td>
+                    <td style="text-align: right; font-weight: 600; font-size: 18px;">${formatCurrency(metaTotal)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color: #f9fafb; border-radius: 8px; padding: 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color: #6b7280;">Total Vendido</td>
+                    <td style="text-align: right; font-weight: 600; font-size: 18px;">${formatCurrency(vendasTotal)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color: #f9fafb; border-radius: 8px; padding: 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color: #6b7280;">Atingimento</td>
+                    <td style="text-align: right; font-weight: 700; font-size: 20px; color: ${getColorHex(percentualGeral)};">
+                      ${getColorEmoji(percentualGeral)} ${percentualGeral.toFixed(1)}%
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
         </div>
         
         <!-- Ranking -->
