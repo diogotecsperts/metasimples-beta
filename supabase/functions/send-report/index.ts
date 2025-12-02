@@ -171,7 +171,17 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get request body
-    const { horario, isTest = false } = await req.json();
+    const { horario: horarioParam, isTest = false } = await req.json();
+    
+    // Get current time in Brazil timezone for test reports
+    const now = new Date();
+    const brasilOffsetMs = -3 * 60 * 60 * 1000;
+    const nowBrasil = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + brasilOffsetMs);
+    const horaAtual = nowBrasil.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+    // Use current time for test, otherwise use the scheduled time
+    const horario = isTest ? `${horaAtual} (Teste)` : horarioParam;
+    
     console.log(`[send-report] Iniciando para horário: ${horario}, teste: ${isTest}`);
 
     // Fetch report settings
@@ -204,8 +214,8 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      if (!settings.horarios_ativos.includes(horario)) {
-        console.log(`[send-report] Horário ${horario} não está ativo`);
+      if (!settings.horarios_ativos.includes(horarioParam)) {
+        console.log(`[send-report] Horário ${horarioParam} não está ativo`);
         return new Response(
           JSON.stringify({ success: false, message: "Horário não ativo" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
