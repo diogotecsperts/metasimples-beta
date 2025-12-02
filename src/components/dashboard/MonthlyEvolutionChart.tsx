@@ -18,14 +18,24 @@ type LojaEvolution = {
 const CHART_COLORS = [
   "#3b82f6", // azul
   "#22c55e", // verde
-  "#f59e0b", // laranja
+  "#f59e0b", // âmbar
   "#ef4444", // vermelho
   "#a855f7", // roxo
-  "#8b5cf6", // violeta
-  "#ec4899", // rosa
-  "#f97316", // laranja escuro
-  "#10b981", // esmeralda
   "#06b6d4", // ciano
+  "#ec4899", // rosa
+  "#84cc16", // lima
+  "#f97316", // laranja
+  "#6366f1", // índigo
+  "#14b8a6", // teal
+  "#f43f5e", // rosa escuro
+  "#8b5cf6", // violeta
+  "#eab308", // amarelo
+  "#0ea5e9", // azul claro
+  "#d946ef", // fúcsia
+  "#10b981", // esmeralda
+  "#fb923c", // laranja claro
+  "#7c3aed", // violeta escuro
+  "#2dd4bf", // turquesa
 ];
 
 export function MonthlyEvolutionChart() {
