@@ -32,9 +32,11 @@ export function RankingCard({
   const percentualFormatado = temMeta ? `${percentualAtingimento.toFixed(1)}%` : "—";
 
   const getPercentualFontSize = () => {
-    if (!temMeta || percentualFormatado.length <= 5) {
-      return "text-4xl md:text-6xl";
+    // Casos extremos (7+ caracteres): 1000.0%, 9999.9%, etc
+    if (temMeta && percentualFormatado.length >= 7) {
+      return "text-2xl md:text-4xl";
     }
+    // Padrão para todos os outros casos (incluindo "—")
     return "text-3xl md:text-5xl";
   };
 
