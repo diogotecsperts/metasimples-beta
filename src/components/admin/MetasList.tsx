@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -42,6 +42,9 @@ type MetasListProps = {
   onEdit: (meta: Meta) => void;
   onDelete: (id: string) => void;
   isLoading: boolean;
+  isAtual: boolean;
+  mes: number;
+  ano: number;
 };
 
 const MESES = [
@@ -65,6 +68,9 @@ export function MetasList({
   onEdit,
   onDelete,
   isLoading,
+  isAtual,
+  mes,
+  ano,
 }: MetasListProps) {
   const getLojaName = (lojaId: string) => {
     const loja = lojas.find((l) => l.id === lojaId);
@@ -87,9 +93,22 @@ export function MetasList({
   }
 
   if (metas.length === 0) {
+    if (isAtual) {
+      return (
+        <div className="text-center py-12 text-muted-foreground border rounded-md bg-muted/20">
+          <CalendarPlus className="h-10 w-10 mx-auto mb-3 opacity-50" />
+          <p className="font-medium">
+            Nenhuma meta cadastrada para {MESES[mes - 1]} de {ano}.
+          </p>
+          <p className="text-sm mt-1">
+            Clique em "+ Nova Meta" para começar.
+          </p>
+        </div>
+      );
+    }
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        Nenhuma meta cadastrada ainda.
+      <div className="text-center py-8 text-muted-foreground border rounded-md">
+        Nenhuma meta encontrada para {MESES[mes - 1]} de {ano}.
       </div>
     );
   }
