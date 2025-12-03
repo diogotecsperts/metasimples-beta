@@ -20,12 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 const lancamentoSchema = z.object({
-  valor_acumulado: z.coerce
-    .number()
+  valor_acumulado: z
+    .number({ required_error: "Informe o valor acumulado" })
     .min(0, "Valor deve ser maior ou igual a zero")
     .max(1000000, "Valor muito alto. Verifique o valor digitado.")
     .refine((val) => {
-      // Verificar se tem no máximo 2 casas decimais
       const str = val.toString();
       const decimalPart = str.split('.')[1];
       return !decimalPart || decimalPart.length <= 2;
@@ -54,7 +53,7 @@ export function LancamentoDialog({
   const form = useForm<LancamentoFormValues>({
     resolver: zodResolver(lancamentoSchema),
     defaultValues: {
-      valor_acumulado: valorAtual || 0,
+      valor_acumulado: valorAtual,
     },
   });
 
@@ -62,7 +61,7 @@ export function LancamentoDialog({
   useEffect(() => {
     if (isOpen) {
       form.reset({
-        valor_acumulado: valorAtual || 0,
+        valor_acumulado: valorAtual,
       });
     }
   }, [isOpen, valorAtual, form]);
@@ -96,7 +95,11 @@ export function LancamentoDialog({
                       placeholder="0.00"
                       autoFocus
                       {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === "" ? undefined : Number(value));
+                      }}
                       className="text-lg"
                     />
                   </FormControl>
