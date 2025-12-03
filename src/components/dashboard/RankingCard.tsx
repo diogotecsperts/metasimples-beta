@@ -29,6 +29,14 @@ export function RankingCard({
   };
 
   const temMeta = metaDiaria > 0;
+  const percentualFormatado = temMeta ? `${percentualAtingimento.toFixed(1)}%` : "—";
+
+  const getPercentualFontSize = () => {
+    if (!temMeta || percentualFormatado.length <= 5) {
+      return "text-4xl md:text-6xl";
+    }
+    return "text-3xl md:text-5xl";
+  };
 
   const getStatusColor = () => {
     if (!temMeta) return "text-muted-foreground";
@@ -106,8 +114,8 @@ export function RankingCard({
         <div className="pt-3 md:pt-4 border-t border-border/50">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm md:text-base font-medium">Atingimento:</span>
-            <span className={cn("text-4xl md:text-6xl font-bold", getStatusColor())}>
-              {temMeta ? `${percentualAtingimento.toFixed(1)}%` : "—"}
+            <span className={cn(getPercentualFontSize(), "font-bold", getStatusColor())}>
+              {percentualFormatado}
             </span>
           </div>
 
