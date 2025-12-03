@@ -1,4 +1,4 @@
-import { Pencil, Trash2, CalendarPlus } from "lucide-react";
+import { Pencil, Trash2, CalendarPlus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -142,13 +142,51 @@ export function MetasList({
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit(meta)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  {isAtual ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(meta)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-background">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            Edição de Período Retroativo
+                          </AlertDialogTitle>
+                          <AlertDialogDescription asChild>
+                            <div className="text-left space-y-2">
+                              <p>
+                                Você está prestes a editar a meta de{" "}
+                                <strong>{MESES[meta.mes - 1]}/{meta.ano}</strong> para{" "}
+                                <strong>{getLojaName(meta.loja_id)}</strong>.
+                              </p>
+                              <p className="text-amber-600 dark:text-amber-400">
+                                ⚠️ Atenção: Este período já foi encerrado. Ao alterar esta meta, 
+                                os percentuais de atingimento calculados na época ficarão 
+                                desconectados da realidade que foi vivenciada pelos gerentes.
+                              </p>
+                            </div>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onEdit(meta)}>
+                            Editar mesmo assim
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -157,20 +195,34 @@ export function MetasList({
                     </AlertDialogTrigger>
                     <AlertDialogContent className="bg-background">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja excluir a meta de{" "}
-                          <strong>
-                            {MESES[meta.mes - 1]}/{meta.ano}
-                          </strong>{" "}
-                          para <strong>{getLojaName(meta.loja_id)}</strong>?
-                          Esta ação não pode ser desfeita.
+                        <AlertDialogTitle className={!isAtual ? "flex items-center gap-2" : ""}>
+                          {!isAtual && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                          {!isAtual ? "Exclusão de Período Retroativo" : "Confirmar exclusão"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                          <div className="text-left space-y-2">
+                            <p>
+                              Tem certeza que deseja excluir a meta de{" "}
+                              <strong>{MESES[meta.mes - 1]}/{meta.ano}</strong> para{" "}
+                              <strong>{getLojaName(meta.loja_id)}</strong>?
+                            </p>
+                            {!isAtual && (
+                              <p className="text-amber-600 dark:text-amber-400">
+                                ⚠️ Atenção: Este período já foi encerrado. Ao excluir esta meta, 
+                                os percentuais de atingimento calculados na época ficarão 
+                                desconectados da realidade que foi vivenciada pelos gerentes.
+                              </p>
+                            )}
+                            <p className="text-muted-foreground text-sm">
+                              Esta ação não pode ser desfeita.
+                            </p>
+                          </div>
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={() => onDelete(meta.id)}>
-                          Excluir
+                          {!isAtual ? "Excluir mesmo assim" : "Excluir"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
