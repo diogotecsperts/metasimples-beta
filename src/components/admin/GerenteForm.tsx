@@ -101,7 +101,7 @@ export function GerenteForm({
       }) => <FormItem>
               <FormLabel>Telefone (opcional)</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="(87) 99999-9999" />
+                <Input type="tel" placeholder="(87) 99999-9999" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>} />
