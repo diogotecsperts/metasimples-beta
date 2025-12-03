@@ -33,11 +33,11 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find profile by username
+    // Find profile by username (case-insensitive)
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('username', username)
+      .ilike('username', username)
       .maybeSingle();
 
     if (profileError) {
