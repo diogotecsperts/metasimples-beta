@@ -39,7 +39,7 @@ const Login = () => {
           body: { username: identifier }
         });
 
-        if (emailError || !emailData?.email) {
+        if (emailError || !emailData?.found || !emailData?.email) {
           toast({
             title: "Usuário não encontrado",
             description: "Verifique o ID de acesso informado",

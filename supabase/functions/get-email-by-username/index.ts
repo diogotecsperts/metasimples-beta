@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
 
     if (!profile) {
       return new Response(
-        JSON.stringify({ error: 'User not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ found: false, email: null }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ email: authUser.user.email }),
+      JSON.stringify({ found: true, email: authUser.user.email }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
