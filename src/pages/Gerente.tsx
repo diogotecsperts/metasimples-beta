@@ -9,11 +9,13 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { MetaDiariaHeader } from "@/components/gerente/MetaDiariaHeader";
 import { TimelineSlot } from "@/components/gerente/TimelineSlot";
 import { LancamentoDialog } from "@/components/gerente/LancamentoDialog";
+import { DiasPendentes } from "@/components/gerente/DiasPendentes";
+import { LancamentoRetroativoDialog } from "@/components/gerente/LancamentoRetroativoDialog";
 import { SalesEvolutionChart } from "@/components/gerente/SalesEvolutionChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateSalesReport } from "@/lib/generateSalesReport";
 import { registrarAuditLog } from "@/lib/auditLog";
@@ -22,7 +24,20 @@ type Loja = {
   id: string;
   nome: string;
   possui_fechamento_tardio: boolean;
+  tipo_operacional: "A" | "B";
 };
+
+type LancamentoMes = {
+  id: string;
+  data: string;
+  horario: string;
+  valor_acumulado: number;
+};
+
+type DiaRetroativoState = {
+  data: Date;
+  lancamentos: LancamentoMes[];
+} | null;
 
 type MetaMensal = {
   id: string;
@@ -42,12 +57,16 @@ const Gerente = () => {
   const [selectedHorario, setSelectedHorario] = useState<string | null>(null);
   const [gerenteLojaId, setGerenteLojaId] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [diaRetroativo, setDiaRetroativo] = useState<DiaRetroativoState>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const dataHoje = format(new Date(), "yyyy-MM-dd");
+  const hoje = new Date();
+  const dataHoje = format(hoje, "yyyy-MM-dd");
+  const inicioMes = format(startOfMonth(hoje), "yyyy-MM-dd");
+  const fimMes = format(endOfMonth(hoje), "yyyy-MM-dd");
 
   // Buscar perfil do gerente
   useEffect(() => {
@@ -103,7 +122,7 @@ const Gerente = () => {
 
       const { data, error } = await supabase
         .from("lojas")
-        .select("id, nome, possui_fechamento_tardio")
+        .select("id, nome, possui_fechamento_tardio, tipo_operacional")
         .eq("id", gerenteLojaId)
         .single();
 
@@ -155,7 +174,26 @@ const Gerente = () => {
     enabled: !!gerenteLojaId,
   });
 
-  // Mutation para salvar/atualizar lançamento
+  // Buscar lançamentos do mês (para calcular dias pendentes)
+  const { data: lancamentosMes = [] } = useQuery({
+    queryKey: ["lancamentos-mes", gerenteLojaId, inicioMes],
+    queryFn: async () => {
+      if (!gerenteLojaId) return [];
+
+      const { data, error } = await supabase
+        .from("lancamentos_diarios")
+        .select("id, data, horario, valor_acumulado")
+        .eq("loja_id", gerenteLojaId)
+        .gte("data", inicioMes)
+        .lte("data", fimMes);
+
+      if (error) throw error;
+      return data as LancamentoMes[];
+    },
+    enabled: !!gerenteLojaId,
+  });
+
+  // Mutation para salvar/atualizar lançamento (dia atual)
   const saveLancamentoMutation = useMutation({
     mutationFn: async ({
       horario,
@@ -177,7 +215,7 @@ const Gerente = () => {
           .update({ valor_acumulado: valor })
           .eq("id", lancamentoExistente.id);
         if (error) throw error;
-        return { isUpdate, lancamentoId: lancamentoExistente.id, horario, valor };
+        return { isUpdate, lancamentoId: lancamentoExistente.id, horario, valor, dataLanc: dataHoje };
       } else {
         const { data, error } = await supabase.from("lancamentos_diarios").insert([{
           loja_id: gerenteLojaId,
@@ -186,10 +224,10 @@ const Gerente = () => {
           valor_acumulado: valor,
         }]).select().single();
         if (error) throw error;
-        return { isUpdate, lancamentoId: data.id, horario, valor };
+        return { isUpdate, lancamentoId: data.id, horario, valor, dataLanc: dataHoje };
       }
     },
-    onSuccess: async ({ isUpdate, lancamentoId, horario, valor }) => {
+    onSuccess: async ({ isUpdate, lancamentoId, horario, valor, dataLanc }) => {
       const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
       await registrarAuditLog({
         userId: user?.id || "",
@@ -198,8 +236,8 @@ const Gerente = () => {
         action: isUpdate ? "update" : "create",
         entity: "lancamento",
         entityId: lancamentoId,
-        entityName: `${loja?.nome} - ${horario} (${dataHoje})`,
-        details: { valor, horario, data: dataHoje },
+        entityName: `${loja?.nome} - ${horario} (${dataLanc})`,
+        details: { valor, horario, data: dataLanc },
       });
 
       queryClient.invalidateQueries({ queryKey: ["lancamentos"] });
@@ -207,6 +245,74 @@ const Gerente = () => {
       toast({
         title: "Lançamento salvo",
         description: "O valor foi registrado com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao salvar lançamento",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para salvar lançamento retroativo (dias anteriores)
+  const saveRetroativoMutation = useMutation({
+    mutationFn: async ({
+      horario,
+      valor,
+      dataLancamento,
+    }: {
+      horario: string;
+      valor: number;
+      dataLancamento: string;
+    }) => {
+      if (!gerenteLojaId) throw new Error("Loja não identificada");
+
+      const { data, error } = await supabase.from("lancamentos_diarios").insert([{
+        loja_id: gerenteLojaId,
+        data: dataLancamento,
+        horario: horario as "10:00" | "14:00" | "16:00" | "19:00" | "23:00",
+        valor_acumulado: valor,
+      }]).select().single();
+      
+      if (error) throw error;
+      return { lancamentoId: data.id, horario, valor, dataLancamento };
+    },
+    onSuccess: async ({ lancamentoId, horario, valor, dataLancamento }) => {
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Gerente",
+        userRole: "gerente",
+        action: "create",
+        entity: "lancamento",
+        entityId: lancamentoId,
+        entityName: `${loja?.nome} - ${horario} (${dataLancamento})`,
+        details: { valor, horario, data: dataLancamento, retroativo: true },
+      });
+
+      // Invalidar queries para atualizar a lista de dias pendentes
+      queryClient.invalidateQueries({ queryKey: ["lancamentos-mes"] });
+      queryClient.invalidateQueries({ queryKey: ["lancamentos"] });
+      
+      // Atualizar o estado local do dialog retroativo
+      if (diaRetroativo) {
+        const novoLancamento: LancamentoMes = {
+          id: lancamentoId,
+          data: dataLancamento,
+          horario,
+          valor_acumulado: valor,
+        };
+        setDiaRetroativo({
+          ...diaRetroativo,
+          lancamentos: [...diaRetroativo.lancamentos, novoLancamento],
+        });
+      }
+
+      toast({
+        title: "Lançamento retroativo salvo",
+        description: `Valor registrado para ${format(new Date(dataLancamento + "T12:00:00"), "dd/MM/yyyy")} às ${horario}.`,
       });
     },
     onError: (error: Error) => {
@@ -316,6 +422,23 @@ const Gerente = () => {
     navigate("/login");
   };
 
+  const handleSelectDiaPendente = (data: Date, lancamentosDia: LancamentoMes[]) => {
+    setDiaRetroativo({
+      data,
+      lancamentos: lancamentosDia,
+    });
+  };
+
+  const handleSubmitRetroativo = async (horario: string, valor: number) => {
+    if (!diaRetroativo) return;
+    const dataLancamento = format(diaRetroativo.data, "yyyy-MM-dd");
+    await saveRetroativoMutation.mutateAsync({
+      horario,
+      valor,
+      dataLancamento,
+    });
+  };
+
   if (!gerenteLojaId || !loja) {
     return (
       <div className="min-h-screen bg-background">
@@ -368,6 +491,14 @@ const Gerente = () => {
             </div>
           )}
 
+          {/* Seção de Dias Pendentes */}
+          <DiasPendentes
+            lancamentosMes={lancamentosMes}
+            tipoOperacional={loja.tipo_operacional}
+            possuiFechamentoTardio={loja.possui_fechamento_tardio}
+            onSelectDia={handleSelectDiaPendente}
+          />
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Lançamentos do Dia</h2>
@@ -414,6 +545,18 @@ const Gerente = () => {
           valorAtual={getLancamentoByHorario(selectedHorario)?.valor_acumulado}
           onSubmit={handleSubmitLancamento}
           isSubmitting={saveLancamentoMutation.isPending}
+        />
+      )}
+
+      {diaRetroativo && (
+        <LancamentoRetroativoDialog
+          isOpen={!!diaRetroativo}
+          onClose={() => setDiaRetroativo(null)}
+          data={diaRetroativo.data}
+          lancamentosDia={diaRetroativo.lancamentos}
+          horarios={horarios}
+          onSubmit={handleSubmitRetroativo}
+          isSubmitting={saveRetroativoMutation.isPending}
         />
       )}
     </div>
