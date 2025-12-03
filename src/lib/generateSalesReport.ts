@@ -15,7 +15,7 @@ const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).toLocaleString();
+  }).format(value);
 };
 
 const getAtingimentoColor = (percentual: number): [number, number, number] => {
@@ -88,7 +88,7 @@ export async function generateSalesReport(
     const lancamento = data.lancamentos.find(l => l.horario === horario);
     pdf.text(horario, 25, yPos);
     pdf.text(lancamento ? formatCurrency(lancamento.valor_acumulado) : '—', 80, yPos);
-    pdf.text(lancamento ? '✓ Preenchido' : 'Pendente', 140, yPos);
+    pdf.text(lancamento ? '[OK] Preenchido' : 'Pendente', 140, yPos);
     yPos += 8;
   });
   
