@@ -7,14 +7,17 @@ import { AdminsList } from "./AdminsList";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { registrarAuditLog } from "@/lib/auditLog";
+
 const MASTER_ADMIN_ID = 'ca936b16-8a15-43f4-976d-6be91e294099';
+
 export function AdminsManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch admins via edge function
   const {
@@ -39,12 +42,7 @@ export function AdminsManager() {
       if (!values.email || !values.senha) {
         throw new Error("Email e senha são obrigatórios");
       }
-
-      // Call edge function to create admin securely
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('create-admin', {
+      const { data, error } = await supabase.functions.invoke('create-admin', {
         body: {
           email: values.email,
           password: values.senha,
@@ -54,23 +52,25 @@ export function AdminsManager() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return { adminId: data?.userId, nome: values.nome };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["admins"]
+    onSuccess: async ({ adminId, nome }) => {
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "create",
+        entity: "admin",
+        entityId: adminId,
+        entityName: nome,
       });
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
       setIsDialogOpen(false);
-      toast({
-        title: "Administrador criado",
-        description: "O administrador foi criado com sucesso."
-      });
+      toast({ title: "Administrador criado", description: "O administrador foi criado com sucesso." });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao criar administrador",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Erro ao criar administrador", description: error.message, variant: "destructive" });
     }
   });
 
@@ -88,55 +88,53 @@ export function AdminsManager() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return { id: values.userId, nome: values.nome };
     },
-    onSuccess: () => {
+    onSuccess: async ({ id, nome }) => {
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "update",
+        entity: "admin",
+        entityId: id,
+        entityName: nome,
+      });
       queryClient.invalidateQueries({ queryKey: ["admins"] });
       setIsDialogOpen(false);
       setEditingAdmin(null);
-      toast({
-        title: "Administrador atualizado",
-        description: "Os dados foram atualizados com sucesso."
-      });
+      toast({ title: "Administrador atualizado", description: "Os dados foram atualizados com sucesso." });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao atualizar administrador",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Erro ao atualizar administrador", description: error.message, variant: "destructive" });
     }
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      // Call edge function to delete user securely
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('delete-user', {
-        body: {
-          userId: id
-        }
-      });
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
+      const { data, error } = await supabase.functions.invoke('delete-user', { body: { userId: id } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return { id, nome };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["admins"]
+    onSuccess: async ({ id, nome }) => {
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "delete",
+        entity: "admin",
+        entityId: id,
+        entityName: nome,
       });
-      toast({
-        title: "Administrador excluído",
-        description: "O administrador foi excluído com sucesso."
-      });
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+      toast({ title: "Administrador excluído", description: "O administrador foi excluído com sucesso." });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir administrador",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Erro ao excluir administrador", description: error.message, variant: "destructive" });
     }
   });
 
@@ -147,8 +145,10 @@ export function AdminsManager() {
       await createMutation.mutateAsync(values as AdminFormValues);
     }
   };
+
   const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
+    const admin = admins.find((a) => a.id === id);
+    await deleteMutation.mutateAsync({ id, nome: admin?.nome || "" });
   };
 
   const handleEdit = (admin: Admin) => {

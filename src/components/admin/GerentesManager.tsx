@@ -12,6 +12,8 @@ import { GerentesList } from "./GerentesList";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { registrarAuditLog } from "@/lib/auditLog";
 
 type Loja = {
   id: string;
@@ -23,6 +25,7 @@ export function GerentesManager() {
   const [editingGerente, setEditingGerente] = useState<Gerente | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch gerentes (profiles)
   const { data: gerentes = [], isLoading: isLoadingGerentes } = useQuery({
@@ -77,8 +80,21 @@ export function GerentesManager() {
       
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return { gerenteId: data?.userId, nome: values.nome };
     },
-    onSuccess: () => {
+    onSuccess: async ({ gerenteId, nome }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "create",
+        entity: "gerente",
+        entityId: gerenteId,
+        entityName: nome,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["gerentes"] });
       setIsDialogOpen(false);
       toast({
@@ -115,8 +131,21 @@ export function GerentesManager() {
         .eq("id", id);
 
       if (error) throw error;
+      return { id, nome: values.nome };
     },
-    onSuccess: () => {
+    onSuccess: async ({ id, nome }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "update",
+        entity: "gerente",
+        entityId: id,
+        entityName: nome,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["gerentes"] });
       setIsDialogOpen(false);
       setEditingGerente(null);
@@ -136,7 +165,7 @@ export function GerentesManager() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
       // Call edge function to delete user securely
       const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { userId: id },
@@ -144,8 +173,21 @@ export function GerentesManager() {
       
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return { id, nome };
     },
-    onSuccess: () => {
+    onSuccess: async ({ id, nome }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "delete",
+        entity: "gerente",
+        entityId: id,
+        entityName: nome,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["gerentes"] });
       toast({
         title: "Gerente excluído",
@@ -175,7 +217,8 @@ export function GerentesManager() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
+    const gerente = gerentes.find((g) => g.id === id);
+    await deleteMutation.mutateAsync({ id, nome: gerente?.nome || "" });
   };
 
   const handleOpenDialog = () => {

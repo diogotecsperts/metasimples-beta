@@ -12,12 +12,15 @@ import { LojasList, type Loja } from "./LojasList";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { registrarAuditLog } from "@/lib/auditLog";
 
 export function LojasManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLoja, setEditingLoja] = useState<Loja | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch lojas
   const { data: lojas = [], isLoading } = useQuery({
@@ -36,14 +39,27 @@ export function LojasManager() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (values: LojaFormValues) => {
-      const { error } = await supabase.from("lojas").insert([{
+      const { data, error } = await supabase.from("lojas").insert([{
         nome: values.nome,
         tipo_operacional: values.tipo_operacional,
         possui_fechamento_tardio: values.possui_fechamento_tardio,
-      }]);
+      }]).select().single();
       if (error) throw error;
+      return { lojaId: data.id, nome: values.nome };
     },
-    onSuccess: () => {
+    onSuccess: async ({ lojaId, nome }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "create",
+        entity: "loja",
+        entityId: lojaId,
+        entityName: nome,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["lojas"] });
       setIsDialogOpen(false);
       toast({
@@ -65,9 +81,11 @@ export function LojasManager() {
     mutationFn: async ({
       id,
       values,
+      oldValues,
     }: {
       id: string;
       values: LojaFormValues;
+      oldValues?: Loja;
     }) => {
       const { error } = await supabase
         .from("lojas")
@@ -78,8 +96,22 @@ export function LojasManager() {
         })
         .eq("id", id);
       if (error) throw error;
+      return { id, nome: values.nome, oldValues };
     },
-    onSuccess: () => {
+    onSuccess: async ({ id, nome, oldValues }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "update",
+        entity: "loja",
+        entityId: id,
+        entityName: nome,
+        details: oldValues ? { antes: JSON.parse(JSON.stringify(oldValues)) } : undefined,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["lojas"] });
       setIsDialogOpen(false);
       setEditingLoja(null);
@@ -99,11 +131,24 @@ export function LojasManager() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
       const { error } = await supabase.from("lojas").delete().eq("id", id);
       if (error) throw error;
+      return { id, nome };
     },
-    onSuccess: () => {
+    onSuccess: async ({ id, nome }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "delete",
+        entity: "loja",
+        entityId: id,
+        entityName: nome,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["lojas"] });
       toast({
         title: "Loja excluída",
@@ -121,7 +166,7 @@ export function LojasManager() {
 
   const handleSubmit = async (values: LojaFormValues) => {
     if (editingLoja) {
-      await updateMutation.mutateAsync({ id: editingLoja.id, values });
+      await updateMutation.mutateAsync({ id: editingLoja.id, values, oldValues: editingLoja });
     } else {
       await createMutation.mutateAsync(values);
     }
@@ -133,7 +178,8 @@ export function LojasManager() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
+    const loja = lojas.find((l) => l.id === id);
+    await deleteMutation.mutateAsync({ id, nome: loja?.nome || "" });
   };
 
   const handleOpenDialog = () => {
