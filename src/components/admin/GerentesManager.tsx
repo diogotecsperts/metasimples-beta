@@ -225,6 +225,7 @@ export function GerentesManager() {
             </DialogTitle>
           </DialogHeader>
           <GerenteForm
+            key={editingGerente?.id || 'new'}
             defaultValues={editingGerente || undefined}
             lojas={lojas}
             onSubmit={handleSubmit}

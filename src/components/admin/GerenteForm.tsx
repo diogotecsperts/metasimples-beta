@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -77,6 +78,17 @@ export function GerenteForm({
       senha: "",
     },
   });
+
+  useEffect(() => {
+    form.reset({
+      nome: defaultValues?.nome || "",
+      loja_id: defaultValues?.loja_id || "",
+      telefone: defaultValues?.telefone || "",
+      username: defaultValues?.username || "",
+      email: "",
+      senha: "",
+    });
+  }, [defaultValues, form]);
 
   return (
     <Form {...form}>
