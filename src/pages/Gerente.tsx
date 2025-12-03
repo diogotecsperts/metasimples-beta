@@ -16,6 +16,7 @@ import { FileDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateSalesReport } from "@/lib/generateSalesReport";
+import { registrarAuditLog } from "@/lib/auditLog";
 
 type Loja = {
   id: string;
@@ -168,28 +169,39 @@ const Gerente = () => {
       const lancamentoExistente = lancamentos.find(
         (l) => l.horario === horario
       );
+      const isUpdate = !!lancamentoExistente;
 
       if (lancamentoExistente) {
-        // Atualizar
         const { error } = await supabase
           .from("lancamentos_diarios")
           .update({ valor_acumulado: valor })
           .eq("id", lancamentoExistente.id);
-
         if (error) throw error;
+        return { isUpdate, lancamentoId: lancamentoExistente.id, horario, valor };
       } else {
-        // Criar
-        const { error } = await supabase.from("lancamentos_diarios").insert([{
+        const { data, error } = await supabase.from("lancamentos_diarios").insert([{
           loja_id: gerenteLojaId,
           data: dataHoje,
           horario: horario as "10:00" | "14:00" | "16:00" | "19:00" | "23:00",
           valor_acumulado: valor,
-        }]);
-
+        }]).select().single();
         if (error) throw error;
+        return { isUpdate, lancamentoId: data.id, horario, valor };
       }
     },
-    onSuccess: () => {
+    onSuccess: async ({ isUpdate, lancamentoId, horario, valor }) => {
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Gerente",
+        userRole: "gerente",
+        action: isUpdate ? "update" : "create",
+        entity: "lancamento",
+        entityId: lancamentoId,
+        entityName: `${loja?.nome} - ${horario} (${dataHoje})`,
+        details: { valor, horario, data: dataHoje },
+      });
+
       queryClient.invalidateQueries({ queryKey: ["lancamentos"] });
       setSelectedHorario(null);
       toast({

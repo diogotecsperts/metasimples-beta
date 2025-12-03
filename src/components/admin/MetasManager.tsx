@@ -20,6 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { calcularMetaDiaria } from "@/lib/calcularMetaDiaria";
+import { useAuth } from "@/contexts/AuthContext";
+import { registrarAuditLog } from "@/lib/auditLog";
 
 type Loja = {
   id: string;
@@ -44,6 +46,7 @@ export function MetasManager() {
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const isAtual = periodoSelecionado.mes === mesAtual && periodoSelecionado.ano === anoAtual;
 
@@ -140,19 +143,31 @@ export function MetasManager() {
         values.ano
       );
 
-      const { error } = await supabase.from("metas_mensais").insert({
+      const { data, error } = await supabase.from("metas_mensais").insert({
         loja_id: values.loja_id,
         mes: values.mes,
         ano: values.ano,
         meta_mensal: values.meta_mensal,
         meta_diaria_calculada: metaDiaria,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      return { metaDiaria };
+      return { metaDiaria, metaId: data.id, lojaNome: loja.nome, mes: values.mes, ano: values.ano };
     },
-    onSuccess: ({ metaDiaria }) => {
+    onSuccess: async ({ metaDiaria, metaId, lojaNome, mes, ano }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "create",
+        entity: "meta",
+        entityId: metaId,
+        entityName: `${lojaNome} - ${MESES[mes - 1]}/${ano}`,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["metas"] });
       queryClient.invalidateQueries({ queryKey: ["metas-periodos"] });
       setIsDialogOpen(false);
@@ -205,9 +220,21 @@ export function MetasManager() {
 
       if (error) throw error;
 
-      return { metaDiaria };
+      return { metaDiaria, metaId: id, lojaNome: loja.nome, mes: values.mes, ano: values.ano };
     },
-    onSuccess: ({ metaDiaria }) => {
+    onSuccess: async ({ metaDiaria, metaId, lojaNome, mes, ano }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "update",
+        entity: "meta",
+        entityId: metaId,
+        entityName: `${lojaNome} - ${MESES[mes - 1]}/${ano}`,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["metas"] });
       queryClient.invalidateQueries({ queryKey: ["metas-periodos"] });
       setIsDialogOpen(false);
@@ -231,14 +258,27 @@ export function MetasManager() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, lojaNome, mes, ano }: { id: string; lojaNome: string; mes: number; ano: number }) => {
       const { error } = await supabase
         .from("metas_mensais")
         .delete()
         .eq("id", id);
       if (error) throw error;
+      return { id, lojaNome, mes, ano };
     },
-    onSuccess: () => {
+    onSuccess: async ({ id, lojaNome, mes, ano }) => {
+      // Registrar log de auditoria
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      await registrarAuditLog({
+        userId: user?.id || "",
+        userNome: profile?.nome || "Admin",
+        userRole: "admin",
+        action: "delete",
+        entity: "meta",
+        entityId: id,
+        entityName: `${lojaNome} - ${MESES[mes - 1]}/${ano}`,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["metas"] });
       queryClient.invalidateQueries({ queryKey: ["metas-periodos"] });
       toast({
@@ -255,6 +295,10 @@ export function MetasManager() {
     },
   });
 
+  const getLojaName = (lojaId: string) => {
+    return lojas.find((l) => l.id === lojaId)?.nome || "";
+  };
+
   const handleSubmit = async (values: MetaFormValues) => {
     if (editingMeta) {
       await updateMutation.mutateAsync({ id: editingMeta.id, values });
@@ -269,7 +313,14 @@ export function MetasManager() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
+    const meta = metas.find((m) => m.id === id);
+    const lojaNome = getLojaName(meta?.loja_id || "");
+    await deleteMutation.mutateAsync({ 
+      id, 
+      lojaNome, 
+      mes: meta?.mes || periodoSelecionado.mes, 
+      ano: meta?.ano || periodoSelecionado.ano 
+    });
   };
 
   const handleOpenDialog = () => {
