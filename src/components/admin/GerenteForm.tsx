@@ -24,14 +24,15 @@ const gerenteFormSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   loja_id: z.string().uuid("Selecione uma loja válida"),
   telefone: z.string().optional(),
-  username: z.string()
-    .min(3, "Username deve ter no mínimo 3 caracteres")
-    .max(20, "Username deve ter no máximo 20 caracteres")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username deve conter apenas letras, números e underscore")
-    .optional()
-    .or(z.literal("")),
-  email: z.string().email("Email inválido").optional(),
-  senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional(),
+  username: z.union([
+    z.literal(""),
+    z.string()
+      .min(3, "Username deve ter no mínimo 3 caracteres")
+      .max(20, "Username deve ter no máximo 20 caracteres")
+      .regex(/^[a-zA-Z0-9_]+$/, "Username deve conter apenas letras, números e underscore")
+  ]),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional().or(z.literal("")),
 });
 
 export type GerenteFormValues = z.infer<typeof gerenteFormSchema>;
@@ -88,7 +89,8 @@ export function GerenteForm({
       email: "",
       senha: "",
     });
-  }, [defaultValues, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultValues]);
 
   return (
     <Form {...form}>
@@ -113,7 +115,7 @@ export function GerenteForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Loja</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma loja" />
