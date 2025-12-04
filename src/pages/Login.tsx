@@ -131,6 +131,21 @@ const Login = () => {
             <Code className="h-3 w-3" />
             <span>Aplicativo em desenvolvimento</span>
           </div>
+
+          {/* Crédito do desenvolvedor */}
+          <div className="text-center mt-3">
+            <span className="text-[10px] text-muted-foreground/60">
+              by{" "}
+              <a 
+                href="https://tecsperts.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-muted-foreground hover:underline transition-colors"
+              >
+                tecsperts
+              </a>
+            </span>
+          </div>
         </div>
       </div>
     </div>;
