@@ -35,10 +35,14 @@ const Login = () => {
 
       // If identifier doesn't look like an email, try to find email by username
       if (!identifier.includes('@')) {
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('get-email-by-username', {
-          body: { username: identifier }
+        const {
+          data: emailData,
+          error: emailError
+        } = await supabase.functions.invoke('get-email-by-username', {
+          body: {
+            username: identifier
+          }
         });
-
         if (emailError || !emailData?.found || !emailData?.email) {
           toast({
             title: "Usuário não encontrado",
@@ -48,10 +52,8 @@ const Login = () => {
           setIsLoading(false);
           return;
         }
-
         emailToUse = emailData.email;
       }
-
       const {
         data,
         error
@@ -134,14 +136,9 @@ const Login = () => {
 
           {/* Crédito do desenvolvedor */}
           <div className="text-center mt-3">
-            <span className="text-[10px] text-muted-foreground/60">
+            <span className="text-[10px] text-primary">
               by{" "}
-              <a 
-                href="https://tecsperts.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:text-muted-foreground hover:underline transition-colors"
-              >
+              <a href="https://tecsperts.com" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground hover:underline transition-colors">
                 tecsperts
               </a>
             </span>
