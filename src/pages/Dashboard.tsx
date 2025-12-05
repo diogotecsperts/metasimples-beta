@@ -39,6 +39,8 @@ type MetaMensal = {
 type Lancamento = {
   loja_id: string;
   valor_acumulado: number;
+  updated_at: string;
+  horario: string | null;
 };
 
 type RankingItem = {
@@ -48,6 +50,8 @@ type RankingItem = {
   totalVendido: number;
   percentualAtingimento: number;
   tendencia: number | null;
+  ultimaAtualizacao?: string;
+  ultimoHorario?: string | null;
 };
 
 type DashboardProps = {
@@ -190,7 +194,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         // Mês atual: busca apenas hoje
         const { data, error } = await supabase
           .from("lancamentos_diarios")
-          .select("loja_id, valor_acumulado")
+          .select("loja_id, valor_acumulado, updated_at, horario")
           .eq("data", dataHoje);
 
         if (error) throw error;
@@ -202,7 +206,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         
         const { data, error } = await supabase
           .from("lancamentos_diarios")
-          .select("loja_id, valor_acumulado, data")
+          .select("loja_id, valor_acumulado, updated_at, horario, data")
           .gte("data", inicioMes)
           .lte("data", fimMes);
 
@@ -253,6 +257,17 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         }
       }
 
+      // Encontrar última atualização (lançamento mais recente por updated_at)
+      let ultimaAtualizacao: string | undefined;
+      let ultimoHorario: string | null | undefined;
+      if (lancamentosLoja.length > 0) {
+        const lancamentoMaisRecente = lancamentosLoja.reduce((prev, curr) => 
+          new Date(curr.updated_at) > new Date(prev.updated_at) ? curr : prev
+        );
+        ultimaAtualizacao = lancamentoMaisRecente.updated_at;
+        ultimoHorario = lancamentoMaisRecente.horario;
+      }
+
       return {
         lojaId: loja.id,
         nomeLoja: loja.nome,
@@ -260,6 +275,8 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         totalVendido,
         percentualAtingimento,
         tendencia,
+        ultimaAtualizacao,
+        ultimoHorario,
       };
     })
     .sort((a, b) => {
@@ -558,6 +575,8 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                           percentualAtingimento={item.percentualAtingimento}
                           tendencia={item.tendencia}
                           isEmAlerta={isEmAlerta}
+                          ultimaAtualizacao={isAtual ? item.ultimaAtualizacao : undefined}
+                          ultimoHorario={isAtual ? item.ultimoHorario : undefined}
                         />
                       );
                     })}

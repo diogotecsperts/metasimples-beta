@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,6 +10,8 @@ type RankingCardProps = {
   percentualAtingimento: number;
   tendencia?: number | null;
   isEmAlerta?: boolean;
+  ultimaAtualizacao?: string;
+  ultimoHorario?: string | null;
 };
 
 export function RankingCard({
@@ -20,7 +22,17 @@ export function RankingCard({
   percentualAtingimento,
   tendencia,
   isEmAlerta = false,
+  ultimaAtualizacao,
+  ultimoHorario,
 }: RankingCardProps) {
+  const formatTime = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Sao_Paulo",
+    });
+  };
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -146,6 +158,17 @@ export function RankingCard({
                   </span>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Última atualização - exibir apenas se houver dados */}
+          {ultimaAtualizacao && (
+            <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-border/20">
+              <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs text-muted-foreground truncate">
+                Atualizado às {formatTime(ultimaAtualizacao)}
+                {ultimoHorario && ` • ${ultimoHorario}`}
+              </span>
             </div>
           )}
         </div>
