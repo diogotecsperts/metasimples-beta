@@ -322,17 +322,17 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     setFiltroLoja("todas");
   };
 
-  // Preparar dados para componente de alertas
-  const lojasComMeta = lojas
-    .map((loja) => {
-      const meta = metas.find((m) => m.loja_id === loja.id);
-      return {
-        id: loja.id,
-        nome: loja.nome,
-        meta_diaria: meta?.meta_diaria_calculada || 0,
-      };
-    })
-    .filter((loja) => loja.meta_diaria > 0);
+  // Preparar dados para componente de alertas (usa dados já processados do ranking)
+  const lojasEmAlerta = rankingCompleto
+    .filter((item) => item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70)
+    .map((item) => ({
+      nome: item.nomeLoja,
+      percentual: item.percentualAtingimento,
+    }))
+    .sort((a, b) => a.percentual - b.percentual);
+
+  // Contagem de lojas com meta para ResumoGeral
+  const lojasComMeta = rankingCompleto.filter((item) => item.metaDiaria > 0).length;
 
   const dataFormatada = isAtual
     ? new Date().toLocaleDateString("pt-BR", {
@@ -403,7 +403,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                     metaTotal={metaTotal}
                     vendasTotal={vendasTotal}
                     atingimentoGeral={atingimentoGeral}
-                    lojasComMeta={lojasComMeta.length}
+                    lojasComMeta={lojasComMeta}
                     totalLojas={lojas.length}
                   />
                 )}
@@ -545,7 +545,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                   </div>
 
                   {/* Alertas de performance */}
-                  <AlertasPerformance isAtual={isAtual} lojas={lojasComMeta} />
+                  <AlertasPerformance isAtual={isAtual} lojasEmAlerta={lojasEmAlerta} />
                 </div>
 
 {ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
