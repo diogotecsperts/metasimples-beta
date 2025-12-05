@@ -9,6 +9,7 @@ import { PeriodComparison } from "@/components/dashboard/PeriodComparison";
 import { AlertasPerformance } from "@/components/dashboard/AlertasPerformance";
 import { ResumoGeral } from "@/components/dashboard/ResumoGeral";
 import { RelatoriosAutomaticos } from "@/components/dashboard/RelatoriosAutomaticos";
+import { WhatsAppAutomatico } from "@/components/dashboard/WhatsAppAutomatico";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +20,9 @@ import { format, endOfMonth, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
-import { X } from "lucide-react";
+import { X, MessageSquare } from "lucide-react";
+
+const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
 type Loja = {
   id: string;
@@ -52,7 +55,8 @@ type DashboardProps = {
 };
 
 const Dashboard = ({ embedded = false }: DashboardProps) => {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const isMasterAdmin = user?.id === MASTER_ADMIN_ID;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
@@ -354,11 +358,17 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       )}
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="ranking" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className={`grid w-full mb-6 ${isMasterAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="evolucao">Evolução Mensal</TabsTrigger>
             <TabsTrigger value="comparacao">Comparação</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            {isMasterAdmin && (
+              <TabsTrigger value="whatsapp" className="gap-1.5">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="ranking" className="space-y-6">
@@ -568,6 +578,12 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
           <TabsContent value="relatorios">
             <RelatoriosAutomaticos />
           </TabsContent>
+
+          {isMasterAdmin && (
+            <TabsContent value="whatsapp">
+              <WhatsAppAutomatico />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
