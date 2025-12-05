@@ -63,33 +63,44 @@ function normalizePhoneNumber(phone: string): string {
   return `55${digits}`;
 }
 
-function generateWhatsAppMessage(
+// Gera array de 14 parâmetros para o template relatorio_diario_v2
+function generateTemplateParameters(
   data: string,
   horario: string,
   ranking: LojaRanking[],
   metaTotal: number,
   vendasTotal: number,
   percentualGeral: number
-): string {
+): string[] {
   const sortedRanking = [...ranking].sort((a, b) => b.percentual - a.percentual);
   
-  // Formato compacto SEM quebras de linha (WhatsApp template não aceita \n)
-  // Ex: "📅 04/12/2025 - 23:24 | 📈 Geral: 102% | Meta: R$ 95.790 | Vendido: R$ 97.795 | 🏆 1.🟢POP 127% 2.🟢JUAZEIRO 110%..."
+  // {{1}}: Data e horário
+  const param1 = `${data} - ${horario}`;
   
-  let message = `📅 ${data} - ${horario} | `;
-  message += `📈 Geral: ${percentualGeral.toFixed(0)}% | `;
-  message += `Meta: ${formatCurrency(metaTotal)} | `;
-  message += `Vendido: ${formatCurrency(vendasTotal)} | `;
-  message += `🏆 `;
+  // {{2}}: Atingimento geral
+  const param2 = `${percentualGeral.toFixed(0)}%`;
   
-  // Ranking compacto: "1.🟢POP 127% 2.🟡VITAL 95%..."
-  sortedRanking.forEach((loja, index) => {
-    const emoji = getColorEmoji(loja.percentual);
-    const percentualStr = loja.metaDiaria > 0 ? `${loja.percentual.toFixed(0)}%` : '—';
-    message += `${index + 1}.${emoji}${loja.nome} ${percentualStr} `;
-  });
+  // {{3}}: Meta do dia
+  const param3 = formatCurrency(metaTotal);
   
-  return message.trim();
+  // {{4}}: Total vendido
+  const param4 = formatCurrency(vendasTotal);
+  
+  // {{5}} a {{14}}: Ranking das 10 lojas
+  const rankingParams: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    if (i < sortedRanking.length) {
+      const loja = sortedRanking[i];
+      const emoji = getColorEmoji(loja.percentual);
+      const percentualStr = loja.metaDiaria > 0 ? `${loja.percentual.toFixed(0)}%` : '—';
+      rankingParams.push(`${emoji} ${loja.nome} - ${percentualStr}`);
+    } else {
+      // Se houver menos de 10 lojas, usar placeholder
+      rankingParams.push('—');
+    }
+  }
+  
+  return [param1, param2, param3, param4, ...rankingParams];
 }
 
 async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
@@ -123,9 +134,12 @@ async function sendWhatsAppTemplate(
   botId: string,
   phone: string,
   templateName: string,
-  messageContent: string
+  parameters: string[]  // Array de 14 parâmetros
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[send-whatsapp-report] Enviando template para ${phone}...`);
+  console.log(`[send-whatsapp-report] Enviando template ${templateName} para ${phone}...`);
+  
+  // Converter array em formato de parâmetros do SendPulse
+  const bodyParameters = parameters.map(text => ({ type: "text", text }));
   
   const requestBody = {
     bot_id: botId,
@@ -139,9 +153,7 @@ async function sendWhatsAppTemplate(
       components: [
         {
           type: "body",
-          parameters: [
-            { type: "text", text: messageContent }
-          ]
+          parameters: bodyParameters
         }
       ]
     }
@@ -374,8 +386,8 @@ const handler = async (req: Request): Promise<Response> => {
       year: 'numeric'
     });
 
-    // Generate message
-    const messageContent = generateWhatsAppMessage(
+    // Gerar os 14 parâmetros para o template
+    const templateParams = generateTemplateParameters(
       dataFormatada,
       horario,
       ranking,
@@ -384,7 +396,7 @@ const handler = async (req: Request): Promise<Response> => {
       percentualGeral
     );
 
-    console.log("[send-whatsapp-report] Mensagem gerada:", messageContent);
+    console.log("[send-whatsapp-report] Parâmetros gerados:", templateParams);
 
     // Get SendPulse access token
     const accessToken = await getAccessToken(sendpulseClientId, sendpulseClientSecret);
@@ -400,8 +412,8 @@ const handler = async (req: Request): Promise<Response> => {
         accessToken,
         sendpulseBotId,
         normalizedPhone,
-        "relatorio_diario",
-        messageContent
+        "relatorio_diario_v2",  // Novo template com 14 variáveis
+        templateParams
       );
       
       results.push({
