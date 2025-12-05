@@ -54,13 +54,13 @@ function normalizePhoneNumber(phone: string): string {
   // Remove todos os caracteres não numéricos
   const digits = phone.replace(/\D/g, '');
   
-  // Se já começa com 55, adiciona apenas o +
+  // Se já começa com 55, retorna apenas os dígitos
   if (digits.startsWith('55')) {
-    return `+${digits}`;
+    return digits;
   }
   
-  // Adiciona +55 no início
-  return `+55${digits}`;
+  // Adiciona 55 no início (sem o +)
+  return `55${digits}`;
 }
 
 function generateWhatsAppMessage(
