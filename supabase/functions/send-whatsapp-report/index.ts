@@ -470,6 +470,12 @@ const handler = async (req: Request): Promise<Response> => {
     // Get SendPulse access token
     const accessToken = await getAccessToken(sendpulseClientId, sendpulseClientSecret);
 
+    // Mapeamento fixo de telefone -> contact_id (contatos ativos no SendPulse)
+    // Isso evita a busca por telefone que pode encontrar contatos banidos
+    const phoneToContactId: Record<string, string> = {
+      "+5582981627838": "69322fead2b7eee6000b2336"  // Diogo - Proprietário (ativo)
+    };
+
     // Send to each gerente
     const results: { gerente: string; success: boolean; error?: string }[] = [];
     
@@ -477,48 +483,24 @@ const handler = async (req: Request): Promise<Response> => {
       const normalizedPhone = normalizePhoneNumber(gerente.telefone);
       console.log(`[send-whatsapp-report] Processando ${gerente.nome} (${normalizedPhone})...`);
       
-      // 1. Buscar contato pelo telefone
-      let contact = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
+      // Usar contact_id mapeado diretamente
+      const contactId = phoneToContactId[normalizedPhone];
       
-      if (!contact) {
-        console.log(`[send-whatsapp-report] Contato não encontrado para ${gerente.nome}`);
+      if (!contactId) {
+        console.log(`[send-whatsapp-report] Contact ID não mapeado para ${gerente.nome} (${normalizedPhone})`);
         results.push({
           gerente: gerente.nome,
           success: false,
-          error: `Contato não encontrado no SendPulse para ${normalizedPhone}`
+          error: `Contact ID não configurado para ${normalizedPhone}. Adicione o mapeamento no código.`
         });
         continue;
       }
       
-      // 2. Se contato está banido (status != 1 que é "active"), tentar habilitar
-      // Status: 1 = active, 2 = banned, etc.
-      if (contact.status !== 1) {
-        console.log(`[send-whatsapp-report] Contato ${contact.id} está com status ${contact.status}, tentando habilitar...`);
-        const enabled = await enableContact(accessToken, contact.id);
-        
-        if (enabled) {
-          // Re-buscar para confirmar status atualizado
-          contact = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
-          if (!contact) {
-            results.push({
-              gerente: gerente.nome,
-              success: false,
-              error: "Contato não encontrado após tentativa de habilitação"
-            });
-            continue;
-          }
-          console.log(`[send-whatsapp-report] Contato habilitado, novo status: ${contact.status}`);
-        } else {
-          console.log(`[send-whatsapp-report] Falha ao habilitar contato ${contact.id}`);
-        }
-      }
-      
-      // 3. Enviar usando contact_id
-      console.log(`[send-whatsapp-report] Enviando para ${gerente.nome} usando contact_id ${contact.id}...`);
+      console.log(`[send-whatsapp-report] Enviando para ${gerente.nome} usando contact_id fixo: ${contactId}`);
       
       const result = await sendWhatsAppTemplateByContactId(
         accessToken,
-        contact.id,
+        contactId,
         "relatorio_diario_v2",
         templateParams
       );
