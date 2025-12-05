@@ -6,9 +6,10 @@ import { LojasManager } from "@/components/admin/LojasManager";
 import { GerentesManager } from "@/components/admin/GerentesManager";
 import { MetasManager } from "@/components/admin/MetasManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Store, Users, Target, Shield, BarChart3, ScrollText } from "lucide-react";
+import { Store, Users, Target, Shield, BarChart3, ScrollText, ClipboardList } from "lucide-react";
 import { AdminsManager } from "@/components/admin/AdminsManager";
 import { AuditLogManager } from "@/components/admin/AuditLogManager";
+import { LancamentosManager } from "@/components/admin/LancamentosManager";
 import { Button } from "@/components/ui/button";
 import Dashboard from "./Dashboard";
 
@@ -39,7 +40,7 @@ const Admin = () => {
       <PageContainer>
         <Tabs defaultValue="dashboard" className="space-y-6">
           <div className="flex justify-center">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -55,6 +56,10 @@ const Admin = () => {
             <TabsTrigger value="metas" className="gap-2">
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Metas</span>
+            </TabsTrigger>
+            <TabsTrigger value="lancamentos" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              <span className="hidden sm:inline">Lançamentos</span>
             </TabsTrigger>
             <TabsTrigger value="admins" className="gap-2">
               <Shield className="h-4 w-4" />
@@ -86,6 +91,12 @@ const Admin = () => {
           <TabsContent value="metas" className="space-y-6">
             <div className="rounded-xl border bg-card shadow-sm p-6">
               <MetasManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="lancamentos" className="space-y-6">
+            <div className="rounded-xl border bg-card shadow-sm p-6">
+              <LancamentosManager />
             </div>
           </TabsContent>
 
