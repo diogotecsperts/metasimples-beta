@@ -72,27 +72,24 @@ function generateWhatsAppMessage(
   percentualGeral: number
 ): string {
   const sortedRanking = [...ranking].sort((a, b) => b.percentual - a.percentual);
-  const alertas = sortedRanking.filter(l => l.percentual < 70 && l.metaDiaria > 0);
   
-  let message = `📅 ${data} - ${horario}\n\n`;
-  message += `📈 Geral: ${percentualGeral.toFixed(1)}%\n`;
-  message += `Meta: ${formatCurrency(metaTotal)} | Vendido: ${formatCurrency(vendasTotal)}\n\n`;
-  message += `🏆 Ranking:\n`;
+  // Formato compacto SEM quebras de linha (WhatsApp template não aceita \n)
+  // Ex: "📅 04/12/2025 - 23:24 | 📈 Geral: 102% | Meta: R$ 95.790 | Vendido: R$ 97.795 | 🏆 1.🟢POP 127% 2.🟢JUAZEIRO 110%..."
   
+  let message = `📅 ${data} - ${horario} | `;
+  message += `📈 Geral: ${percentualGeral.toFixed(0)}% | `;
+  message += `Meta: ${formatCurrency(metaTotal)} | `;
+  message += `Vendido: ${formatCurrency(vendasTotal)} | `;
+  message += `🏆 `;
+  
+  // Ranking compacto: "1.🟢POP 127% 2.🟡VITAL 95%..."
   sortedRanking.forEach((loja, index) => {
     const emoji = getColorEmoji(loja.percentual);
-    const percentualStr = loja.metaDiaria > 0 ? `${loja.percentual.toFixed(1)}%` : '—';
-    message += `${index + 1}. ${emoji} ${loja.nome} - ${percentualStr}\n`;
+    const percentualStr = loja.metaDiaria > 0 ? `${loja.percentual.toFixed(0)}%` : '—';
+    message += `${index + 1}.${emoji}${loja.nome} ${percentualStr} `;
   });
   
-  if (alertas.length > 0) {
-    message += `\n⚠️ Atenção (abaixo de 70%):\n`;
-    alertas.forEach(loja => {
-      message += `${loja.nome} - ${loja.percentual.toFixed(1)}%\n`;
-    });
-  }
-  
-  return message;
+  return message.trim();
 }
 
 async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
