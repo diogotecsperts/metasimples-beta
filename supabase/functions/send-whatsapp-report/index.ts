@@ -141,7 +141,7 @@ async function sendWhatsAppTemplate(
       phone: phone,
       template: {
         name: templateName,
-        language: { code: "pt_BR" },
+        language: { policy: "deterministic", code: "pt_BR" },
         components: [
           {
             type: "body",
