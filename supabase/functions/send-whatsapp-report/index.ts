@@ -54,13 +54,13 @@ function normalizePhoneNumber(phone: string): string {
   // Remove todos os caracteres não numéricos
   const digits = phone.replace(/\D/g, '');
   
-  // Se já começa com 55, retorna como está
+  // Se já começa com 55, adiciona apenas o +
   if (digits.startsWith('55')) {
-    return digits;
+    return `+${digits}`;
   }
   
-  // Adiciona 55 no início
-  return `55${digits}`;
+  // Adiciona +55 no início
+  return `+55${digits}`;
 }
 
 function generateWhatsAppMessage(
@@ -130,28 +130,36 @@ async function sendWhatsAppTemplate(
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`[send-whatsapp-report] Enviando template para ${phone}...`);
   
+  const requestBody = {
+    bot_id: botId,
+    phone: phone,
+    template: {
+      name: templateName,
+      language: { 
+        policy: "deterministic", 
+        code: "pt_BR" 
+      },
+      components: [
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: messageContent }
+          ]
+        }
+      ]
+    }
+  };
+
+  // Log detalhado do body para debug
+  console.log(`[send-whatsapp-report] Request body completo:`, JSON.stringify(requestBody, null, 2));
+
   const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/sendTemplateByPhone", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      bot_id: botId,
-      phone: phone,
-      template: {
-        name: templateName,
-        language: { policy: "deterministic", code: "pt_BR" },
-        components: [
-          {
-            type: "body",
-            parameters: [
-              { type: "text", text: messageContent }
-            ]
-          }
-        ]
-      }
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   const responseText = await response.text();
@@ -159,6 +167,16 @@ async function sendWhatsAppTemplate(
 
   if (!response.ok) {
     return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+  }
+
+  // Parse response to check for success field
+  try {
+    const responseJson = JSON.parse(responseText);
+    if (responseJson.success === false) {
+      return { success: false, error: responseJson.message || "SendPulse returned success: false" };
+    }
+  } catch (e) {
+    // Response wasn't JSON, continue
   }
 
   return { success: true };
@@ -183,6 +201,8 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`[send-whatsapp-report] Bot ID: ${sendpulseBotId}`);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
