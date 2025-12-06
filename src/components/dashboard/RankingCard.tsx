@@ -89,7 +89,7 @@ export function RankingCard({
       {isEmAlerta && (
         <Badge
           variant="destructive"
-          className="absolute -top-2 -right-2 gap-1 shadow-lg animate-pulse"
+          className="absolute -top-3 -right-2 gap-1.5 px-3 py-1 shadow-lg animate-pulse"
         >
           <AlertTriangle className="h-3 w-3" />
           Alerta
@@ -165,7 +165,7 @@ export function RankingCard({
           {ultimaAtualizacao && (
             <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-border/20">
               <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs text-muted-foreground truncate">
+              <span className="text-xs text-muted-foreground">
                 Atualizado às {formatTime(ultimaAtualizacao)}
                 {ultimoHorario && ` • ${ultimoHorario}`}
               </span>
