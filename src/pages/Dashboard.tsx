@@ -273,12 +273,12 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       const percentualAtingimento =
         metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
-      // Calcular tendência comparando com dia anterior
+      // Calcular tendência comparando com dia anterior (usar maior valor acumulado)
       let tendencia: number | null = null;
       if (meta && metaDiaria > 0) {
-        const lancamentoOntem = lancamentosOntem.find((l) => l.loja_id === loja.id);
-        if (lancamentoOntem) {
-          const totalOntem = lancamentoOntem.valor_acumulado;
+        const lancamentosLojaOntem = lancamentosOntem.filter((l) => l.loja_id === loja.id);
+        if (lancamentosLojaOntem.length > 0) {
+          const totalOntem = Math.max(...lancamentosLojaOntem.map((l) => l.valor_acumulado));
           const percentualOntem = (totalOntem / metaDiaria) * 100;
           tendencia = percentualAtingimento - percentualOntem;
         }
