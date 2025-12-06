@@ -53,12 +53,33 @@ export function ExportRankingButton({
     setIsExporting(true);
 
     try {
-      const canvas = await html2canvas(rankingContainerRef.current, {
+      // Adiciona padding temporário ao container para melhor captura
+      const container = rankingContainerRef.current;
+      const originalPadding = container.style.padding;
+      const originalBackground = container.style.background;
+      const originalOverflow = container.style.overflow;
+      
+      container.style.padding = "24px";
+      container.style.background = "#ffffff";
+      container.style.overflow = "visible";
+
+      // Aguarda um frame para aplicar os estilos
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const canvas = await html2canvas(container, {
         backgroundColor: "#ffffff",
         scale: 2,
         useCORS: true,
         logging: false,
+        allowTaint: true,
+        scrollX: 0,
+        scrollY: 0,
       });
+
+      // Restaura os estilos originais
+      container.style.padding = originalPadding;
+      container.style.background = originalBackground;
+      container.style.overflow = originalOverflow;
 
       const link = document.createElement("a");
       link.download = `ranking-desktop-${new Date().toISOString().split("T")[0]}.png`;
