@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RankingHeader } from "@/components/dashboard/RankingHeader";
@@ -10,6 +10,7 @@ import { AlertasPerformance } from "@/components/dashboard/AlertasPerformance";
 import { ResumoGeral } from "@/components/dashboard/ResumoGeral";
 import { RelatoriosAutomaticos } from "@/components/dashboard/RelatoriosAutomaticos";
 import { WhatsAppAutomatico } from "@/components/dashboard/WhatsAppAutomatico";
+import { ExportRankingButton } from "@/components/dashboard/ExportRankingButton";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,6 +71,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
   const [filtroTipoOperacional, setFiltroTipoOperacional] = useState<"todos" | "A" | "B">("todos");
   const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
+  const rankingContainerRef = useRef<HTMLDivElement>(null);
   
   const hoje = new Date();
   const isAtual = mesSelecionado === (hoje.getMonth() + 1) && 
@@ -572,6 +574,15 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                         </>
                       )}
 
+                      <ExportRankingButton
+                        ranking={ranking}
+                        dataFormatada={dataFormatada}
+                        metaTotal={metaTotal}
+                        vendasTotal={vendasTotal}
+                        atingimentoGeral={atingimentoGeral}
+                        rankingContainerRef={rankingContainerRef}
+                      />
+
                       {isAtual && (
                         <div className="ml-auto">
                           <RealtimeIndicator isConnected={isRealtimeConnected} />
@@ -598,7 +609,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div ref={rankingContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {ranking.map((item, index) => {
                       const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
                       return (
