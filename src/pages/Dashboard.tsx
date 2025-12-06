@@ -397,21 +397,25 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       )}
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="ranking" className="w-full">
-          <TabsList className={`
-            flex overflow-x-auto scrollbar-hide gap-1 w-full mb-6 p-1
-            md:grid md:w-auto md:mx-auto ${isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}
-          `}>
-            <TabsTrigger value="ranking" className="flex-shrink-0">Ranking</TabsTrigger>
-            <TabsTrigger value="evolucao" className="flex-shrink-0">Evolução Mensal</TabsTrigger>
-            <TabsTrigger value="comparacao" className="flex-shrink-0">Comparação</TabsTrigger>
-            <TabsTrigger value="relatorios" className="flex-shrink-0">Relatórios</TabsTrigger>
-            {isMasterAdmin && (
-              <TabsTrigger value="whatsapp" className="gap-1.5 flex-shrink-0">
-                <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">WhatsApp</span>
-              </TabsTrigger>
-            )}
-          </TabsList>
+          <div className="relative md:contents">
+            <TabsList className={`
+              flex overflow-x-auto scrollbar-hide gap-1 w-full mb-6 p-1 pr-8
+              md:grid md:w-auto md:mx-auto md:pr-1 ${isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}
+            `}>
+              <TabsTrigger value="ranking" className="flex-shrink-0">Ranking</TabsTrigger>
+              <TabsTrigger value="evolucao" className="flex-shrink-0">Evolução Mensal</TabsTrigger>
+              <TabsTrigger value="comparacao" className="flex-shrink-0">Comparação</TabsTrigger>
+              <TabsTrigger value="relatorios" className="flex-shrink-0">Relatórios</TabsTrigger>
+              {isMasterAdmin && (
+                <TabsTrigger value="whatsapp" className="gap-1.5 flex-shrink-0">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+            {/* Fade indicator for mobile scroll */}
+            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden mb-6" />
+          </div>
 
           <TabsContent value="ranking" className="space-y-6">
             {isLoading ? (
