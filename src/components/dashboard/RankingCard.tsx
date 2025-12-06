@@ -89,10 +89,10 @@ export function RankingCard({
       {isEmAlerta && (
         <Badge
           variant="destructive"
-          className="absolute -top-3 -right-2 gap-1.5 px-3 py-1 shadow-lg animate-pulse"
+          className="absolute -top-3 -right-2 flex items-center gap-1.5 px-3 py-1.5 shadow-lg animate-pulse"
         >
-          <AlertTriangle className="h-3 w-3" />
-          Alerta
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span className="leading-none">Alerta</span>
         </Badge>
       )}
       
