@@ -73,7 +73,11 @@ export function ExportRankingButton({
         logging: false,
         allowTaint: true,
         scrollX: 0,
-        scrollY: 0,
+        scrollY: -window.scrollY,
+        x: -16,
+        y: -16,
+        width: container.offsetWidth + 32,
+        height: container.offsetHeight + 32,
       });
 
       // Restaura os estilos originais
