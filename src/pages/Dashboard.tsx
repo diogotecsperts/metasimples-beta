@@ -11,6 +11,7 @@ import { ResumoGeral } from "@/components/dashboard/ResumoGeral";
 import { RelatoriosAutomaticos } from "@/components/dashboard/RelatoriosAutomaticos";
 import { WhatsAppAutomatico } from "@/components/dashboard/WhatsAppAutomatico";
 import { ExportRankingButton } from "@/components/dashboard/ExportRankingButton";
+import { ScrollableTabsList } from "@/components/dashboard/ScrollableTabsList";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +22,7 @@ import { format, endOfMonth, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
-import { X, MessageSquare, ChevronRight } from "lucide-react";
+import { X, MessageSquare } from "lucide-react";
 
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
@@ -397,27 +398,18 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       )}
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="ranking" className="w-full">
-          <div className="relative md:contents">
-            <TabsList className={`
-              flex overflow-x-auto scrollbar-hide gap-1 w-full mb-6 p-1 pr-8
-              md:grid md:w-auto md:mx-auto md:pr-1 ${isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}
-            `}>
-              <TabsTrigger value="ranking" className="flex-shrink-0">Ranking</TabsTrigger>
-              <TabsTrigger value="evolucao" className="flex-shrink-0">Evolução Mensal</TabsTrigger>
-              <TabsTrigger value="comparacao" className="flex-shrink-0">Comparação</TabsTrigger>
-              <TabsTrigger value="relatorios" className="flex-shrink-0">Relatórios</TabsTrigger>
-              {isMasterAdmin && (
-                <TabsTrigger value="whatsapp" className="gap-1.5 flex-shrink-0">
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="hidden sm:inline">WhatsApp</span>
-                </TabsTrigger>
-              )}
-            </TabsList>
-            {/* Fade indicator with animated arrow for mobile scroll */}
-            <div className="absolute right-0 top-0 bottom-0 w-14 bg-gradient-to-l from-background via-background/80 to-transparent pointer-events-none md:hidden mb-6 flex items-center justify-end pr-1">
-              <ChevronRight className="h-5 w-5 text-muted-foreground animate-[pulse_1.5s_ease-in-out_infinite]" />
-            </div>
-          </div>
+          <ScrollableTabsList className={isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}>
+            <TabsTrigger value="ranking" className="flex-shrink-0">Ranking</TabsTrigger>
+            <TabsTrigger value="evolucao" className="flex-shrink-0">Evolução Mensal</TabsTrigger>
+            <TabsTrigger value="comparacao" className="flex-shrink-0">Comparação</TabsTrigger>
+            <TabsTrigger value="relatorios" className="flex-shrink-0">Relatórios</TabsTrigger>
+            {isMasterAdmin && (
+              <TabsTrigger value="whatsapp" className="gap-1.5 flex-shrink-0">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </TabsTrigger>
+            )}
+          </ScrollableTabsList>
 
           <TabsContent value="ranking" className="space-y-6">
             {isLoading ? (
