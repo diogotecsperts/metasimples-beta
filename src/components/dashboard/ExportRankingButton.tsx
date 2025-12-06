@@ -59,7 +59,7 @@ export function ExportRankingButton({
       const originalBackground = container.style.background;
       const originalOverflow = container.style.overflow;
       
-      container.style.padding = "40px 24px 24px 24px";
+      container.style.padding = "48px 24px 24px 24px";
       container.style.background = "#ffffff";
       container.style.overflow = "visible";
 
