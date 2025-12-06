@@ -434,164 +434,162 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                   <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
                   
                   {/* Barra unificada de filtros */}
-                  <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-2 p-4 bg-card border rounded-xl">
-                    {/* Select de lojas */}
-                    <Select
-                      value={filtroLoja}
-                      onValueChange={setFiltroLoja}
-                    >
-                      <SelectTrigger className="w-full col-span-2 md:w-[180px] md:col-span-1">
-                        <SelectValue placeholder="Todas as lojas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todas">Todas as lojas</SelectItem>
-                        {lojas.map((loja) => (
-                          <SelectItem key={loja.id} value={loja.id}>
-                            {loja.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={diaSelecionado.toString()}
-                      onValueChange={(value) => setDiaSelecionado(parseInt(value))}
-                    >
-                      <SelectTrigger className="w-full md:w-[90px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {diasDisponiveis.map((dia) => (
-                          <SelectItem key={dia} value={dia.toString()}>
-                            Dia {dia}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={mesSelecionado.toString()}
-                      onValueChange={handleMesChange}
-                    >
-                      <SelectTrigger className="w-full md:w-[130px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          { value: 1, label: "Janeiro" },
-                          { value: 2, label: "Fevereiro" },
-                          { value: 3, label: "Março" },
-                          { value: 4, label: "Abril" },
-                          { value: 5, label: "Maio" },
-                          { value: 6, label: "Junho" },
-                          { value: 7, label: "Julho" },
-                          { value: 8, label: "Agosto" },
-                          { value: 9, label: "Setembro" },
-                          { value: 10, label: "Outubro" },
-                          { value: 11, label: "Novembro" },
-                          { value: 12, label: "Dezembro" },
-                        ].map((mes) => (
-                          <SelectItem key={mes.value} value={mes.value.toString()}>
-                            {mes.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={anoSelecionado.toString()}
-                      onValueChange={handleAnoChange}
-                    >
-                      <SelectTrigger className="w-full md:w-[100px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 5 }, (_, i) => {
-                          const ano = new Date().getFullYear() - i;
-                          return (
-                            <SelectItem key={ano} value={ano.toString()}>
-                              {ano}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 bg-card border rounded-xl">
+                    {/* Grupo esquerda: filtros */}
+                    <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-2">
+                      {/* Select de lojas */}
+                      <Select
+                        value={filtroLoja}
+                        onValueChange={setFiltroLoja}
+                      >
+                        <SelectTrigger className="w-full col-span-2 md:w-[180px] md:col-span-1">
+                          <SelectValue placeholder="Todas as lojas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Todas as lojas</SelectItem>
+                          {lojas.map((loja) => (
+                            <SelectItem key={loja.id} value={loja.id}>
+                              {loja.nome}
                             </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    <Select
-                      value={filtroTipoOperacional}
-                      onValueChange={(value) => setFiltroTipoOperacional(value as "todos" | "A" | "B")}
-                    >
-                      <SelectTrigger className="w-full md:w-[150px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos os Tipos</SelectItem>
-                        <SelectItem value="A">{getTipoOperacionalLabel("A")}</SelectItem>
-                        <SelectItem value="B">{getTipoOperacionalLabel("B")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <Select
+                        value={diaSelecionado.toString()}
+                        onValueChange={(value) => setDiaSelecionado(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-full md:w-[90px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {diasDisponiveis.map((dia) => (
+                            <SelectItem key={dia} value={dia.toString()}>
+                              Dia {dia}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    <Select
-                      value={filtroFechamentoTardio}
-                      onValueChange={(value) => setFiltroFechamentoTardio(value as "todos" | "sim" | "nao")}
-                    >
-                      <SelectTrigger className="w-full md:w-[130px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos</SelectItem>
-                        <SelectItem value="sim">Com 23:00</SelectItem>
-                        <SelectItem value="nao">Sem 23:00</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <Select
+                        value={mesSelecionado.toString()}
+                        onValueChange={handleMesChange}
+                      >
+                        <SelectTrigger className="w-full md:w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            { value: 1, label: "Janeiro" },
+                            { value: 2, label: "Fevereiro" },
+                            { value: 3, label: "Março" },
+                            { value: 4, label: "Abril" },
+                            { value: 5, label: "Maio" },
+                            { value: 6, label: "Junho" },
+                            { value: 7, label: "Julho" },
+                            { value: 8, label: "Agosto" },
+                            { value: 9, label: "Setembro" },
+                            { value: 10, label: "Outubro" },
+                            { value: 11, label: "Novembro" },
+                            { value: 12, label: "Dezembro" },
+                          ].map((mes) => (
+                            <SelectItem key={mes.value} value={mes.value.toString()}>
+                              {mes.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    <div className="col-span-2 flex flex-wrap items-center justify-between gap-2 md:col-span-1">
-                      {/* Grupo esquerda: controles de período e filtros */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        {!isAtual && (
+                      <Select
+                        value={anoSelecionado.toString()}
+                        onValueChange={handleAnoChange}
+                      >
+                        <SelectTrigger className="w-full md:w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const ano = new Date().getFullYear() - i;
+                            return (
+                              <SelectItem key={ano} value={ano.toString()}>
+                                {ano}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={filtroTipoOperacional}
+                        onValueChange={(value) => setFiltroTipoOperacional(value as "todos" | "A" | "B")}
+                      >
+                        <SelectTrigger className="w-full md:w-[150px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos os Tipos</SelectItem>
+                          <SelectItem value="A">{getTipoOperacionalLabel("A")}</SelectItem>
+                          <SelectItem value="B">{getTipoOperacionalLabel("B")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={filtroFechamentoTardio}
+                        onValueChange={(value) => setFiltroFechamentoTardio(value as "todos" | "sim" | "nao")}
+                      >
+                        <SelectTrigger className="w-full md:w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos</SelectItem>
+                          <SelectItem value="sim">Com 23:00</SelectItem>
+                          <SelectItem value="nao">Sem 23:00</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {!isAtual && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleResetToAtual}
+                          className="whitespace-nowrap"
+                        >
+                          Hoje
+                        </Button>
+                      )}
+
+                      {temFiltrosAtivos && (
+                        <>
+                          <Badge variant="secondary" className="text-xs">
+                            {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
+                          </Badge>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={handleResetToAtual}
-                            className="whitespace-nowrap"
+                            onClick={handleLimparFiltros}
+                            className="gap-1.5"
                           >
-                            Hoje
+                            <X className="h-3.5 w-3.5" />
+                            Limpar
                           </Button>
-                        )}
+                        </>
+                      )}
+                    </div>
 
-                        {temFiltrosAtivos && (
-                          <>
-                            <Badge variant="secondary" className="text-xs">
-                              {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleLimparFiltros}
-                              className="gap-1.5"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              Limpar
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                    {/* Grupo direita: exportar e realtime */}
+                    <div className="flex items-center gap-2 justify-end">
+                      <ExportRankingButton
+                        ranking={ranking}
+                        dataFormatada={dataFormatada}
+                        metaTotal={metaTotal}
+                        vendasTotal={vendasTotal}
+                        atingimentoGeral={atingimentoGeral}
+                        rankingContainerRef={rankingContainerRef}
+                      />
 
-                      {/* Grupo direita: exportar e realtime */}
-                      <div className="flex items-center gap-2">
-                        <ExportRankingButton
-                          ranking={ranking}
-                          dataFormatada={dataFormatada}
-                          metaTotal={metaTotal}
-                          vendasTotal={vendasTotal}
-                          atingimentoGeral={atingimentoGeral}
-                          rankingContainerRef={rankingContainerRef}
-                        />
-
-                        {isAtual && (
-                          <RealtimeIndicator isConnected={isRealtimeConnected} />
-                        )}
-                      </div>
+                      {isAtual && (
+                        <RealtimeIndicator isConnected={isRealtimeConnected} />
+                      )}
                     </div>
                   </div>
 
