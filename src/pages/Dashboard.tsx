@@ -11,7 +11,6 @@ import { ResumoGeral } from "@/components/dashboard/ResumoGeral";
 import { RelatoriosAutomaticos } from "@/components/dashboard/RelatoriosAutomaticos";
 import { WhatsAppAutomatico } from "@/components/dashboard/WhatsAppAutomatico";
 import { ExportRankingButton } from "@/components/dashboard/ExportRankingButton";
-import { ScrollableTabsList } from "@/components/dashboard/ScrollableTabsList";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -398,18 +397,21 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       )}
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="ranking" className="w-full">
-          <ScrollableTabsList className={isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}>
-            <TabsTrigger value="ranking" className="flex-shrink-0">Ranking</TabsTrigger>
-            <TabsTrigger value="evolucao" className="flex-shrink-0">Evolução Mensal</TabsTrigger>
-            <TabsTrigger value="comparacao" className="flex-shrink-0">Comparação</TabsTrigger>
-            <TabsTrigger value="relatorios" className="flex-shrink-0">Relatórios</TabsTrigger>
+          <TabsList className={`
+            flex flex-col w-full gap-1 mb-6 h-auto p-1
+            md:grid md:h-auto ${isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}
+          `}>
+            <TabsTrigger value="ranking" className="w-full justify-center">Ranking</TabsTrigger>
+            <TabsTrigger value="evolucao" className="w-full justify-center">Evolução Mensal</TabsTrigger>
+            <TabsTrigger value="comparacao" className="w-full justify-center">Comparação</TabsTrigger>
+            <TabsTrigger value="relatorios" className="w-full justify-center">Relatórios</TabsTrigger>
             {isMasterAdmin && (
-              <TabsTrigger value="whatsapp" className="gap-1.5 flex-shrink-0">
+              <TabsTrigger value="whatsapp" className="w-full justify-center gap-1.5">
                 <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">WhatsApp</span>
+                WhatsApp
               </TabsTrigger>
             )}
-          </ScrollableTabsList>
+          </TabsList>
 
           <TabsContent value="ranking" className="space-y-6">
             {isLoading ? (
