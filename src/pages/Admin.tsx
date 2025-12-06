@@ -39,38 +39,36 @@ const Admin = () => {
       
       <PageContainer>
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <div className="flex justify-center">
-            <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="dashboard" className="gap-2">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 h-auto p-2">
+            <TabsTrigger value="dashboard" className="gap-2 w-full">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="lojas" className="gap-2">
+            <TabsTrigger value="lojas" className="gap-2 w-full">
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Lojas</span>
             </TabsTrigger>
-            <TabsTrigger value="gerentes" className="gap-2">
+            <TabsTrigger value="gerentes" className="gap-2 w-full">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Gerentes</span>
             </TabsTrigger>
-            <TabsTrigger value="metas" className="gap-2">
+            <TabsTrigger value="metas" className="gap-2 w-full">
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Metas</span>
             </TabsTrigger>
-            <TabsTrigger value="lancamentos" className="gap-2">
+            <TabsTrigger value="lancamentos" className="gap-2 w-full">
               <ClipboardList className="h-4 w-4" />
               <span className="hidden sm:inline">Lançamentos</span>
             </TabsTrigger>
-            <TabsTrigger value="admins" className="gap-2">
+            <TabsTrigger value="admins" className="gap-2 w-full">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Admins</span>
             </TabsTrigger>
-            <TabsTrigger value="auditoria" className="gap-2">
+            <TabsTrigger value="auditoria" className="gap-2 w-full">
               <ScrollText className="h-4 w-4" />
               <span className="hidden sm:inline">Auditoria</span>
             </TabsTrigger>
-            </TabsList>
-          </div>
+          </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
             <Dashboard embedded={true} />
