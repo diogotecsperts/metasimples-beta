@@ -63,6 +63,12 @@ export function ExportRankingButton({
       container.style.background = "#ffffff";
       container.style.overflow = "visible";
 
+      // Esconde temporariamente os badges de alerta para a exportação
+      const alertBadges = container.querySelectorAll('[data-alert-badge]');
+      alertBadges.forEach((badge) => {
+        (badge as HTMLElement).style.display = 'none';
+      });
+
       // Aguarda um frame para aplicar os estilos
       await new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -84,6 +90,11 @@ export function ExportRankingButton({
       container.style.padding = originalPadding;
       container.style.background = originalBackground;
       container.style.overflow = originalOverflow;
+
+      // Restaura a visibilidade dos badges de alerta
+      alertBadges.forEach((badge) => {
+        (badge as HTMLElement).style.display = '';
+      });
 
       const link = document.createElement("a");
       link.download = `ranking-desktop-${new Date().toISOString().split("T")[0]}.png`;
