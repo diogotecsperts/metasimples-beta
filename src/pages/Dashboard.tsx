@@ -21,7 +21,7 @@ import { format, endOfMonth, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
-import { X, MessageSquare } from "lucide-react";
+import { X, MessageSquare, ChevronRight } from "lucide-react";
 
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
@@ -413,8 +413,10 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                 </TabsTrigger>
               )}
             </TabsList>
-            {/* Fade indicator for mobile scroll */}
-            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden mb-6" />
+            {/* Fade indicator with animated arrow for mobile scroll */}
+            <div className="absolute right-0 top-0 bottom-0 w-14 bg-gradient-to-l from-background via-background/80 to-transparent pointer-events-none md:hidden mb-6 flex items-center justify-end pr-1">
+              <ChevronRight className="h-5 w-5 text-muted-foreground animate-[pulse_1.5s_ease-in-out_infinite]" />
+            </div>
           </div>
 
           <TabsContent value="ranking" className="space-y-6">
