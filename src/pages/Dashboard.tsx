@@ -66,18 +66,60 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [diaSelecionado, setDiaSelecionado] = useState(new Date().getDate());
   const [filtroTipoOperacional, setFiltroTipoOperacional] = useState<"todos" | "A" | "B">("todos");
   const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
   
-  const dataHoje = format(new Date(), "yyyy-MM-dd");
-  const dataOntem = format(subDays(new Date(), 1), "yyyy-MM-dd");
-  const isAtual = mesSelecionado === (new Date().getMonth() + 1) && 
-                  anoSelecionado === new Date().getFullYear();
+  const hoje = new Date();
+  const isAtual = mesSelecionado === (hoje.getMonth() + 1) && 
+                  anoSelecionado === hoje.getFullYear() &&
+                  diaSelecionado === hoje.getDate();
+  
+  // Data selecionada formatada
+  const dataSelecionada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaSelecionado).padStart(2, '0')}`;
+  const dataOntem = format(subDays(new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado), 1), "yyyy-MM-dd");
+
+  // Gerar lista de dias disponíveis
+  const isAtualMes = mesSelecionado === (hoje.getMonth() + 1) && anoSelecionado === hoje.getFullYear();
+  const ultimoDiaMes = endOfMonth(new Date(anoSelecionado, mesSelecionado - 1)).getDate();
+  const diasDisponiveis = isAtualMes 
+    ? Array.from({ length: hoje.getDate() }, (_, i) => i + 1)
+    : Array.from({ length: ultimoDiaMes }, (_, i) => i + 1);
+
+  // Reset dia quando mudar mês/ano
+  const handleMesChange = (value: string) => {
+    const novoMes = parseInt(value);
+    setMesSelecionado(novoMes);
+    // Se mês atual, ajusta dia para não ultrapassar hoje
+    if (novoMes === (hoje.getMonth() + 1) && anoSelecionado === hoje.getFullYear()) {
+      if (diaSelecionado > hoje.getDate()) {
+        setDiaSelecionado(hoje.getDate());
+      }
+    } else {
+      // Se mês anterior, ajusta para último dia se necessário
+      const ultimoDia = endOfMonth(new Date(anoSelecionado, novoMes - 1)).getDate();
+      if (diaSelecionado > ultimoDia) {
+        setDiaSelecionado(ultimoDia);
+      }
+    }
+  };
+
+  const handleAnoChange = (value: string) => {
+    const novoAno = parseInt(value);
+    setAnoSelecionado(novoAno);
+    // Ajustar dia se necessário
+    if (mesSelecionado === (hoje.getMonth() + 1) && novoAno === hoje.getFullYear()) {
+      if (diaSelecionado > hoje.getDate()) {
+        setDiaSelecionado(hoje.getDate());
+      }
+    }
+  };
 
   const handleResetToAtual = () => {
-    setMesSelecionado(new Date().getMonth() + 1);
-    setAnoSelecionado(new Date().getFullYear());
+    setMesSelecionado(hoje.getMonth() + 1);
+    setAnoSelecionado(hoje.getFullYear());
+    setDiaSelecionado(hoje.getDate());
   };
 
   // Configurar realtime para atualizar automaticamente quando houver lançamentos, lojas e metas
@@ -155,7 +197,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       supabase.removeChannel(metasChannel);
       setIsRealtimeConnected(false);
     };
-  }, [queryClient, dataHoje]);
+  }, [queryClient]);
 
   // Buscar todas as lojas
   const { data: lojas = [] } = useQuery({
@@ -186,37 +228,21 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     },
   });
 
-  // Buscar lançamentos do dia (atual) ou do mês (histórico)
+  // Buscar lançamentos do dia selecionado
   const { data: lancamentos = [], isLoading } = useQuery({
-    queryKey: ["lancamentos-dashboard", mesSelecionado, anoSelecionado, isAtual ? dataHoje : null],
+    queryKey: ["lancamentos-dashboard", dataSelecionada],
     queryFn: async () => {
-      if (isAtual) {
-        // Mês atual: busca apenas hoje
-        const { data, error } = await supabase
-          .from("lancamentos_diarios")
-          .select("loja_id, valor_acumulado, updated_at, horario")
-          .eq("data", dataHoje);
+      const { data, error } = await supabase
+        .from("lancamentos_diarios")
+        .select("loja_id, valor_acumulado, updated_at, horario")
+        .eq("data", dataSelecionada);
 
-        if (error) throw error;
-        return data as Lancamento[];
-      } else {
-        // Mês anterior: busca todo o mês
-        const inicioMes = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
-        const fimMes = format(endOfMonth(new Date(anoSelecionado, mesSelecionado - 1)), "yyyy-MM-dd");
-        
-        const { data, error } = await supabase
-          .from("lancamentos_diarios")
-          .select("loja_id, valor_acumulado, updated_at, horario, data")
-          .gte("data", inicioMes)
-          .lte("data", fimMes);
-
-        if (error) throw error;
-        return data as Lancamento[];
-      }
+      if (error) throw error;
+      return data as Lancamento[];
     },
   });
 
-  // Buscar lançamentos de ontem para calcular tendência
+  // Buscar lançamentos do dia anterior para calcular tendência
   const { data: lancamentosOntem = [] } = useQuery({
     queryKey: ["lancamentos-ontem", dataOntem],
     queryFn: async () => {
@@ -228,7 +254,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       if (error) throw error;
       return data as Lancamento[];
     },
-    enabled: isAtual,
   });
 
   // Processar ranking
@@ -246,9 +271,9 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       const percentualAtingimento =
         metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
-      // Calcular tendência comparando com ontem
+      // Calcular tendência comparando com dia anterior
       let tendencia: number | null = null;
-      if (isAtual && meta && metaDiaria > 0) {
+      if (meta && metaDiaria > 0) {
         const lancamentoOntem = lancamentosOntem.find((l) => l.loja_id === loja.id);
         if (lancamentoOntem) {
           const totalOntem = lancamentoOntem.valor_acumulado;
@@ -334,17 +359,12 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
   // Contagem de lojas com meta para ResumoGeral
   const lojasComMeta = rankingCompleto.filter((item) => item.metaDiaria > 0).length;
 
-  const dataFormatada = isAtual
-    ? new Date().toLocaleDateString("pt-BR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : new Date(anoSelecionado, mesSelecionado - 1).toLocaleDateString("pt-BR", {
-        month: "long",
-        year: "numeric",
-      });
+  const dataFormatada = new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado).toLocaleDateString("pt-BR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   const nomeMesSelecionado = new Date(anoSelecionado, mesSelecionado - 1).toLocaleDateString("pt-BR", {
     month: "long",
@@ -432,8 +452,24 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                     </Select>
 
                     <Select
+                      value={diaSelecionado.toString()}
+                      onValueChange={(value) => setDiaSelecionado(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-full md:w-[90px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {diasDisponiveis.map((dia) => (
+                          <SelectItem key={dia} value={dia.toString()}>
+                            Dia {dia}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
                       value={mesSelecionado.toString()}
-                      onValueChange={(value) => setMesSelecionado(parseInt(value))}
+                      onValueChange={handleMesChange}
                     >
                       <SelectTrigger className="w-full md:w-[130px]">
                         <SelectValue />
@@ -462,7 +498,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
 
                     <Select
                       value={anoSelecionado.toString()}
-                      onValueChange={(value) => setAnoSelecionado(parseInt(value))}
+                      onValueChange={handleAnoChange}
                     >
                       <SelectTrigger className="w-full md:w-[100px]">
                         <SelectValue />
@@ -515,7 +551,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                           onClick={handleResetToAtual}
                           className="whitespace-nowrap"
                         >
-                          Período Atual
+                          Hoje
                         </Button>
                       )}
 
@@ -566,7 +602,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                     {ranking.map((item, index) => {
                       const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
                       return (
-                        <RankingCard
+                          <RankingCard
                           key={item.lojaId}
                           posicao={index + 1}
                           nomeLoja={item.nomeLoja}
@@ -575,8 +611,8 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                           percentualAtingimento={item.percentualAtingimento}
                           tendencia={item.tendencia}
                           isEmAlerta={isEmAlerta}
-                          ultimaAtualizacao={isAtual ? item.ultimaAtualizacao : undefined}
-                          ultimoHorario={isAtual ? item.ultimoHorario : undefined}
+                          ultimaAtualizacao={item.ultimaAtualizacao}
+                          ultimoHorario={item.ultimoHorario}
                         />
                       );
                     })}
