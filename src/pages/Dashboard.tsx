@@ -545,49 +545,53 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                       </SelectContent>
                     </Select>
 
-                    <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1">
-                      {!isAtual && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleResetToAtual}
-                          className="whitespace-nowrap"
-                        >
-                          Hoje
-                        </Button>
-                      )}
-
-                      {temFiltrosAtivos && (
-                        <>
-                          <Badge variant="secondary" className="text-xs">
-                            {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
-                          </Badge>
+                    <div className="col-span-2 flex flex-wrap items-center justify-between gap-2 md:col-span-1">
+                      {/* Grupo esquerda: controles de período e filtros */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!isAtual && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={handleLimparFiltros}
-                            className="gap-1.5"
+                            onClick={handleResetToAtual}
+                            className="whitespace-nowrap"
                           >
-                            <X className="h-3.5 w-3.5" />
-                            Limpar
+                            Hoje
                           </Button>
-                        </>
-                      )}
+                        )}
 
-                      <ExportRankingButton
-                        ranking={ranking}
-                        dataFormatada={dataFormatada}
-                        metaTotal={metaTotal}
-                        vendasTotal={vendasTotal}
-                        atingimentoGeral={atingimentoGeral}
-                        rankingContainerRef={rankingContainerRef}
-                      />
+                        {temFiltrosAtivos && (
+                          <>
+                            <Badge variant="secondary" className="text-xs">
+                              {ranking.length} {ranking.length === 1 ? "loja" : "lojas"}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleLimparFiltros}
+                              className="gap-1.5"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Limpar
+                            </Button>
+                          </>
+                        )}
+                      </div>
 
-                      {isAtual && (
-                        <div className="ml-auto">
+                      {/* Grupo direita: exportar e realtime */}
+                      <div className="flex items-center gap-2">
+                        <ExportRankingButton
+                          ranking={ranking}
+                          dataFormatada={dataFormatada}
+                          metaTotal={metaTotal}
+                          vendasTotal={vendasTotal}
+                          atingimentoGeral={atingimentoGeral}
+                          rankingContainerRef={rankingContainerRef}
+                        />
+
+                        {isAtual && (
                           <RealtimeIndicator isConnected={isRealtimeConnected} />
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
 
