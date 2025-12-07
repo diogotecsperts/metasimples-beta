@@ -358,10 +358,28 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     }))
     .sort((a, b) => a.percentual - b.percentual);
 
-  // Contagem de lojas com meta para ResumoGeral
-  const lojasComMeta = rankingCompleto.filter((item) => item.metaDiaria > 0).length;
+  // Verificar se o dia selecionado é domingo
+  const dataSelecionadaObj = new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado);
+  const isDomingo = dataSelecionadaObj.getDay() === 0;
 
-  const dataFormatada = new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado).toLocaleDateString("pt-BR", {
+  // Filtrar lojas ativas no dia (exclui Tipo B se for domingo)
+  const lojasAtivasNoDia = rankingCompleto.filter((item) => {
+    const loja = lojas.find((l) => l.id === item.lojaId);
+    if (!loja) return false;
+    
+    // Se for domingo, excluir lojas Tipo B (Seg a Sáb)
+    if (isDomingo && loja.tipo_operacional === "B") {
+      return false;
+    }
+    
+    return true;
+  });
+
+  // Contagem de lojas com meta para ResumoGeral (apenas lojas ativas no dia)
+  const lojasAtivasComMeta = lojasAtivasNoDia.filter((item) => item.metaDiaria > 0);
+  const lojasComMeta = lojasAtivasComMeta.length;
+
+  const dataFormatada = dataSelecionadaObj.toLocaleDateString("pt-BR", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -372,9 +390,9 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     month: "long",
   });
 
-  // Calcular totais para Resumo Geral
-  const metaTotal = metas.reduce((acc, m) => acc + m.meta_diaria_calculada, 0);
-  const vendasTotal = ranking.reduce((acc, r) => acc + r.totalVendido, 0);
+  // Calcular totais para Resumo Geral (apenas lojas ativas no dia)
+  const metaTotal = lojasAtivasComMeta.reduce((acc, r) => acc + r.metaDiaria, 0);
+  const vendasTotal = lojasAtivasComMeta.reduce((acc, r) => acc + r.totalVendido, 0);
   const atingimentoGeral = metaTotal > 0 ? (vendasTotal / metaTotal) * 100 : 0;
 
   return (
@@ -429,7 +447,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                     vendasTotal={vendasTotal}
                     atingimentoGeral={atingimentoGeral}
                     lojasComMeta={lojasComMeta}
-                    totalLojas={lojas.length}
+                    totalLojas={lojasAtivasNoDia.length}
                   />
                 )}
 
