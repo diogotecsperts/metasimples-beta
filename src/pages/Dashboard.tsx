@@ -316,10 +316,19 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       return b.percentualAtingimento - a.percentualAtingimento;
     });
 
-  // Aplicar filtros
+  // Verificar se o dia selecionado é domingo (antes dos filtros)
+  const dataSelecionadaObj = new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado);
+  const isDomingo = dataSelecionadaObj.getDay() === 0;
+
+  // Aplicar filtros (inclui exclusão de lojas Tipo B aos domingos)
   const ranking = rankingCompleto.filter((item) => {
     const loja = lojas.find((l) => l.id === item.lojaId);
     if (!loja) return false;
+
+    // Se for domingo, excluir lojas Tipo B (Seg a Sáb) - não operam aos domingos
+    if (isDomingo && loja.tipo_operacional === "B") {
+      return false;
+    }
 
     // Filtro por tipo operacional
     if (filtroTipoOperacional !== "todos" && loja.tipo_operacional !== filtroTipoOperacional) {
@@ -349,8 +358,8 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     setFiltroLoja("todas");
   };
 
-  // Preparar dados para componente de alertas (usa dados já processados do ranking)
-  const lojasEmAlerta = rankingCompleto
+  // Preparar dados para componente de alertas (usa dados já processados do ranking filtrado)
+  const lojasEmAlerta = ranking
     .filter((item) => item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70)
     .map((item) => ({
       nome: item.nomeLoja,
@@ -358,26 +367,8 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     }))
     .sort((a, b) => a.percentual - b.percentual);
 
-  // Verificar se o dia selecionado é domingo
-  const dataSelecionadaObj = new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado);
-  const isDomingo = dataSelecionadaObj.getDay() === 0;
-
-  // Filtrar lojas ativas no dia (exclui Tipo B se for domingo)
-  const lojasAtivasNoDia = rankingCompleto.filter((item) => {
-    const loja = lojas.find((l) => l.id === item.lojaId);
-    if (!loja) return false;
-    
-    // Se for domingo, excluir lojas Tipo B (Seg a Sáb)
-    if (isDomingo && loja.tipo_operacional === "B") {
-      return false;
-    }
-    
-    return true;
-  });
-
-  // Contagem de lojas com meta para ResumoGeral (apenas lojas ativas no dia)
-  const lojasAtivasComMeta = lojasAtivasNoDia.filter((item) => item.metaDiaria > 0);
-  const lojasComMeta = lojasAtivasComMeta.length;
+  // Contagem de lojas com meta para ResumoGeral (ranking já está filtrado por dia)
+  const lojasComMeta = ranking.filter((item) => item.metaDiaria > 0).length;
 
   const dataFormatada = dataSelecionadaObj.toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -390,9 +381,10 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     month: "long",
   });
 
-  // Calcular totais para Resumo Geral (apenas lojas ativas no dia)
-  const metaTotal = lojasAtivasComMeta.reduce((acc, r) => acc + r.metaDiaria, 0);
-  const vendasTotal = lojasAtivasComMeta.reduce((acc, r) => acc + r.totalVendido, 0);
+  // Calcular totais para Resumo Geral (ranking já está filtrado por dia)
+  const rankingComMeta = ranking.filter((item) => item.metaDiaria > 0);
+  const metaTotal = rankingComMeta.reduce((acc, r) => acc + r.metaDiaria, 0);
+  const vendasTotal = rankingComMeta.reduce((acc, r) => acc + r.totalVendido, 0);
   const atingimentoGeral = metaTotal > 0 ? (vendasTotal / metaTotal) * 100 : 0;
 
   return (
@@ -447,7 +439,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                     vendasTotal={vendasTotal}
                     atingimentoGeral={atingimentoGeral}
                     lojasComMeta={lojasComMeta}
-                    totalLojas={lojasAtivasNoDia.length}
+                    totalLojas={ranking.length}
                   />
                 )}
 
