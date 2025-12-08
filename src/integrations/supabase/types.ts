@@ -53,6 +53,60 @@ export type Database = {
         }
         Relationships: []
       }
+      changelog_items: {
+        Row: {
+          categoria: string
+          created_at: string
+          created_by: string
+          descricao: string
+          id: string
+          published_at: string | null
+          scheduled_at: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          created_by: string
+          descricao: string
+          id?: string
+          published_at?: string | null
+          scheduled_at?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          created_by?: string
+          descricao?: string
+          id?: string
+          published_at?: string | null
+          scheduled_at?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      changelog_read_status: {
+        Row: {
+          id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lancamentos_diarios: {
         Row: {
           created_at: string
