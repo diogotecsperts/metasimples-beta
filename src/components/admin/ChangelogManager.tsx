@@ -1,14 +1,32 @@
-import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChangelogList } from "./ChangelogList";
 import { ChangelogMasterPanel } from "./ChangelogMasterPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Settings } from "lucide-react";
+import { Sparkles, Settings, Loader2 } from "lucide-react";
 
 const MASTER_USER_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
 export function ChangelogManager() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  
+  // Debug log para verificar IDs
+  console.log("ChangelogManager Debug:", {
+    userId: user?.id,
+    masterUserId: MASTER_USER_ID,
+    isMaster: user?.id === MASTER_USER_ID,
+    isLoading
+  });
+
+  // Aguardar carregamento do usuário
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Carregando...</span>
+      </div>
+    );
+  }
+
   const isMaster = user?.id === MASTER_USER_ID;
 
   if (!isMaster) {
