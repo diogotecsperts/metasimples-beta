@@ -91,9 +91,7 @@ serve(async (req: Request): Promise<Response> => {
                     </h2>
                     
                     <!-- Descrição -->
-                    <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4b5563; white-space: pre-wrap; text-align: justify;">
-                      ${item.descricao}
-                    </p>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4b5563; text-align: justify;">${item.descricao.trim()}</p>
                   </td>
                 </tr>
                 
