@@ -117,7 +117,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Enviar email para todos os destinatários
     const emailResponse = await resend.emails.send({
-      from: "Meta Simples <metasimplesrelatorios@tecsperts.com>",
+      from: "Meta Simples <novidades@metasimplesrelatorios.tecsperts.com>",
       to: emails,
       subject: `✨ Novidade: ${item.titulo}`,
       html,
