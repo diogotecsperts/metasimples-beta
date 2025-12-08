@@ -60,7 +60,7 @@ type DashboardProps = {
 };
 
 const Dashboard = ({ embedded = false }: DashboardProps) => {
-  const { signOut, user } = useAuth();
+  const { signOut, user, userName } = useAuth();
   const isMasterAdmin = user?.id === MASTER_ADMIN_ID;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -444,7 +444,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                 )}
 
                 <div className="flex flex-col gap-4">
-                  <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} />
+                  <RankingHeader totalLojas={lojas.length} dataAtual={dataFormatada} userName={userName} />
                   
                   {/* Barra unificada de filtros */}
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 bg-card border rounded-xl">

@@ -10,10 +10,12 @@ import {
 type RankingHeaderProps = {
   totalLojas: number;
   dataAtual: string;
+  userName?: string | null;
 };
 export function RankingHeader({
   totalLojas,
-  dataAtual
+  dataAtual,
+  userName
 }: RankingHeaderProps) {
   return <div className="bg-card border rounded-xl p-4 md:p-6 text-center shadow-md">
       <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 mb-2">
@@ -36,7 +38,13 @@ export function RankingHeader({
         </TooltipProvider>
       </div>
       <p className="text-sm md:text-base text-muted-foreground capitalize">
-        {dataAtual} • {totalLojas} {totalLojas === 1 ? "Loja" : "Lojas"}
+        {userName && (
+          <>
+            <span className="font-medium text-foreground normal-case">Bem-vindo, {userName}</span>
+            {" · "}
+          </>
+        )}
+        {dataAtual} · {totalLojas} {totalLojas === 1 ? "Loja" : "Lojas"}
       </p>
     </div>;
 }
