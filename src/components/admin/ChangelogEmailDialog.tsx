@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Loader2, Users, UserCog, UserCheck } from "lucide-react";
+import { Send, Loader2, Users, UserCog, UserCheck, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,12 @@ type Props = {
 };
 
 const MASTER_USER_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
+
+const categoriaConfig: Record<string, { label: string; emoji: string; color: string }> = {
+  disponivel: { label: "Disponível", emoji: "✅", color: "#10b981" },
+  desenvolvimento: { label: "Em Desenvolvimento", emoji: "🔄", color: "#f59e0b" },
+  indeterminado: { label: "Indeterminado", emoji: "❓", color: "#6b7280" },
+};
 
 export function ChangelogEmailDialog({ item, onClose }: Props) {
   const { toast } = useToast();
@@ -117,7 +124,7 @@ export function ChangelogEmailDialog({ item, onClose }: Props) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Enviar Novidade por Email</DialogTitle>
           <DialogDescription>
@@ -125,16 +132,62 @@ export function ChangelogEmailDialog({ item, onClose }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Preview do item */}
-          <div className="rounded-lg border p-3 bg-muted/30">
-            <p className="text-sm font-medium">{item.titulo}</p>
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-              {item.descricao}
-            </p>
-          </div>
+        <ScrollArea className="max-h-[70vh]">
+          <div className="space-y-4 py-4 pr-4">
+            {/* Preview visual do email */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Mail className="h-4 w-4" />
+                Prévia do Email
+              </div>
+              <div className="rounded-xl border bg-[#f4f4f5] p-4">
+                <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="p-6 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold" style={{ color: "#1e3a5f" }}>
+                      ✨ Novidade no Meta simples
+                    </h3>
+                    <p className="text-sm mt-1" style={{ color: "#6b7280" }}>
+                      Uma nova atualização foi publicada no sistema
+                    </p>
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="p-6">
+                    {/* Badge categoria */}
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full"
+                      style={{
+                        backgroundColor: `${categoriaConfig[item.categoria]?.color}15`,
+                        color: categoriaConfig[item.categoria]?.color,
+                        border: `1px solid ${categoriaConfig[item.categoria]?.color}30`,
+                      }}
+                    >
+                      {categoriaConfig[item.categoria]?.emoji} {categoriaConfig[item.categoria]?.label}
+                    </span>
+                    
+                    {/* Título */}
+                    <h4 className="text-lg font-semibold mt-4" style={{ color: "#1f2937" }}>
+                      {item.titulo}
+                    </h4>
+                    
+                    {/* Descrição */}
+                    <p className="mt-3 text-base leading-relaxed text-justify" style={{ color: "#4b5563" }}>
+                      {item.descricao.trim()}
+                    </p>
+                  </div>
+                  
+                  {/* Footer */}
+                  <div className="px-6 py-4 bg-[#f9fafb] border-t border-gray-200">
+                    <p className="text-xs text-center" style={{ color: "#9ca3af" }}>
+                      Enviado pelo Meta Simples • Sistema de Gestão de Metas
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          {/* Lista de usuários */}
+            {/* Lista de usuários */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Destinatários</Label>
@@ -221,7 +274,8 @@ export function ChangelogEmailDialog({ item, onClose }: Props) {
               </p>
             )}
           </div>
-        </div>
+          </div>
+        </ScrollArea>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
