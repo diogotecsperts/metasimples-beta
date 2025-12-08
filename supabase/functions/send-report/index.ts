@@ -258,7 +258,9 @@ const handler = async (req: Request): Promise<Response> => {
     const currentMonth = brasilTime.getMonth() + 1;
     const currentYear = brasilTime.getFullYear();
 
-    console.log(`[send-report] Data: ${todayStr}, Mês: ${currentMonth}, Ano: ${currentYear}`);
+    // Verificar se hoje é domingo (0 = domingo)
+    const isDomingo = brasilTime.getDay() === 0;
+    console.log(`[send-report] Data: ${todayStr}, Mês: ${currentMonth}, Ano: ${currentYear}, Dia da semana: ${brasilTime.getDay()}, isDomingo: ${isDomingo}`);
 
     // Fetch all lojas
     const { data: lojas, error: lojasError } = await supabase
@@ -270,7 +272,15 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Erro ao buscar lojas");
     }
 
-    console.log(`[send-report] ${lojas?.length || 0} lojas encontradas`);
+    // Filtrar lojas ativas no dia (excluir Tipo B aos domingos - não operam)
+    const lojasAtivas = (lojas || []).filter((loja: Loja) => {
+      if (isDomingo && loja.tipo_operacional === "B") {
+        return false;
+      }
+      return true;
+    });
+
+    console.log(`[send-report] ${lojas?.length || 0} lojas totais, ${lojasAtivas.length} lojas ativas no dia (${isDomingo ? 'domingo' : 'dia útil'})`);
 
     // Fetch metas for current month
     const { data: metas, error: metasError } = await supabase
@@ -313,7 +323,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    const ranking: LojaRanking[] = (lojas || []).map((loja: Loja) => {
+    // Usar apenas lojas ativas no dia para o ranking
+    const ranking: LojaRanking[] = lojasAtivas.map((loja: Loja) => {
       const metaDiaria = metasMap.get(loja.id) || 0;
       const totalVendido = lancamentosMap.get(loja.id) || 0;
       const percentual = metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
