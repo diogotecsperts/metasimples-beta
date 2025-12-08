@@ -61,11 +61,11 @@ serve(async (req: Request): Promise<Response> => {
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td>
-                          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #1e3a5f;">
-                            ✨ Novidade no Sistema
+                        <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #1e3a5f;">
+                            ✨ Novidade no Meta simples
                           </h1>
                           <p style="margin: 8px 0 0; font-size: 14px; color: #6b7280;">
-                            Uma nova atualização foi publicada no Meta Simples
+                            Uma nova atualização foi publicada no sistema
                           </p>
                         </td>
                       </tr>
@@ -91,7 +91,7 @@ serve(async (req: Request): Promise<Response> => {
                     </h2>
                     
                     <!-- Descrição -->
-                    <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4b5563; white-space: pre-wrap;">
+                    <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4b5563; white-space: pre-wrap; text-align: justify;">
                       ${item.descricao}
                     </p>
                   </td>
