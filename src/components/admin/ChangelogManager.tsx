@@ -8,14 +8,6 @@ const MASTER_USER_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
 export function ChangelogManager() {
   const { user, isLoading } = useAuth();
-  
-  // Debug log para verificar IDs
-  console.log("ChangelogManager Debug:", {
-    userId: user?.id,
-    masterUserId: MASTER_USER_ID,
-    isMaster: user?.id === MASTER_USER_ID,
-    isLoading
-  });
 
   // Aguardar carregamento do usuário
   if (isLoading) {
