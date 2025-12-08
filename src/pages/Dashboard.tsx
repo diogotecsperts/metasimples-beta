@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RankingHeader } from "@/components/dashboard/RankingHeader";
 import { RankingCard } from "@/components/dashboard/RankingCard";
+import { RankingCardMensal } from "@/components/dashboard/RankingCardMensal";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { MonthlyEvolutionChart } from "@/components/dashboard/MonthlyEvolutionChart";
 import { PeriodComparison } from "@/components/dashboard/PeriodComparison";
@@ -21,7 +22,7 @@ import { format, endOfMonth, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
-import { X, MessageSquare } from "lucide-react";
+import { X, MessageSquare, CalendarDays, Calendar } from "lucide-react";
 
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
@@ -35,6 +36,7 @@ type Loja = {
 type MetaMensal = {
   loja_id: string;
   meta_diaria_calculada: number;
+  meta_mensal: number;
 };
 
 type Lancamento = {
@@ -71,6 +73,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
   const [filtroTipoOperacional, setFiltroTipoOperacional] = useState<"todos" | "A" | "B">("todos");
   const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
+  const [visaoMensal, setVisaoMensal] = useState(false);
   const rankingContainerRef = useRef<HTMLDivElement>(null);
   
   const hoje = new Date();
@@ -221,13 +224,32 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("metas_mensais")
-        .select("loja_id, meta_diaria_calculada")
+        .select("loja_id, meta_diaria_calculada, meta_mensal")
         .eq("mes", mesSelecionado)
         .eq("ano", anoSelecionado);
 
       if (error) throw error;
       return data as MetaMensal[];
     },
+  });
+
+  // Buscar todos os lançamentos do mês para visão mensal
+  const { data: lancamentosMensais = [] } = useQuery({
+    queryKey: ["lancamentos-mensais", mesSelecionado, anoSelecionado],
+    queryFn: async () => {
+      const primeiroDia = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
+      const ultimoDia = format(endOfMonth(new Date(anoSelecionado, mesSelecionado - 1)), "yyyy-MM-dd");
+      
+      const { data, error } = await supabase
+        .from("lancamentos_diarios")
+        .select("loja_id, data, valor_acumulado")
+        .gte("data", primeiroDia)
+        .lte("data", ultimoDia);
+
+      if (error) throw error;
+      return data as { loja_id: string; data: string; valor_acumulado: number }[];
+    },
+    enabled: visaoMensal, // Só busca quando visão mensal está ativa
   });
 
   // Buscar lançamentos do dia selecionado
@@ -357,6 +379,60 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     setFiltroFechamentoTardio("todos");
     setFiltroLoja("todas");
   };
+
+  // Processar ranking mensal
+  const rankingMensal = useMemo(() => {
+    if (!lojas || !metas || !lancamentosMensais) return [];
+
+    return lojas
+      .map((loja) => {
+        const meta = metas.find((m) => m.loja_id === loja.id);
+        const lancamentosLoja = lancamentosMensais.filter((l) => l.loja_id === loja.id);
+
+        // Agrupar por dia e pegar máximo de cada dia
+        const porDia = new Map<string, number>();
+        lancamentosLoja.forEach((l) => {
+          const atual = porDia.get(l.data) || 0;
+          porDia.set(l.data, Math.max(atual, Number(l.valor_acumulado)));
+        });
+
+        // Somar todos os dias
+        const totalVendidoMes = Array.from(porDia.values()).reduce((a, b) => a + b, 0);
+        const metaMensal = meta?.meta_mensal ? Number(meta.meta_mensal) : null;
+        const percentual = metaMensal ? (totalVendidoMes / metaMensal) * 100 : null;
+
+        return {
+          lojaId: loja.id,
+          nomeLoja: loja.nome,
+          metaMensal,
+          totalVendidoMes,
+          percentualAtingimento: percentual,
+          tipoOperacional: loja.tipo_operacional,
+          possuiFechamentoTardio: loja.possui_fechamento_tardio,
+        };
+      })
+      .filter((item) => {
+        // Aplicar mesmos filtros do ranking diário
+        if (filtroTipoOperacional !== "todos" && item.tipoOperacional !== filtroTipoOperacional) {
+          return false;
+        }
+        if (filtroFechamentoTardio !== "todos") {
+          if (filtroFechamentoTardio === "sim" && !item.possuiFechamentoTardio) return false;
+          if (filtroFechamentoTardio === "nao" && item.possuiFechamentoTardio) return false;
+        }
+        if (filtroLoja !== "todas" && item.lojaId !== filtroLoja) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        // Lojas sem meta vão para o final
+        if (a.metaMensal === null && b.metaMensal === null) return 0;
+        if (a.metaMensal === null) return 1;
+        if (b.metaMensal === null) return -1;
+        return (b.percentualAtingimento || 0) - (a.percentualAtingimento || 0);
+      });
+  }, [lojas, metas, lancamentosMensais, filtroTipoOperacional, filtroFechamentoTardio, filtroLoja]);
 
   // Preparar dados para componente de alertas (usa dados já processados do ranking filtrado)
   const lojasEmAlerta = ranking
@@ -589,60 +665,116 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                       )}
                     </div>
 
-                    {/* Grupo direita: exportar e realtime */}
-                    <div className="flex items-center gap-2 justify-end">
-                      <ExportRankingButton
-                        ranking={ranking}
-                        dataFormatada={dataFormatada}
-                        metaTotal={metaTotal}
-                        vendasTotal={vendasTotal}
-                        atingimentoGeral={atingimentoGeral}
-                        rankingContainerRef={rankingContainerRef}
-                      />
+                    {/* Grupo direita: toggle, exportar e realtime */}
+                    <div className="flex items-center gap-2 justify-end flex-wrap">
+                      {/* Toggle Visão Diária/Mensal */}
+                      <Button
+                        variant={visaoMensal ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setVisaoMensal(!visaoMensal)}
+                        className="gap-2"
+                      >
+                        {visaoMensal ? (
+                          <>
+                            <Calendar className="h-4 w-4" />
+                            Visão Mensal
+                          </>
+                        ) : (
+                          <>
+                            <CalendarDays className="h-4 w-4" />
+                            Visão Diária
+                          </>
+                        )}
+                      </Button>
 
-                      {isAtual && (
+                      {!visaoMensal && (
+                        <ExportRankingButton
+                          ranking={ranking}
+                          dataFormatada={dataFormatada}
+                          metaTotal={metaTotal}
+                          vendasTotal={vendasTotal}
+                          atingimentoGeral={atingimentoGeral}
+                          rankingContainerRef={rankingContainerRef}
+                        />
+                      )}
+
+                      {isAtual && !visaoMensal && (
                         <RealtimeIndicator isConnected={isRealtimeConnected} />
                       )}
                     </div>
                   </div>
 
-                  {/* Alertas de performance */}
-                  <AlertasPerformance isAtual={isAtual} lojasEmAlerta={lojasEmAlerta} />
+                  {/* Alertas de performance - só na visão diária */}
+                  {!visaoMensal && (
+                    <AlertasPerformance isAtual={isAtual} lojasEmAlerta={lojasEmAlerta} />
+                  )}
                 </div>
 
-{ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
-                  <div className="bg-card border rounded-xl p-8 text-center">
-                    <p className="text-muted-foreground mb-2">
-                      {temFiltrosAtivos
-                        ? "Nenhuma loja encontrada com os filtros aplicados."
-                        : `Nenhuma meta configurada para ${nomeMesSelecionado} de ${anoSelecionado}.`}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {temFiltrosAtivos
-                        ? "Tente ajustar os filtros para ver mais resultados."
-                        : `Configure metas mensais para o ${isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.`}
-                    </p>
-                  </div>
-                ) : (
-                  <div ref={rankingContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {ranking.map((item, index) => {
-                      const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
-                      return (
-                          <RankingCard
+                {visaoMensal ? (
+                  // Visão Mensal
+                  rankingMensal.filter(r => r.metaMensal !== null).length === 0 ? (
+                    <div className="bg-card border rounded-xl p-8 text-center">
+                      <p className="text-muted-foreground mb-2">
+                        {temFiltrosAtivos
+                          ? "Nenhuma loja encontrada com os filtros aplicados."
+                          : `Nenhuma meta configurada para ${nomeMesSelecionado} de ${anoSelecionado}.`}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {temFiltrosAtivos
+                          ? "Tente ajustar os filtros para ver mais resultados."
+                          : `Configure metas mensais para o ${isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.`}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {rankingMensal.map((item, index) => (
+                        <RankingCardMensal
                           key={item.lojaId}
                           posicao={index + 1}
                           nomeLoja={item.nomeLoja}
-                          metaDiaria={item.metaDiaria}
-                          totalVendido={item.totalVendido}
+                          metaMensal={item.metaMensal}
+                          totalVendidoMes={item.totalVendidoMes}
                           percentualAtingimento={item.percentualAtingimento}
-                          tendencia={item.tendencia}
-                          isEmAlerta={isEmAlerta}
-                          ultimaAtualizacao={item.ultimaAtualizacao}
-                          ultimoHorario={item.ultimoHorario}
                         />
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  // Visão Diária
+                  ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
+                    <div className="bg-card border rounded-xl p-8 text-center">
+                      <p className="text-muted-foreground mb-2">
+                        {temFiltrosAtivos
+                          ? "Nenhuma loja encontrada com os filtros aplicados."
+                          : `Nenhuma meta configurada para ${nomeMesSelecionado} de ${anoSelecionado}.`}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {temFiltrosAtivos
+                          ? "Tente ajustar os filtros para ver mais resultados."
+                          : `Configure metas mensais para o ${isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.`}
+                      </p>
+                    </div>
+                  ) : (
+                    <div ref={rankingContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {ranking.map((item, index) => {
+                        const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
+                        return (
+                          <RankingCard
+                            key={item.lojaId}
+                            posicao={index + 1}
+                            nomeLoja={item.nomeLoja}
+                            metaDiaria={item.metaDiaria}
+                            totalVendido={item.totalVendido}
+                            percentualAtingimento={item.percentualAtingimento}
+                            tendencia={item.tendencia}
+                            isEmAlerta={isEmAlerta}
+                            ultimaAtualizacao={item.ultimaAtualizacao}
+                            ultimoHorario={item.ultimoHorario}
+                          />
+                        );
+                      })}
+                    </div>
+                  )
                 )}
               </>
             )}
