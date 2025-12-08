@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.send-whatsapp-report]
 verify_jwt = true
+
+[functions.send-changelog-email]
+verify_jwt = true
