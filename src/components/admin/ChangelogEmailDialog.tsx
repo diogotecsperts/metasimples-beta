@@ -35,6 +35,8 @@ type Props = {
   onClose: () => void;
 };
 
+const MASTER_USER_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
+
 export function ChangelogEmailDialog({ item, onClose }: Props) {
   const { toast } = useToast();
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -49,8 +51,10 @@ export function ChangelogEmailDialog({ item, onClose }: Props) {
     },
   });
 
-  const admins = users?.filter((u) => u.role === "admin") || [];
-  const gerentes = users?.filter((u) => u.role === "gerente") || [];
+  // Separar e ordenar: admins primeiro (alfabético), depois gerentes (alfabético)
+  const admins = users?.filter((u) => u.role === "admin").sort((a, b) => a.nome.localeCompare(b.nome)) || [];
+  const gerentes = users?.filter((u) => u.role === "gerente").sort((a, b) => a.nome.localeCompare(b.nome)) || [];
+  const sortedUsers = [...admins, ...gerentes];
 
   // Enviar email
   const sendMutation = useMutation({
@@ -178,9 +182,9 @@ export function ChangelogEmailDialog({ item, onClose }: Props) {
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : users && users.length > 0 ? (
+            ) : sortedUsers.length > 0 ? (
               <div className="max-h-[200px] overflow-y-auto space-y-1 rounded-lg border p-2">
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <label
                     key={user.id}
                     className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors"
@@ -194,12 +198,19 @@ export function ChangelogEmailDialog({ item, onClose }: Props) {
                         <p className="text-sm font-medium truncate">{user.nome}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
-                      <Badge
-                        variant={user.role === "admin" ? "default" : "secondary"}
-                        className="shrink-0 text-xs"
-                      >
-                        {user.role === "admin" ? "Admin" : "Gerente"}
-                      </Badge>
+                      {user.id === MASTER_USER_ID ? (
+                        <Badge className="shrink-0 text-xs bg-purple-600 hover:bg-purple-700">
+                          Master
+                        </Badge>
+                      ) : user.role === "admin" ? (
+                        <Badge variant="default" className="shrink-0 text-xs">
+                          Admin
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="shrink-0 text-xs">
+                          Gerente
+                        </Badge>
+                      )}
                     </div>
                   </label>
                 ))}
