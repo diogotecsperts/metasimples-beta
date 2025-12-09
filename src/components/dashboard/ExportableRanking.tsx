@@ -5,6 +5,7 @@ type RankingItem = {
   lojaId: string;
   nomeLoja: string;
   metaDiaria: number;
+  totalVendido: number;
   percentualAtingimento: number;
 };
 
@@ -67,7 +68,7 @@ export const ExportableRanking = forwardRef<HTMLDivElement, ExportableRankingPro
         </div>
 
         {/* Grid de Cards */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           {lojasComMeta.map((item, index) => (
             <RankingCardCompact
               key={item.lojaId}
@@ -75,6 +76,8 @@ export const ExportableRanking = forwardRef<HTMLDivElement, ExportableRankingPro
               nomeLoja={item.nomeLoja}
               percentualAtingimento={item.percentualAtingimento}
               temMeta={item.metaDiaria > 0}
+              metaDiaria={item.metaDiaria}
+              totalVendido={item.totalVendido}
             />
           ))}
         </div>
