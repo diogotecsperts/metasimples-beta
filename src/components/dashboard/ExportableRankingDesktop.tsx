@@ -83,16 +83,36 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
         width="40"
         height="40"
         viewBox="0 0 24 24"
-        style={{
-          display: "block",
-          stroke: statusColor,
-          strokeWidth: 2,
-          fill: "none",
-        }}
+        style={{ display: "block" }}
       >
-        <path d={path} strokeLinecap="round" strokeLinejoin="round" />
-        {iconType === "up" && <path d="M16 7h6v6" strokeLinecap="round" strokeLinejoin="round" />}
-        {iconType === "down" && <path d="M16 17h6v-6" strokeLinecap="round" strokeLinejoin="round" />}
+        <path 
+          d={path} 
+          fill="none"
+          stroke={statusColor}
+          strokeWidth="2"
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+        />
+        {iconType === "up" && (
+          <path 
+            d="M16 7h6v6" 
+            fill="none"
+            stroke={statusColor}
+            strokeWidth="2"
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
+        )}
+        {iconType === "down" && (
+          <path 
+            d="M16 17h6v-6" 
+            fill="none"
+            stroke={statusColor}
+            strokeWidth="2"
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
+        )}
       </svg>
     );
   };
