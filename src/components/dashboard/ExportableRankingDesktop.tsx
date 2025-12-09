@@ -117,6 +117,14 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
             {item.nomeLoja}
           </span>
         </div>
+
+        {/* Espaçador para balancear - mesma largura da posição */}
+        <div
+          style={{
+            flexShrink: 0,
+            width: 70,
+          }}
+        />
       </div>
 
       {/* Dados */}
