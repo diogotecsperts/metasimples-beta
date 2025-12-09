@@ -62,11 +62,12 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
   const statusBg = getStatusBg(item.percentualAtingimento, temMeta);
   const percentualFormatado = temMeta ? `${item.percentualAtingimento.toFixed(1)}%` : "—";
 
-  const IconComponent = () => {
-    if (!temMeta) return <Minus style={{ width: 40, height: 40, color: statusColor }} />;
-    if (item.percentualAtingimento >= 100) return <TrendingUp style={{ width: 40, height: 40, color: statusColor }} />;
-    if (item.percentualAtingimento >= 80) return <Minus style={{ width: 40, height: 40, color: statusColor }} />;
-    return <TrendingDown style={{ width: 40, height: 40, color: statusColor }} />;
+  const renderIcon = () => {
+    const iconStyle = { width: 36, height: 36, color: statusColor };
+    if (!temMeta) return <Minus style={iconStyle} />;
+    if (item.percentualAtingimento >= 100) return <TrendingUp style={iconStyle} />;
+    if (item.percentualAtingimento >= 80) return <Minus style={iconStyle} />;
+    return <TrendingDown style={iconStyle} />;
   };
 
   return (
@@ -80,35 +81,37 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
         position: "relative",
       }}
     >
-      {/* Header: Posição, Nome, Ícone - estrutura de tabela para alinhamento perfeito */}
+      {/* Header: Posição, Nome, Ícone - FLEXBOX para html2canvas */}
       <div
         style={{
-          display: "table",
-          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           marginBottom: 16,
-          tableLayout: "fixed",
+          minHeight: 50,
         }}
       >
-        {/* Célula 1: Posição - largura fixa */}
+        {/* Posição - largura fixa */}
         <div
           style={{
-            display: "table-cell",
+            flexShrink: 0,
             width: 70,
-            verticalAlign: "middle",
             fontSize: 32,
             fontWeight: 700,
             color: "#9ca3af",
+            lineHeight: 1.2,
           }}
         >
           #{posicao}
         </div>
         
-        {/* Célula 2: Nome - espaço restante automático */}
+        {/* Nome - espaço flexível central */}
         <div
           style={{
-            display: "table-cell",
-            verticalAlign: "middle",
+            flex: 1,
             textAlign: "center",
+            overflow: "hidden",
+            padding: "0 8px",
           }}
         >
           <span
@@ -120,22 +123,24 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
               overflow: "hidden",
               textOverflow: "ellipsis",
               display: "block",
+              lineHeight: 1.4,
             }}
           >
             {item.nomeLoja}
           </span>
         </div>
         
-        {/* Célula 3: Ícone - largura fixa */}
+        {/* Ícone - largura fixa */}
         <div
           style={{
-            display: "table-cell",
-            width: 60,
-            verticalAlign: "middle",
-            textAlign: "right",
+            flexShrink: 0,
+            width: 50,
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
           }}
         >
-          <IconComponent />
+          {renderIcon()}
         </div>
       </div>
 
