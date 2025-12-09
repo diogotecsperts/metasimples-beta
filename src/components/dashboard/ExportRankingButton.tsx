@@ -12,6 +12,7 @@ import {
 import { Download, Monitor, Smartphone, Users, Loader2 } from "lucide-react";
 import { ExportableRanking } from "./ExportableRanking";
 import { ExportableRankingSimple } from "./ExportableRankingSimple";
+import { ExportableRankingDesktop } from "./ExportableRankingDesktop";
 import { toast } from "sonner";
 
 type RankingItem = {
@@ -20,6 +21,10 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
+  tendencia?: number | null;
+  isEmAlerta?: boolean;
+  ultimaAtualizacao?: string;
+  ultimoHorario?: string | null;
 };
 
 type ExportRankingButtonProps = {
@@ -37,17 +42,17 @@ export function ExportRankingButton({
   metaTotal,
   vendasTotal,
   atingimentoGeral,
-  rankingContainerRef,
 }: ExportRankingButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState<"desktop" | "admin" | "gerente" | null>(null);
   const compactRef = useRef<HTMLDivElement>(null);
   const simpleRef = useRef<HTMLDivElement>(null);
+  const desktopRef = useRef<HTMLDivElement>(null);
 
   const handleExportDesktop = async () => {
-    if (!rankingContainerRef?.current) {
-      toast.error("Container de ranking não encontrado");
+    if (!desktopRef.current) {
+      toast.error("Container desktop não encontrado");
       return;
     }
 
@@ -55,47 +60,14 @@ export function ExportRankingButton({
     setIsExporting(true);
 
     try {
-      // Adiciona padding temporário ao container para melhor captura
-      const container = rankingContainerRef.current;
-      const originalPadding = container.style.padding;
-      const originalBackground = container.style.background;
-      const originalOverflow = container.style.overflow;
-      
-      container.style.padding = "48px 24px 24px 24px";
-      container.style.background = "#ffffff";
-      container.style.overflow = "visible";
+      // Aguarda um frame para garantir que o elemento está renderizado
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Esconde temporariamente os badges de alerta para a exportação
-      const alertBadges = container.querySelectorAll('[data-alert-badge]');
-      alertBadges.forEach((badge) => {
-        (badge as HTMLElement).style.display = 'none';
-      });
-
-      // Aguarda um frame para aplicar os estilos
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const canvas = await html2canvas(container, {
+      const canvas = await html2canvas(desktopRef.current, {
         backgroundColor: "#ffffff",
         scale: 2,
         useCORS: true,
         logging: false,
-        allowTaint: true,
-        scrollX: 0,
-        scrollY: -window.scrollY,
-        x: -16,
-        y: -16,
-        width: container.offsetWidth + 32,
-        height: container.offsetHeight + 32,
-      });
-
-      // Restaura os estilos originais
-      container.style.padding = originalPadding;
-      container.style.background = originalBackground;
-      container.style.overflow = originalOverflow;
-
-      // Restaura a visibilidade dos badges de alerta
-      alertBadges.forEach((badge) => {
-        (badge as HTMLElement).style.display = '';
       });
 
       const link = document.createElement("a");
@@ -214,7 +186,7 @@ export function ExportRankingButton({
               variant="outline"
               className="h-20 flex flex-col items-center justify-center gap-2"
               onClick={handleExportDesktop}
-              disabled={isExporting || !rankingContainerRef}
+              disabled={isExporting}
             >
               {isExporting && exportType === "desktop" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -224,7 +196,7 @@ export function ExportRankingButton({
               <div className="text-center">
                 <p className="font-medium">Desktop</p>
                 <p className="text-xs text-muted-foreground">
-                  Captura da tela atual
+                  Layout completo otimizado
                 </p>
               </div>
             </Button>
@@ -302,6 +274,25 @@ export function ExportRankingButton({
           ref={simpleRef}
           ranking={ranking}
           dataFormatada={dataFormatada}
+        />
+      </div>
+
+      {/* Container invisível para renderização do layout Desktop */}
+      <div
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: 0,
+          pointerEvents: "none",
+        }}
+      >
+        <ExportableRankingDesktop
+          ref={desktopRef}
+          ranking={ranking}
+          dataFormatada={dataFormatada}
+          metaTotal={metaTotal}
+          vendasTotal={vendasTotal}
+          atingimentoGeral={atingimentoGeral}
         />
       </div>
     </>
