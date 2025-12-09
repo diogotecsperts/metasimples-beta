@@ -62,10 +62,8 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
   const statusBg = getStatusBg(item.percentualAtingimento, temMeta);
   const percentualFormatado = temMeta ? `${item.percentualAtingimento.toFixed(1)}%` : "—";
 
-  // SVG inline puro - funciona 100% no html2canvas
+  // SVG inline puro com xmlns e style para html2canvas
   const renderIcon = () => {
-    const size = 36;
-    
     // SVG paths copiados diretamente do Lucide
     const trendingUpPath = "M22 7 13.5 15.5 9 11 2 18";
     const trendingDownPath = "M22 17 13.5 8.5 9 13 2 6";
@@ -81,18 +79,20 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
     
     return (
       <svg
-        width={size}
-        height={size}
+        xmlns="http://www.w3.org/2000/svg"
+        width="40"
+        height="40"
         viewBox="0 0 24 24"
-        fill="none"
-        stroke={statusColor}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        style={{
+          display: "block",
+          stroke: statusColor,
+          strokeWidth: 2,
+          fill: "none",
+        }}
       >
-        <path d={path} />
-        {iconType === "up" && <path d="M16 7h6v6" />}
-        {iconType === "down" && <path d="M16 17h6v-6" />}
+        <path d={path} strokeLinecap="round" strokeLinejoin="round" />
+        {iconType === "up" && <path d="M16 7h6v6" strokeLinecap="round" strokeLinejoin="round" />}
+        {iconType === "down" && <path d="M16 17h6v-6" strokeLinecap="round" strokeLinejoin="round" />}
       </svg>
     );
   };
@@ -157,11 +157,11 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
           </span>
         </div>
         
-        {/* Ícone - largura fixa */}
+        {/* Ícone - largura fixa maior */}
         <div
           style={{
             flexShrink: 0,
-            width: 50,
+            width: 60,
             display: "flex",
             justifyContent: "flex-end",
             alignItems: "center",
