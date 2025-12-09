@@ -97,14 +97,14 @@ export function RankingCard({
         </Badge>
       )}
       
-      <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+      <div className="flex items-baseline justify-between mb-4 md:mb-6 px-1">
         <div className="text-2xl md:text-4xl font-bold text-muted-foreground/60 flex-shrink-0">
           #{posicao}
         </div>
-        <h3 className="text-lg md:text-2xl font-bold text-center flex-1 mx-2 truncate">
+        <h3 className="text-xl md:text-3xl font-bold text-center flex-1 mx-2 truncate">
           {nomeLoja}
         </h3>
-        <div className={cn("flex-shrink-0", getStatusColor())}>
+        <div className={cn("flex-shrink-0 self-center", getStatusColor())}>
           {getIcon()}
         </div>
       </div>
