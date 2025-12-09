@@ -80,33 +80,35 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
         position: "relative",
       }}
     >
-      {/* Header: Posição, Nome, Ícone - 3 colunas com largura fixa */}
+      {/* Header: Posição, Nome, Ícone - estrutura de tabela para alinhamento perfeito */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
+          display: "table",
+          width: "100%",
           marginBottom: 16,
+          tableLayout: "fixed",
         }}
       >
-        {/* Coluna 1: Posição - largura fixa */}
+        {/* Célula 1: Posição - largura fixa */}
         <div
           style={{
-            width: 60,
+            display: "table-cell",
+            width: 70,
+            verticalAlign: "middle",
             fontSize: 32,
             fontWeight: 700,
             color: "#9ca3af",
-            flexShrink: 0,
           }}
         >
           #{posicao}
         </div>
         
-        {/* Coluna 2: Nome - ocupa espaço restante */}
+        {/* Célula 2: Nome - espaço restante automático */}
         <div
           style={{
-            flex: 1,
+            display: "table-cell",
+            verticalAlign: "middle",
             textAlign: "center",
-            overflow: "hidden",
           }}
         >
           <span
@@ -124,13 +126,13 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
           </span>
         </div>
         
-        {/* Coluna 3: Ícone - largura fixa */}
+        {/* Célula 3: Ícone - largura fixa */}
         <div
           style={{
-            width: 50,
-            display: "flex",
-            justifyContent: "flex-end",
-            flexShrink: 0,
+            display: "table-cell",
+            width: 60,
+            verticalAlign: "middle",
+            textAlign: "right",
           }}
         >
           <IconComponent />
