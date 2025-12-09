@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { TrendingUp, TrendingDown, Minus, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 
 type RankingItem = {
   lojaId: string;
@@ -62,61 +62,6 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
   const statusBg = getStatusBg(item.percentualAtingimento, temMeta);
   const percentualFormatado = temMeta ? `${item.percentualAtingimento.toFixed(1)}%` : "—";
 
-  // SVG inline puro com xmlns e style para html2canvas
-  const renderIcon = () => {
-    // SVG paths copiados diretamente do Lucide
-    const trendingUpPath = "M22 7 13.5 15.5 9 11 2 18";
-    const trendingDownPath = "M22 17 13.5 8.5 9 13 2 6";
-    const minusPath = "M5 12h14";
-    
-    let iconType: "up" | "down" | "minus" = "minus";
-    if (temMeta) {
-      if (item.percentualAtingimento >= 100) iconType = "up";
-      else if (item.percentualAtingimento < 80) iconType = "down";
-    }
-    
-    const path = iconType === "up" ? trendingUpPath : iconType === "down" ? trendingDownPath : minusPath;
-    
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="40"
-        height="40"
-        viewBox="0 0 24 24"
-        style={{ display: "block" }}
-      >
-        <path 
-          d={path} 
-          fill="none"
-          stroke={statusColor}
-          strokeWidth="2"
-          strokeLinecap="round" 
-          strokeLinejoin="round" 
-        />
-        {iconType === "up" && (
-          <path 
-            d="M16 7h6v6" 
-            fill="none"
-            stroke={statusColor}
-            strokeWidth="2"
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-          />
-        )}
-        {iconType === "down" && (
-          <path 
-            d="M16 17h6v-6" 
-            fill="none"
-            stroke={statusColor}
-            strokeWidth="2"
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-          />
-        )}
-      </svg>
-    );
-  };
-
   return (
     <div
       style={{
@@ -128,14 +73,14 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
         position: "relative",
       }}
     >
-      {/* Header: Posição, Nome, Ícone - FLEXBOX para html2canvas */}
+      {/* Header: Posição e Nome - SEM ÍCONE */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "flex-start",
           marginBottom: 16,
-          minHeight: 50,
+          minHeight: 60,
         }}
       >
         {/* Posição - largura fixa */}
@@ -152,13 +97,12 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
           #{posicao}
         </div>
         
-        {/* Nome - espaço flexível central */}
+        {/* Nome - sem overflow hidden */}
         <div
           style={{
             flex: 1,
             textAlign: "center",
-            overflow: "hidden",
-            padding: "0 8px",
+            padding: "8px 16px",
           }}
         >
           <span
@@ -166,28 +110,12 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
               fontSize: 22,
               fontWeight: 700,
               color: "#1f2937",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
               display: "block",
-              lineHeight: 1.4,
+              lineHeight: 1.6,
             }}
           >
             {item.nomeLoja}
           </span>
-        </div>
-        
-        {/* Ícone - largura fixa maior */}
-        <div
-          style={{
-            flexShrink: 0,
-            width: 60,
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-          }}
-        >
-          {renderIcon()}
         </div>
       </div>
 
@@ -241,17 +169,13 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
               }}
             >
               {item.tendencia > 0 ? (
-                <>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "#22c55e" }}>
-                    ▲ +{item.tendencia.toFixed(1)}% vs ontem
-                  </span>
-                </>
+                <span style={{ fontSize: 14, fontWeight: 500, color: "#22c55e" }}>
+                  ▲ +{item.tendencia.toFixed(1)}% vs ontem
+                </span>
               ) : item.tendencia < 0 ? (
-                <>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "#ef4444" }}>
-                    ▼ {item.tendencia.toFixed(1)}% vs ontem
-                  </span>
-                </>
+                <span style={{ fontSize: 14, fontWeight: 500, color: "#ef4444" }}>
+                  ▼ {item.tendencia.toFixed(1)}% vs ontem
+                </span>
               ) : (
                 <span style={{ fontSize: 14, fontWeight: 500, color: "#6b7280" }}>
                   = vs ontem
