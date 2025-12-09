@@ -41,27 +41,22 @@ export function RankingCardSimple({
   return (
     <div
       className={cn(
-        "rounded-lg border-2 px-3 py-2 flex flex-col gap-0.5",
+        "rounded-lg border-2 px-3 py-2 flex items-center gap-2",
         getStatusBg()
       )}
     >
-      {/* Linha 1: Posição à esquerda, Percentual à direita */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-gray-500">
-          #{posicao}
-        </span>
-        <div className="flex items-center gap-1.5">
-          <span className={cn("text-sm font-bold", getStatusColor())}>
-            {percentualFormatado}
-          </span>
-          <span className={cn("w-2.5 h-2.5 rounded-full", getStatusCircle())} />
-        </div>
-      </div>
-
-      {/* Linha 2: Nome centralizado */}
-      <span className="text-xs font-semibold text-gray-800 text-center leading-tight">
+      <span className="text-sm font-bold text-gray-500">
+        #{posicao}
+      </span>
+      <span className="flex-1 text-xs font-semibold text-gray-800 text-center">
         {nomeLoja}
       </span>
+      <div className="flex items-center gap-1.5">
+        <span className={cn("text-sm font-bold", getStatusColor())}>
+          {percentualFormatado}
+        </span>
+        <span className={cn("w-2.5 h-2.5 rounded-full", getStatusCircle())} />
+      </div>
     </div>
   );
 }
