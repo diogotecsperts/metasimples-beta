@@ -93,21 +93,21 @@ export function RankingCardMensal({
 
       <div className="space-y-3 md:space-y-4">
         <div className="flex justify-between items-baseline gap-2">
-          <span className="text-sm md:text-base text-muted-foreground">Meta Mensal:</span>
-          <span className="text-lg md:text-xl font-semibold">
+          <span className="text-sm md:text-base text-muted-foreground whitespace-nowrap">Meta Mensal:</span>
+          <span className="text-lg md:text-xl font-semibold flex-shrink-0">
             {temMeta ? formatCurrency(metaMensal!) : "—"}
           </span>
         </div>
 
         <div className="flex justify-between items-baseline gap-2">
-          <span className="text-sm md:text-base text-muted-foreground">Total Acumulado:</span>
-          <span className="text-lg md:text-xl font-bold">{formatCurrency(totalVendidoMes)}</span>
+          <span className="text-sm md:text-base text-muted-foreground whitespace-nowrap">Total Acumulado:</span>
+          <span className="text-lg md:text-xl font-bold flex-shrink-0">{formatCurrency(totalVendidoMes)}</span>
         </div>
 
         <div className="pt-3 md:pt-4 border-t border-border/50">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm md:text-base font-medium">Atingimento:</span>
-            <span className={cn(getPercentualFontSize(), "font-bold", getStatusColor())}>
+            <span className="text-sm md:text-base font-medium whitespace-nowrap">Atingimento:</span>
+            <span className={cn(getPercentualFontSize(), "font-bold flex-shrink-0", getStatusColor())}>
               {percentualFormatado}
             </span>
           </div>
