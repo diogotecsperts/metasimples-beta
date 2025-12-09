@@ -245,10 +245,13 @@ export function ExportRankingButton({
       {/* Container invisível para renderização do layout Admin Compacto */}
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           left: "-9999px",
-          top: 0,
+          top: "-9999px",
+          visibility: "hidden",
+          overflow: "hidden",
           pointerEvents: "none",
+          zIndex: -1,
         }}
       >
         <ExportableRanking
@@ -264,10 +267,13 @@ export function ExportRankingButton({
       {/* Container invisível para renderização do layout Gerente Compacto */}
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           left: "-9999px",
-          top: 0,
+          top: "-9999px",
+          visibility: "hidden",
+          overflow: "hidden",
           pointerEvents: "none",
+          zIndex: -1,
         }}
       >
         <ExportableRankingSimple
@@ -280,10 +286,13 @@ export function ExportRankingButton({
       {/* Container invisível para renderização do layout Desktop */}
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           left: "-9999px",
-          top: 0,
+          top: "-9999px",
+          visibility: "hidden",
+          overflow: "hidden",
           pointerEvents: "none",
+          zIndex: -1,
         }}
       >
         <ExportableRankingDesktop
