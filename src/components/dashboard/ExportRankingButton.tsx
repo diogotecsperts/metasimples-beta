@@ -60,7 +60,6 @@ export function ExportRankingButton({
     setIsExporting(true);
 
     try {
-      // Aguarda um frame para garantir que o elemento está renderizado
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(desktopRef.current, {
@@ -68,6 +67,20 @@ export function ExportRankingButton({
         scale: 2,
         useCORS: true,
         logging: false,
+        onclone: (_clonedDoc, element) => {
+          element.style.visibility = "visible";
+          element.style.position = "absolute";
+          element.style.left = "0";
+          element.style.top = "0";
+          const parent = element.parentElement;
+          if (parent) {
+            parent.style.visibility = "visible";
+            parent.style.position = "absolute";
+            parent.style.left = "0";
+            parent.style.top = "0";
+            parent.style.overflow = "visible";
+          }
+        },
       });
 
       const link = document.createElement("a");
@@ -96,7 +109,6 @@ export function ExportRankingButton({
     setIsExporting(true);
 
     try {
-      // Aguarda um frame para garantir que o elemento está renderizado
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(compactRef.current, {
@@ -104,6 +116,20 @@ export function ExportRankingButton({
         scale: 2,
         useCORS: true,
         logging: false,
+        onclone: (_clonedDoc, element) => {
+          element.style.visibility = "visible";
+          element.style.position = "absolute";
+          element.style.left = "0";
+          element.style.top = "0";
+          const parent = element.parentElement;
+          if (parent) {
+            parent.style.visibility = "visible";
+            parent.style.position = "absolute";
+            parent.style.left = "0";
+            parent.style.top = "0";
+            parent.style.overflow = "visible";
+          }
+        },
       });
 
       const link = document.createElement("a");
@@ -132,7 +158,6 @@ export function ExportRankingButton({
     setIsExporting(true);
 
     try {
-      // Aguarda um frame para garantir que o elemento está renderizado
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(simpleRef.current, {
@@ -140,6 +165,20 @@ export function ExportRankingButton({
         scale: 2,
         useCORS: true,
         logging: false,
+        onclone: (_clonedDoc, element) => {
+          element.style.visibility = "visible";
+          element.style.position = "absolute";
+          element.style.left = "0";
+          element.style.top = "0";
+          const parent = element.parentElement;
+          if (parent) {
+            parent.style.visibility = "visible";
+            parent.style.position = "absolute";
+            parent.style.left = "0";
+            parent.style.top = "0";
+            parent.style.overflow = "visible";
+          }
+        },
       });
 
       const link = document.createElement("a");
