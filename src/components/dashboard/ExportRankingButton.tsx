@@ -203,9 +203,9 @@ export function ExportRankingButton({
                 <Smartphone className="h-6 w-6" />
               )}
               <div className="text-center">
-                <p className="font-medium">Mobile Compacto</p>
+                <p className="font-medium">Admin Compacto</p>
                 <p className="text-xs text-muted-foreground">
-                  Otimizado para WhatsApp
+                  Com Meta e Vendido por loja
                 </p>
               </div>
             </Button>
