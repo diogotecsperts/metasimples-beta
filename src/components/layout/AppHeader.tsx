@@ -32,6 +32,17 @@ export function AppHeader({
               {subtitle && (
                 <p className="text-sm md:text-base text-muted-foreground">{subtitle}</p>
               )}
+              <p className="text-xs text-muted-foreground/70">
+                Desenvolvido pela{" "}
+                <a 
+                  href="https://tecsperts.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="underline hover:text-foreground transition-colors"
+                >
+                  Tecsperts
+                </a>
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
