@@ -62,12 +62,39 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
   const statusBg = getStatusBg(item.percentualAtingimento, temMeta);
   const percentualFormatado = temMeta ? `${item.percentualAtingimento.toFixed(1)}%` : "—";
 
+  // SVG inline puro - funciona 100% no html2canvas
   const renderIcon = () => {
-    const iconStyle = { width: 36, height: 36, color: statusColor };
-    if (!temMeta) return <Minus style={iconStyle} />;
-    if (item.percentualAtingimento >= 100) return <TrendingUp style={iconStyle} />;
-    if (item.percentualAtingimento >= 80) return <Minus style={iconStyle} />;
-    return <TrendingDown style={iconStyle} />;
+    const size = 36;
+    
+    // SVG paths copiados diretamente do Lucide
+    const trendingUpPath = "M22 7 13.5 15.5 9 11 2 18";
+    const trendingDownPath = "M22 17 13.5 8.5 9 13 2 6";
+    const minusPath = "M5 12h14";
+    
+    let iconType: "up" | "down" | "minus" = "minus";
+    if (temMeta) {
+      if (item.percentualAtingimento >= 100) iconType = "up";
+      else if (item.percentualAtingimento < 80) iconType = "down";
+    }
+    
+    const path = iconType === "up" ? trendingUpPath : iconType === "down" ? trendingDownPath : minusPath;
+    
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={statusColor}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d={path} />
+        {iconType === "up" && <path d="M16 7h6v6" />}
+        {iconType === "down" && <path d="M16 17h6v-6" />}
+      </svg>
+    );
   };
 
   return (
