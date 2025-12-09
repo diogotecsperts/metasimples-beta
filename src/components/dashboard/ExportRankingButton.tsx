@@ -9,8 +9,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Download, Monitor, Smartphone, Loader2 } from "lucide-react";
+import { Download, Monitor, Smartphone, Users, Loader2 } from "lucide-react";
 import { ExportableRanking } from "./ExportableRanking";
+import { ExportableRankingSimple } from "./ExportableRankingSimple";
 import { toast } from "sonner";
 
 type RankingItem = {
@@ -40,8 +41,9 @@ export function ExportRankingButton({
 }: ExportRankingButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [exportType, setExportType] = useState<"desktop" | "mobile" | null>(null);
+  const [exportType, setExportType] = useState<"desktop" | "admin" | "gerente" | null>(null);
   const compactRef = useRef<HTMLDivElement>(null);
+  const simpleRef = useRef<HTMLDivElement>(null);
 
   const handleExportDesktop = async () => {
     if (!rankingContainerRef?.current) {
@@ -112,13 +114,13 @@ export function ExportRankingButton({
     }
   };
 
-  const handleExportMobile = async () => {
+  const handleExportAdmin = async () => {
     if (!compactRef.current) {
       toast.error("Container compacto não encontrado");
       return;
     }
 
-    setExportType("mobile");
+    setExportType("admin");
     setIsExporting(true);
 
     try {
@@ -133,7 +135,43 @@ export function ExportRankingButton({
       });
 
       const link = document.createElement("a");
-      link.download = `ranking-compacto-${new Date().toISOString().split("T")[0]}.png`;
+      link.download = `ranking-admin-${new Date().toISOString().split("T")[0]}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      toast.success("Imagem exportada com sucesso!");
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+      toast.error("Erro ao exportar imagem");
+    } finally {
+      setIsExporting(false);
+      setExportType(null);
+    }
+  };
+
+  const handleExportGerente = async () => {
+    if (!simpleRef.current) {
+      toast.error("Container simples não encontrado");
+      return;
+    }
+
+    setExportType("gerente");
+    setIsExporting(true);
+
+    try {
+      // Aguarda um frame para garantir que o elemento está renderizado
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const canvas = await html2canvas(simpleRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      const link = document.createElement("a");
+      link.download = `ranking-gerente-${new Date().toISOString().split("T")[0]}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -194,10 +232,10 @@ export function ExportRankingButton({
             <Button
               variant="outline"
               className="h-20 flex flex-col items-center justify-center gap-2"
-              onClick={handleExportMobile}
+              onClick={handleExportAdmin}
               disabled={isExporting}
             >
-              {isExporting && exportType === "mobile" ? (
+              {isExporting && exportType === "admin" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : (
                 <Smartphone className="h-6 w-6" />
@@ -209,11 +247,30 @@ export function ExportRankingButton({
                 </p>
               </div>
             </Button>
+
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center gap-2"
+              onClick={handleExportGerente}
+              disabled={isExporting}
+            >
+              {isExporting && exportType === "gerente" ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <Users className="h-6 w-6" />
+              )}
+              <div className="text-center">
+                <p className="font-medium">Gerente Compacto</p>
+                <p className="text-xs text-muted-foreground">
+                  Apenas posição, nome e percentual
+                </p>
+              </div>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Container invisível para renderização do layout compacto */}
+      {/* Container invisível para renderização do layout Admin Compacto */}
       <div
         style={{
           position: "absolute",
@@ -229,6 +286,22 @@ export function ExportRankingButton({
           metaTotal={metaTotal}
           vendasTotal={vendasTotal}
           atingimentoGeral={atingimentoGeral}
+        />
+      </div>
+
+      {/* Container invisível para renderização do layout Gerente Compacto */}
+      <div
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: 0,
+          pointerEvents: "none",
+        }}
+      >
+        <ExportableRankingSimple
+          ref={simpleRef}
+          ranking={ranking}
+          dataFormatada={dataFormatada}
         />
       </div>
     </>
