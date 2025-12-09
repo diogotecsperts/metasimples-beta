@@ -80,18 +80,18 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
         position: "relative",
       }}
     >
-      {/* Header: Posição, Nome, Ícone - todos na mesma linha */}
+      {/* Header: Posição, Nome, Ícone - 3 colunas com largura fixa */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
           marginBottom: 16,
-          gap: 12,
         }}
       >
+        {/* Coluna 1: Posição - largura fixa */}
         <div
           style={{
+            width: 60,
             fontSize: 32,
             fontWeight: 700,
             color: "#9ca3af",
@@ -100,22 +100,39 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
         >
           #{posicao}
         </div>
-        <h3
+        
+        {/* Coluna 2: Nome - ocupa espaço restante */}
+        <div
           style={{
-            fontSize: 22,
-            fontWeight: 700,
-            color: "#1f2937",
-            textAlign: "center",
             flex: 1,
-            margin: 0,
-            whiteSpace: "nowrap",
+            textAlign: "center",
             overflow: "hidden",
-            textOverflow: "ellipsis",
           }}
         >
-          {item.nomeLoja}
-        </h3>
-        <div style={{ flexShrink: 0 }}>
+          <span
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: "#1f2937",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "block",
+            }}
+          >
+            {item.nomeLoja}
+          </span>
+        </div>
+        
+        {/* Coluna 3: Ícone - largura fixa */}
+        <div
+          style={{
+            width: 50,
+            display: "flex",
+            justifyContent: "flex-end",
+            flexShrink: 0,
+          }}
+        >
           <IconComponent />
         </div>
       </div>
@@ -235,46 +252,13 @@ export const ExportableRankingDesktop = forwardRef<HTMLDivElement, ExportableRan
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-        {/* Header */}
-        <div style={{ marginBottom: 24, textAlign: "center" }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#1f2937", margin: 0 }}>
+        <div style={{ marginBottom: 32, textAlign: "center" }}>
+          <h1 style={{ fontSize: 42, fontWeight: 700, color: "#1f2937", margin: 0 }}>
             Ranking de Performance
           </h1>
-          <p style={{ fontSize: 16, color: "#6b7280", margin: "8px 0 0 0" }}>
+          <p style={{ fontSize: 22, color: "#6b7280", margin: "16px 0 0 0" }}>
             {dataFormatada} • {lojasComMeta.length} lojas com meta
           </p>
-        </div>
-
-        {/* Resumo Geral */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 32,
-            marginBottom: 32,
-            padding: 20,
-            backgroundColor: "#f9fafb",
-            borderRadius: 12,
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, color: "#6b7280" }}>Meta Total</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#1f2937" }}>
-              {formatCurrency(metaTotal)}
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, color: "#6b7280" }}>Total Vendido</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#1f2937" }}>
-              {formatCurrency(vendasTotal)}
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, color: "#6b7280" }}>Atingimento Geral</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: getOverallStatusColor() }}>
-              {atingimentoGeral.toFixed(1)}%
-            </div>
-          </div>
         </div>
 
         {/* Grid de Cards */}
