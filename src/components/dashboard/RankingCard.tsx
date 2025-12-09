@@ -97,18 +97,14 @@ export function RankingCard({
         </Badge>
       )}
       
-      <div className="flex items-start justify-between mb-4 md:mb-6 gap-2">
-        <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-          <div className="text-3xl md:text-5xl font-bold text-muted-foreground/60 flex-shrink-0">
-            #{posicao}
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-xl md:text-3xl font-bold break-words leading-tight">
-              {nomeLoja}
-            </h3>
-          </div>
+      <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+        <div className="text-2xl md:text-4xl font-bold text-muted-foreground/60 flex-shrink-0">
+          #{posicao}
         </div>
-        <div className={cn("flex items-center flex-shrink-0", getStatusColor())}>
+        <h3 className="text-lg md:text-2xl font-bold text-center flex-1 mx-2 truncate">
+          {nomeLoja}
+        </h3>
+        <div className={cn("flex-shrink-0", getStatusColor())}>
           {getIcon()}
         </div>
       </div>
