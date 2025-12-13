@@ -11,10 +11,11 @@ type RankingItem = {
 type ExportableRankingSimpleProps = {
   ranking: RankingItem[];
   dataFormatada: string;
+  isMensal?: boolean;
 };
 
 export const ExportableRankingSimple = forwardRef<HTMLDivElement, ExportableRankingSimpleProps>(
-  ({ ranking, dataFormatada }, ref) => {
+  ({ ranking, dataFormatada, isMensal = false }, ref) => {
     const lojasComMeta = ranking.filter((r) => r.metaDiaria > 0);
 
     return (
@@ -25,7 +26,16 @@ export const ExportableRankingSimple = forwardRef<HTMLDivElement, ExportableRank
       >
         {/* Header */}
         <div className="text-center mb-4 pb-4 border-b-2 border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Ranking de Performance</h2>
+          <div className="flex items-center justify-center gap-2">
+            <h2 className="text-xl font-bold text-gray-800">
+              Ranking de Performance{isMensal ? " Mensal" : ""}
+            </h2>
+            {isMensal && (
+              <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-semibold rounded">
+                MENSAL
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600 mt-1">{dataFormatada}</p>
           <p className="text-xs text-gray-500 mt-0.5">{lojasComMeta.length} lojas</p>
         </div>
