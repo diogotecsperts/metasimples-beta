@@ -241,25 +241,9 @@ export const ExportableRankingDesktop = forwardRef<HTMLDivElement, ExportableRan
         }}
       >
         <div style={{ marginBottom: 32, textAlign: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <h1 style={{ fontSize: 42, fontWeight: 700, color: "#1f2937", margin: 0 }}>
-              Ranking de Performance{isMensal ? " Mensal" : ""}
-            </h1>
-            {isMensal && (
-              <span
-                style={{
-                  padding: "4px 12px",
-                  backgroundColor: "#3b82f6",
-                  color: "#ffffff",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  borderRadius: 4,
-                }}
-              >
-                MENSAL
-              </span>
-            )}
-          </div>
+          <h1 style={{ fontSize: 42, fontWeight: 700, color: "#1f2937", margin: 0 }}>
+            Ranking de Performance{isMensal && <span style={{color: "#3b82f6"}}> Mensal</span>}
+          </h1>
           <p style={{ fontSize: 22, color: "#6b7280", margin: "16px 0 0 0" }}>
             {dataFormatada} • {lojasComMeta.length} lojas com meta
           </p>
