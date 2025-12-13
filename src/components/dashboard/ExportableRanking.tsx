@@ -15,10 +15,11 @@ type ExportableRankingProps = {
   metaTotal: number;
   vendasTotal: number;
   atingimentoGeral: number;
+  isMensal?: boolean;
 };
 
 export const ExportableRanking = forwardRef<HTMLDivElement, ExportableRankingProps>(
-  ({ ranking, dataFormatada, metaTotal, vendasTotal, atingimentoGeral }, ref) => {
+  ({ ranking, dataFormatada, metaTotal, vendasTotal, atingimentoGeral, isMensal = false }, ref) => {
     const formatCurrency = (value: number) => {
       return new Intl.NumberFormat("pt-BR", {
         style: "currency",
@@ -44,7 +45,16 @@ export const ExportableRanking = forwardRef<HTMLDivElement, ExportableRankingPro
       >
         {/* Header */}
         <div className="text-center mb-4 pb-4 border-b-2 border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Ranking de Performance</h2>
+          <div className="flex items-center justify-center gap-2">
+            <h2 className="text-xl font-bold text-gray-800">
+              Ranking de Performance{isMensal ? " Mensal" : ""}
+            </h2>
+            {isMensal && (
+              <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-semibold rounded">
+                MENSAL
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600 mt-1">{dataFormatada}</p>
           <p className="text-xs text-gray-500 mt-0.5">{ranking.length} lojas</p>
         </div>
@@ -52,11 +62,11 @@ export const ExportableRanking = forwardRef<HTMLDivElement, ExportableRankingPro
         {/* Resumo Geral */}
         <div className="grid grid-cols-3 gap-3 mb-5 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Meta</p>
+            <p className="text-xs text-gray-500 mb-1">{isMensal ? "Meta Mensal" : "Meta"}</p>
             <p className="text-sm font-bold text-gray-800">{formatCurrency(metaTotal)}</p>
           </div>
           <div className="text-center border-x border-gray-200">
-            <p className="text-xs text-gray-500 mb-1">Vendido</p>
+            <p className="text-xs text-gray-500 mb-1">{isMensal ? "Total do Mês" : "Vendido"}</p>
             <p className="text-sm font-bold text-gray-800">{formatCurrency(vendasTotal)}</p>
           </div>
           <div className="text-center">

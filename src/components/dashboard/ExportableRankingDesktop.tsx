@@ -19,6 +19,7 @@ type ExportableRankingDesktopProps = {
   metaTotal: number;
   vendasTotal: number;
   atingimentoGeral: number;
+  isMensal?: boolean;
 };
 
 const formatCurrency = (value: number) => {
@@ -54,9 +55,10 @@ const getStatusBg = (percentual: number, temMeta: boolean) => {
 type RankingCardDesktopProps = {
   posicao: number;
   item: RankingItem;
+  isMensal?: boolean;
 };
 
-function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
+function RankingCardDesktop({ posicao, item, isMensal = false }: RankingCardDesktopProps) {
   const temMeta = item.metaDiaria > 0;
   const statusColor = getStatusColor(item.percentualAtingimento, temMeta);
   const statusBg = getStatusBg(item.percentualAtingimento, temMeta);
@@ -130,14 +132,14 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
       {/* Dados */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ fontSize: 14, color: "#6b7280" }}>Meta Diária:</span>
+          <span style={{ fontSize: 14, color: "#6b7280" }}>{isMensal ? "Meta Mensal:" : "Meta Diária:"}</span>
           <span style={{ fontSize: 18, fontWeight: 600, color: "#1f2937" }}>
             {temMeta ? formatCurrency(item.metaDiaria) : "—"}
           </span>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ fontSize: 14, color: "#6b7280" }}>Total Vendido:</span>
+          <span style={{ fontSize: 14, color: "#6b7280" }}>{isMensal ? "Total do Mês:" : "Total Vendido:"}</span>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#1f2937" }}>
             {formatCurrency(item.totalVendido)}
           </span>
@@ -219,7 +221,7 @@ function RankingCardDesktop({ posicao, item }: RankingCardDesktopProps) {
 }
 
 export const ExportableRankingDesktop = forwardRef<HTMLDivElement, ExportableRankingDesktopProps>(
-  ({ ranking, dataFormatada, metaTotal, vendasTotal, atingimentoGeral }, ref) => {
+  ({ ranking, dataFormatada, metaTotal, vendasTotal, atingimentoGeral, isMensal = false }, ref) => {
     const lojasComMeta = ranking.filter((r) => r.metaDiaria > 0);
 
     const getOverallStatusColor = () => {
@@ -239,9 +241,25 @@ export const ExportableRankingDesktop = forwardRef<HTMLDivElement, ExportableRan
         }}
       >
         <div style={{ marginBottom: 32, textAlign: "center" }}>
-          <h1 style={{ fontSize: 42, fontWeight: 700, color: "#1f2937", margin: 0 }}>
-            Ranking de Performance
-          </h1>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+            <h1 style={{ fontSize: 42, fontWeight: 700, color: "#1f2937", margin: 0 }}>
+              Ranking de Performance{isMensal ? " Mensal" : ""}
+            </h1>
+            {isMensal && (
+              <span
+                style={{
+                  padding: "4px 12px",
+                  backgroundColor: "#3b82f6",
+                  color: "#ffffff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  borderRadius: 4,
+                }}
+              >
+                MENSAL
+              </span>
+            )}
+          </div>
           <p style={{ fontSize: 22, color: "#6b7280", margin: "16px 0 0 0" }}>
             {dataFormatada} • {lojasComMeta.length} lojas com meta
           </p>
@@ -256,7 +274,7 @@ export const ExportableRankingDesktop = forwardRef<HTMLDivElement, ExportableRan
           }}
         >
           {lojasComMeta.map((item, index) => (
-            <RankingCardDesktop key={item.lojaId} posicao={index + 1} item={item} />
+            <RankingCardDesktop key={item.lojaId} posicao={index + 1} item={item} isMensal={isMensal} />
           ))}
         </div>
       </div>

@@ -34,6 +34,7 @@ type ExportRankingButtonProps = {
   vendasTotal: number;
   atingimentoGeral: number;
   rankingContainerRef?: React.RefObject<HTMLDivElement>;
+  isMensal?: boolean;
 };
 
 export function ExportRankingButton({
@@ -42,6 +43,7 @@ export function ExportRankingButton({
   metaTotal,
   vendasTotal,
   atingimentoGeral,
+  isMensal = false,
 }: ExportRankingButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -84,7 +86,8 @@ export function ExportRankingButton({
       });
 
       const link = document.createElement("a");
-      link.download = `ranking-desktop-${new Date().toISOString().split("T")[0]}.png`;
+      const prefix = isMensal ? "ranking-mensal-desktop" : "ranking-desktop";
+      link.download = `${prefix}-${new Date().toISOString().split("T")[0]}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -133,7 +136,8 @@ export function ExportRankingButton({
       });
 
       const link = document.createElement("a");
-      link.download = `ranking-admin-${new Date().toISOString().split("T")[0]}.png`;
+      const prefix = isMensal ? "ranking-mensal-admin" : "ranking-admin";
+      link.download = `${prefix}-${new Date().toISOString().split("T")[0]}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -182,7 +186,8 @@ export function ExportRankingButton({
       });
 
       const link = document.createElement("a");
-      link.download = `ranking-gerente-${new Date().toISOString().split("T")[0]}.png`;
+      const prefix = isMensal ? "ranking-mensal-gerente" : "ranking-gerente";
+      link.download = `${prefix}-${new Date().toISOString().split("T")[0]}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -300,6 +305,7 @@ export function ExportRankingButton({
           metaTotal={metaTotal}
           vendasTotal={vendasTotal}
           atingimentoGeral={atingimentoGeral}
+          isMensal={isMensal}
         />
       </div>
 
@@ -319,6 +325,7 @@ export function ExportRankingButton({
           ref={simpleRef}
           ranking={ranking}
           dataFormatada={dataFormatada}
+          isMensal={isMensal}
         />
       </div>
 
@@ -341,6 +348,7 @@ export function ExportRankingButton({
           metaTotal={metaTotal}
           vendasTotal={vendasTotal}
           atingimentoGeral={atingimentoGeral}
+          isMensal={isMensal}
         />
       </div>
     </>
