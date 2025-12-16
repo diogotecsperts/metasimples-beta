@@ -331,14 +331,6 @@ export function RelatoriosAutomaticos() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="bg-card border rounded-xl p-6 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   const horariosAtivos = settings.modo === 'automatico' 
     ? settings.horarios_ativos 
     : settings.horarios_manuais.filter(h => h.trim() !== '');
@@ -387,6 +379,14 @@ export function RelatoriosAutomaticos() {
     
     return () => clearInterval(interval);
   }, [settings.ativo, horariosAtivos.join(',')]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-card border rounded-xl p-6 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card border rounded-xl p-4 md:p-6">
