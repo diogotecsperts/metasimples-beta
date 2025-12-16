@@ -54,6 +54,7 @@ export function RelatoriosAutomaticos() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [proximoHorario, setProximoHorario] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -198,6 +199,18 @@ export function RelatoriosAutomaticos() {
       return false;
     }
 
+    // Verifica duplicatas
+    const horariosFormatados = horariosValidos.map(h => formatTime(h));
+    const horariosUnicos = new Set(horariosFormatados);
+    if (horariosUnicos.size !== horariosFormatados.length) {
+      toast({
+        title: "Horário duplicado",
+        description: "Não é permitido configurar o mesmo horário em mais de um campo.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     for (const horario of horariosValidos) {
       if (!isValidTimeFormat(horario)) {
         toast({
@@ -329,6 +342,51 @@ export function RelatoriosAutomaticos() {
   const horariosAtivos = settings.modo === 'automatico' 
     ? settings.horarios_ativos 
     : settings.horarios_manuais.filter(h => h.trim() !== '');
+
+  // Calcula o próximo horário de envio
+  const calcularProximoHorario = (horarios: string[]): string | null => {
+    if (horarios.length === 0) return null;
+    
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    const horariosOrdenados = horarios
+      .filter(h => h && h.includes(':'))
+      .map(h => {
+        const [horas, minutos] = h.split(':').map(Number);
+        return { time: h, totalMinutes: horas * 60 + minutos };
+      })
+      .sort((a, b) => a.totalMinutes - b.totalMinutes);
+    
+    if (horariosOrdenados.length === 0) return null;
+    
+    // Próximo horário hoje
+    for (const h of horariosOrdenados) {
+      if (h.totalMinutes > nowMinutes) {
+        return h.time;
+      }
+    }
+    
+    // Se todos passaram, primeiro de amanhã
+    return `${horariosOrdenados[0].time} (amanhã)`;
+  };
+
+  // Atualiza o próximo horário a cada minuto
+  useEffect(() => {
+    if (!settings.ativo || horariosAtivos.length === 0) {
+      setProximoHorario(null);
+      return;
+    }
+    
+    const atualizar = () => {
+      setProximoHorario(calcularProximoHorario(horariosAtivos));
+    };
+    
+    atualizar();
+    const interval = setInterval(atualizar, 60000);
+    
+    return () => clearInterval(interval);
+  }, [settings.ativo, horariosAtivos.join(',')]);
 
   return (
     <div className="bg-card border rounded-xl p-4 md:p-6">
@@ -545,7 +603,18 @@ export function RelatoriosAutomaticos() {
           <p className="text-sm text-primary font-medium">
             ✓ Relatórios ativos ({settings.modo === 'automatico' ? 'Automático' : 'Manual'}): {horariosAtivos.sort().join(", ")}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          
+          {/* Indicador do próximo horário */}
+          {proximoHorario && (
+            <div className="flex items-center gap-2 mt-3 py-2 px-3 bg-blue-500/10 border border-blue-500/20 rounded-md w-fit">
+              <Clock className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                Próximo envio: {proximoHorario}
+              </span>
+            </div>
+          )}
+          
+          <p className="text-xs text-muted-foreground mt-3">
             {settings.modo === 'automatico' 
               ? "Os emails serão enviados automaticamente nos horários selecionados"
               : "Os emails serão enviados automaticamente nos horários personalizados configurados"
