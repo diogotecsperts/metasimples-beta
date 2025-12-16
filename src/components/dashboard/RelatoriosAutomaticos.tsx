@@ -604,6 +604,13 @@ export function RelatoriosAutomaticos() {
             ✓ Relatórios ativos ({settings.modo === 'automatico' ? 'Automático' : 'Manual'}): {horariosAtivos.sort().join(", ")}
           </p>
           
+          <p className="text-xs text-muted-foreground mt-2">
+            {settings.modo === 'automatico' 
+              ? "Os emails serão enviados automaticamente nos horários selecionados"
+              : "Os emails serão enviados automaticamente nos horários personalizados configurados"
+            }
+          </p>
+          
           {/* Indicador do próximo horário */}
           {proximoHorario && (
             <div className="flex items-center gap-2 mt-3 py-2 px-3 bg-blue-500/10 border border-blue-500/20 rounded-md w-fit">
@@ -613,13 +620,6 @@ export function RelatoriosAutomaticos() {
               </span>
             </div>
           )}
-          
-          <p className="text-xs text-muted-foreground mt-3">
-            {settings.modo === 'automatico' 
-              ? "Os emails serão enviados automaticamente nos horários selecionados"
-              : "Os emails serão enviados automaticamente nos horários personalizados configurados"
-            }
-          </p>
         </div>
       )}
     </div>
