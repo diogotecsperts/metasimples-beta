@@ -189,7 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get request body
-    const { horario: horarioParam, isTest = false } = await req.json();
+    const { horario: horarioParam, isTest = false, isManual = false } = await req.json();
     
     // Get current time in Brazil timezone for test reports
     const now = new Date();
@@ -200,7 +200,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Use current time for test, otherwise use the scheduled time
     const horario = isTest ? `${horaAtual} (Teste)` : horarioParam;
     
-    console.log(`[send-report] Iniciando para horário: ${horario}, teste: ${isTest}`);
+    console.log(`[send-report] Iniciando para horário: ${horario}, teste: ${isTest}, manual: ${isManual}`);
 
     // Fetch report settings
     const { data: settings, error: settingsError } = await supabase
@@ -224,6 +224,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check if reports are active and horario is enabled (skip check if test)
     if (!isTest) {
+      // VERIFICAÇÃO DE MODO: Se é chamada automática (não manual) mas o modo é manual, bloquear
+      if (!isManual && settings.modo === 'manual') {
+        console.log("[send-report] Modo manual ativo, ignorando chamada de cron automático");
+        return new Response(
+          JSON.stringify({ success: false, message: "Modo manual ativo - chamadas automáticas bloqueadas" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // VERIFICAÇÃO DE MODO: Se é chamada manual mas o modo é automático, bloquear
+      if (isManual && settings.modo !== 'manual') {
+        console.log("[send-report] Modo automático ativo, ignorando chamada de cron manual");
+        return new Response(
+          JSON.stringify({ success: false, message: "Modo automático ativo - chamadas manuais bloqueadas" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       if (!settings.ativo) {
         console.log("[send-report] Relatórios desativados");
         return new Response(
@@ -232,7 +250,8 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      if (!settings.horarios_ativos.includes(horarioParam)) {
+      // Só verificar horarios_ativos se for chamada automática (não manual)
+      if (!isManual && !settings.horarios_ativos.includes(horarioParam)) {
         console.log(`[send-report] Horário ${horarioParam} não está ativo`);
         return new Response(
           JSON.stringify({ success: false, message: "Horário não ativo" }),
