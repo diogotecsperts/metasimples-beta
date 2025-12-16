@@ -251,7 +251,9 @@ export type Database = {
           created_at: string
           emails: string[]
           horarios_ativos: string[]
+          horarios_manuais: string[] | null
           id: string
+          modo: string | null
           updated_at: string
         }
         Insert: {
@@ -259,7 +261,9 @@ export type Database = {
           created_at?: string
           emails?: string[]
           horarios_ativos?: string[]
+          horarios_manuais?: string[] | null
           id?: string
+          modo?: string | null
           updated_at?: string
         }
         Update: {
@@ -267,7 +271,9 @@ export type Database = {
           created_at?: string
           emails?: string[]
           horarios_ativos?: string[]
+          horarios_manuais?: string[] | null
           id?: string
+          modo?: string | null
           updated_at?: string
         }
         Relationships: []
