@@ -109,12 +109,21 @@ export function RelatoriosAutomaticos() {
   };
 
   const handleHorarioManualChange = (index: number, value: string) => {
-    // Permite apenas números e :
-    const sanitized = value.replace(/[^0-9:]/g, '');
+    // Remove tudo que não é número
+    const digitsOnly = value.replace(/[^0-9]/g, '');
+    
+    // Limita a 4 dígitos
+    const limited = digitsOnly.slice(0, 4);
+    
+    // Auto-insere os dois pontos após os 2 primeiros dígitos
+    let formatted = limited;
+    if (limited.length > 2) {
+      formatted = `${limited.slice(0, 2)}:${limited.slice(2)}`;
+    }
     
     setSettings(prev => {
       const newHorarios = [...prev.horarios_manuais];
-      newHorarios[index] = sanitized;
+      newHorarios[index] = formatted;
       return { ...prev, horarios_manuais: newHorarios };
     });
     setHasChanges(true);
