@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, Plus, X, Send, Loader2, Check, AlertCircle } from "lucide-react";
+import { Mail, Plus, X, Send, Loader2, Check, AlertCircle, Clock, Settings2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-const HORARIOS = [
+const HORARIOS_AUTOMATICOS = [
   { id: "10:00", label: "10:00" },
   { id: "14:00", label: "14:00" },
   { id: "16:00", label: "16:00" },
@@ -21,13 +21,32 @@ interface ReportSettings {
   id?: string;
   emails: string[];
   horarios_ativos: string[];
+  horarios_manuais: string[];
+  modo: 'automatico' | 'manual';
   ativo: boolean;
+}
+
+// Validação de formato HH:MM
+function isValidTimeFormat(time: string): boolean {
+  const regex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  return regex.test(time);
+}
+
+// Formata para HH:MM com zero à esquerda
+function formatTime(time: string): string {
+  const parts = time.split(':');
+  if (parts.length !== 2) return time;
+  const hours = parts[0].padStart(2, '0');
+  const minutes = parts[1].padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 export function RelatoriosAutomaticos() {
   const [settings, setSettings] = useState<ReportSettings>({
     emails: [],
     horarios_ativos: [],
+    horarios_manuais: ['', '', '', '', ''],
+    modo: 'automatico',
     ativo: false,
   });
   const [newEmail, setNewEmail] = useState("");
@@ -51,10 +70,19 @@ export function RelatoriosAutomaticos() {
       if (error) throw error;
 
       if (data) {
+        // Preenche horários manuais com valores do banco ou strings vazias
+        const horariosManuais = data.horarios_manuais || [];
+        const paddedHorarios = [...horariosManuais];
+        while (paddedHorarios.length < 5) {
+          paddedHorarios.push('');
+        }
+
         setSettings({
           id: data.id,
           emails: data.emails || [],
           horarios_ativos: data.horarios_ativos || [],
+          horarios_manuais: paddedHorarios.slice(0, 5),
+          modo: (data.modo as 'automatico' | 'manual') || 'automatico',
           ativo: data.ativo || false,
         });
       }
@@ -65,6 +93,11 @@ export function RelatoriosAutomaticos() {
     }
   };
 
+  const handleModoChange = (modo: 'automatico' | 'manual') => {
+    setSettings(prev => ({ ...prev, modo }));
+    setHasChanges(true);
+  };
+
   const handleHorarioToggle = (horarioId: string) => {
     setSettings(prev => {
       const newHorarios = prev.horarios_ativos.includes(horarioId)
@@ -73,6 +106,29 @@ export function RelatoriosAutomaticos() {
       return { ...prev, horarios_ativos: newHorarios };
     });
     setHasChanges(true);
+  };
+
+  const handleHorarioManualChange = (index: number, value: string) => {
+    // Permite apenas números e :
+    const sanitized = value.replace(/[^0-9:]/g, '');
+    
+    setSettings(prev => {
+      const newHorarios = [...prev.horarios_manuais];
+      newHorarios[index] = sanitized;
+      return { ...prev, horarios_manuais: newHorarios };
+    });
+    setHasChanges(true);
+  };
+
+  const handleHorarioManualBlur = (index: number) => {
+    const value = settings.horarios_manuais[index];
+    if (value && isValidTimeFormat(value)) {
+      setSettings(prev => {
+        const newHorarios = [...prev.horarios_manuais];
+        newHorarios[index] = formatTime(value);
+        return { ...prev, horarios_manuais: newHorarios };
+      });
+    }
   };
 
   const handleAddEmail = () => {
@@ -119,6 +175,34 @@ export function RelatoriosAutomaticos() {
     setHasChanges(true);
   };
 
+  const validateManualHorarios = (): boolean => {
+    if (settings.modo !== 'manual') return true;
+    
+    const horariosValidos = settings.horarios_manuais.filter(h => h.trim() !== '');
+    
+    if (horariosValidos.length === 0) {
+      toast({
+        title: "Adicione pelo menos um horário",
+        description: "No modo manual, é necessário ter pelo menos um horário configurado.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    for (const horario of horariosValidos) {
+      if (!isValidTimeFormat(horario)) {
+        toast({
+          title: "Horário inválido",
+          description: `O horário "${horario}" não está no formato correto (HH:MM).`,
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSave = async () => {
     if (settings.emails.length === 0) {
       toast({
@@ -129,29 +213,34 @@ export function RelatoriosAutomaticos() {
       return;
     }
 
+    if (!validateManualHorarios()) return;
+
     setIsSaving(true);
     try {
+      // Filtra horários manuais vazios e formata
+      const horariosManuaisLimpos = settings.horarios_manuais
+        .filter(h => h.trim() !== '')
+        .map(h => formatTime(h));
+
+      const dataToSave = {
+        emails: settings.emails,
+        horarios_ativos: settings.horarios_ativos,
+        horarios_manuais: horariosManuaisLimpos,
+        modo: settings.modo,
+        ativo: settings.ativo,
+      };
+
       if (settings.id) {
-        // Update existing
         const { error } = await supabase
           .from("report_settings")
-          .update({
-            emails: settings.emails,
-            horarios_ativos: settings.horarios_ativos,
-            ativo: settings.ativo,
-          })
+          .update(dataToSave)
           .eq("id", settings.id);
 
         if (error) throw error;
       } else {
-        // Create new
         const { data, error } = await supabase
           .from("report_settings")
-          .insert({
-            emails: settings.emails,
-            horarios_ativos: settings.horarios_ativos,
-            ativo: settings.ativo,
-          })
+          .insert(dataToSave)
           .select()
           .single();
 
@@ -186,15 +275,12 @@ export function RelatoriosAutomaticos() {
       return;
     }
 
-    // Save settings first if there are changes
     if (hasChanges || !settings.id) {
       await handleSave();
     }
 
     setIsSendingTest(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const response = await supabase.functions.invoke("send-report", {
         body: { horario: "Teste", isTest: true },
       });
@@ -231,6 +317,10 @@ export function RelatoriosAutomaticos() {
     );
   }
 
+  const horariosAtivos = settings.modo === 'automatico' 
+    ? settings.horarios_ativos 
+    : settings.horarios_manuais.filter(h => h.trim() !== '');
+
   return (
     <div className="bg-card border rounded-xl p-4 md:p-6">
       {/* Header */}
@@ -252,30 +342,98 @@ export function RelatoriosAutomaticos() {
       </div>
 
       <p className="text-sm text-muted-foreground mb-6">
-        Receba relatórios consolidados automaticamente nos horários de lançamento
+        Receba relatórios consolidados automaticamente nos horários configurados
       </p>
 
-      {/* Horários */}
-      <div className="mb-6">
-        <p className="text-sm font-medium mb-3">Horários de Envio:</p>
-        <div className="flex flex-wrap gap-4">
-          {HORARIOS.map(horario => (
-            <div key={horario.id} className="flex items-center gap-2">
-              <Checkbox
-                id={horario.id}
-                checked={settings.horarios_ativos.includes(horario.id)}
-                onCheckedChange={() => handleHorarioToggle(horario.id)}
-              />
-              <label
-                htmlFor={horario.id}
-                className="text-sm cursor-pointer select-none"
-              >
-                {horario.label}
-              </label>
-            </div>
-          ))}
+      {/* Seletor de Modo */}
+      <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
+        <p className="text-sm font-medium mb-3 flex items-center gap-2">
+          <Settings2 className="h-4 w-4" />
+          Modo de Agendamento:
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant={settings.modo === 'automatico' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleModoChange('automatico')}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            Horários Automáticos
+          </Button>
+          <Button
+            variant={settings.modo === 'manual' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleModoChange('manual')}
+            className="flex items-center gap-2"
+          >
+            <Settings2 className="h-4 w-4" />
+            Horários Manuais
+          </Button>
         </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          {settings.modo === 'automatico' 
+            ? "Selecione entre os horários predefinidos (10:00, 14:00, 16:00, 19:00, 23:00)"
+            : "Configure até 5 horários personalizados no formato HH:MM"
+          }
+        </p>
       </div>
+
+      {/* Horários Automáticos */}
+      {settings.modo === 'automatico' && (
+        <div className="mb-6">
+          <p className="text-sm font-medium mb-3">Horários de Envio:</p>
+          <div className="flex flex-wrap gap-4">
+            {HORARIOS_AUTOMATICOS.map(horario => (
+              <div key={horario.id} className="flex items-center gap-2">
+                <Checkbox
+                  id={horario.id}
+                  checked={settings.horarios_ativos.includes(horario.id)}
+                  onCheckedChange={() => handleHorarioToggle(horario.id)}
+                />
+                <label
+                  htmlFor={horario.id}
+                  className="text-sm cursor-pointer select-none"
+                >
+                  {horario.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Horários Manuais */}
+      {settings.modo === 'manual' && (
+        <div className="mb-6">
+          <p className="text-sm font-medium mb-3">Horários Personalizados (HH:MM):</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {settings.horarios_manuais.map((horario, index) => (
+              <div key={index} className="relative">
+                <Input
+                  type="text"
+                  placeholder="HH:MM"
+                  value={horario}
+                  onChange={(e) => handleHorarioManualChange(index, e.target.value)}
+                  onBlur={() => handleHorarioManualBlur(index)}
+                  maxLength={5}
+                  className={`text-center ${
+                    horario && !isValidTimeFormat(horario) 
+                      ? 'border-destructive focus-visible:ring-destructive' 
+                      : ''
+                  }`}
+                />
+                {horario && isValidTimeFormat(horario) && (
+                  <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Deixe em branco os campos que não deseja usar. O relatório será enviado exatamente no minuto configurado.
+          </p>
+        </div>
+      )}
 
       {/* Email Input */}
       <div className="mb-4">
@@ -373,13 +531,16 @@ export function RelatoriosAutomaticos() {
       </div>
 
       {/* Status info */}
-      {settings.ativo && settings.horarios_ativos.length > 0 && settings.emails.length > 0 && (
+      {settings.ativo && horariosAtivos.length > 0 && settings.emails.length > 0 && (
         <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
           <p className="text-sm text-primary font-medium">
-            ✓ Relatórios ativos para: {settings.horarios_ativos.sort().join(", ")}
+            ✓ Relatórios ativos ({settings.modo === 'automatico' ? 'Automático' : 'Manual'}): {horariosAtivos.sort().join(", ")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Os emails serão enviados automaticamente nos horários selecionados
+            {settings.modo === 'automatico' 
+              ? "Os emails serão enviados automaticamente nos horários selecionados"
+              : "Os emails serão enviados automaticamente nos horários personalizados configurados"
+            }
           </p>
         </div>
       )}

@@ -25,7 +25,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-report]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-whatsapp-report]
 verify_jwt = true
@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.list-users-for-email]
 verify_jwt = true
+
+[functions.check-manual-reports]
+verify_jwt = false
