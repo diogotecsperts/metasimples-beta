@@ -1,4 +1,4 @@
-import { Pencil, Trash2, CalendarPlus, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, CalendarPlus, AlertTriangle, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -19,6 +19,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type Meta = {
   id: string;
@@ -34,6 +40,7 @@ export type Meta = {
 export type Loja = {
   id: string;
   nome: string;
+  tipo_operacional: "A" | "B";
 };
 
 type MetasListProps = {
@@ -41,6 +48,7 @@ type MetasListProps = {
   lojas: Loja[];
   onEdit: (meta: Meta) => void;
   onDelete: (id: string) => void;
+  onOpenCalendario: (meta: Meta) => void;
   isLoading: boolean;
   isAtual: boolean;
   mes: number;
@@ -67,6 +75,7 @@ export function MetasList({
   lojas,
   onEdit,
   onDelete,
+  onOpenCalendario,
   isLoading,
   isAtual,
   mes,
@@ -141,7 +150,23 @@ export function MetasList({
                 {formatCurrency(meta.meta_diaria_calculada)}
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-1 justify-end">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onOpenCalendario(meta)}
+                        >
+                          <CalendarDays className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Ajustar metas diárias</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   {isAtual ? (
                     <Button
                       variant="outline"

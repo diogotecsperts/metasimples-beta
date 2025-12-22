@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
 export type AuditAction = "create" | "update" | "delete";
-export type AuditEntity = "loja" | "gerente" | "meta" | "admin" | "lancamento";
+export type AuditEntity = "loja" | "gerente" | "meta" | "admin" | "lancamento" | "meta_ajuste";
 
 export type AuditLogParams = {
   userId: string;
@@ -57,4 +57,5 @@ export const ENTITY_LABELS: Record<AuditEntity, string> = {
   meta: "Meta",
   admin: "Administrador",
   lancamento: "Lançamento",
+  meta_ajuste: "Ajuste de Meta Diária",
 };

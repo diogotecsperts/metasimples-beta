@@ -15,19 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MetaForm, type MetaFormValues, type Meta } from "./MetaForm";
-import { MetasList } from "./MetasList";
+import { MetasList, type Loja } from "./MetasList";
+import { MetaDiariaCalendario } from "./MetaDiariaCalendario";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { calcularMetaDiaria } from "@/lib/calcularMetaDiaria";
 import { useAuth } from "@/contexts/AuthContext";
 import { registrarAuditLog } from "@/lib/auditLog";
-
-type Loja = {
-  id: string;
-  nome: string;
-  tipo_operacional: "A" | "B";
-};
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -44,6 +39,7 @@ export function MetasManager() {
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
+  const [calendarioMeta, setCalendarioMeta] = useState<Meta | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -384,6 +380,7 @@ export function MetasManager() {
         lojas={lojas}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onOpenCalendario={(meta) => setCalendarioMeta(meta)}
         isLoading={isLoadingMetas || isLoadingLojas}
         isAtual={isAtual}
         mes={periodoSelecionado.mes}
@@ -406,6 +403,15 @@ export function MetasManager() {
           />
         </DialogContent>
       </Dialog>
+
+      {calendarioMeta && (
+        <MetaDiariaCalendario
+          meta={calendarioMeta}
+          loja={lojas.find(l => l.id === calendarioMeta.loja_id) || { id: "", nome: "", tipo_operacional: "A" }}
+          isOpen={!!calendarioMeta}
+          onClose={() => setCalendarioMeta(null)}
+        />
+      )}
     </div>
   );
 }

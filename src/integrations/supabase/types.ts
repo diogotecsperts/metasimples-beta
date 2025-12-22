@@ -169,6 +169,57 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_diarias_ajustes: {
+        Row: {
+          created_at: string
+          created_by: string
+          data: string
+          id: string
+          loja_id: string
+          meta_ajustada: number
+          meta_mensal_id: string
+          meta_original: number
+          motivo: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          data: string
+          id?: string
+          loja_id: string
+          meta_ajustada: number
+          meta_mensal_id: string
+          meta_original: number
+          motivo?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          data?: string
+          id?: string
+          loja_id?: string
+          meta_ajustada?: number
+          meta_mensal_id?: string
+          meta_original?: number
+          motivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_diarias_ajustes_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_diarias_ajustes_meta_mensal_id_fkey"
+            columns: ["meta_mensal_id"]
+            isOneToOne: false
+            referencedRelation: "metas_mensais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metas_mensais: {
         Row: {
           ano: number
