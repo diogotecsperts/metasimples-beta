@@ -17,8 +17,17 @@ interface Loja {
 }
 
 interface Meta {
+  id: string;
   loja_id: string;
+  meta_mensal: number;
   meta_diaria_calculada: number;
+}
+
+interface AjusteDiario {
+  meta_mensal_id: string;
+  loja_id: string;
+  data: string;
+  meta_ajustada: number;
 }
 
 interface Lancamento {
@@ -51,6 +60,67 @@ function getColorHex(percentual: number): string {
   if (percentual >= 100) return '#22c55e';
   if (percentual >= 80) return '#eab308';
   return '#ef4444';
+}
+
+// Calcula a meta diária considerando ajustes manuais
+function calcularMetaDiariaAjustada(
+  loja: Loja,
+  meta: Meta | undefined,
+  ajustes: AjusteDiario[],
+  dataHoje: string
+): number {
+  if (!meta) return 0;
+
+  // Verificar se existe ajuste para este dia específico
+  const ajusteHoje = ajustes.find(
+    a => a.meta_mensal_id === meta.id && a.data === dataHoje
+  );
+
+  if (ajusteHoje) {
+    return ajusteHoje.meta_ajustada;
+  }
+
+  // Se não há ajuste para hoje, precisa recalcular considerando redistribuição
+  const ajustesDaMeta = ajustes.filter(a => a.meta_mensal_id === meta.id);
+  
+  if (ajustesDaMeta.length === 0) {
+    // Sem ajustes, usa meta base
+    return meta.meta_diaria_calculada;
+  }
+
+  // Calcular redistribuição
+  const diasNoMes = new Date(
+    parseInt(dataHoje.split('-')[0]),
+    parseInt(dataHoje.split('-')[1]),
+    0
+  ).getDate();
+
+  // Contar dias operacionais (exclui domingos para tipo B)
+  let diasOperacionais = diasNoMes;
+  if (loja.tipo_operacional === 'B') {
+    const ano = parseInt(dataHoje.split('-')[0]);
+    const mes = parseInt(dataHoje.split('-')[1]) - 1;
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+      const date = new Date(ano, mes, dia);
+      if (date.getDay() === 0) diasOperacionais--;
+    }
+  }
+
+  const metaBase = meta.meta_mensal / diasOperacionais;
+  
+  // Calcular diferença total dos ajustes
+  let diferencaTotal = 0;
+  ajustesDaMeta.forEach(ajuste => {
+    diferencaTotal += (metaBase - ajuste.meta_ajustada);
+  });
+
+  // Dias elegíveis = dias operacionais - dias com ajuste
+  const diasElegiveis = diasOperacionais - ajustesDaMeta.length;
+  
+  if (diasElegiveis <= 0) return metaBase;
+
+  // Meta redistribuída
+  return metaBase + (diferencaTotal / diasElegiveis);
 }
 
 function generateEmailHTML(
@@ -304,7 +374,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch metas for current month
     const { data: metas, error: metasError } = await supabase
       .from("metas_mensais")
-      .select("*")
+      .select("id, loja_id, meta_mensal, meta_diaria_calculada")
       .eq("mes", currentMonth)
       .eq("ano", currentYear);
 
@@ -314,6 +384,24 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`[send-report] ${metas?.length || 0} metas encontradas`);
+
+    // Fetch ajustes manuais para hoje
+    const metaIds = (metas || []).map(m => m.id);
+    let ajustes: AjusteDiario[] = [];
+    
+    if (metaIds.length > 0) {
+      const { data: ajustesData, error: ajustesError } = await supabase
+        .from("metas_diarias_ajustes")
+        .select("meta_mensal_id, loja_id, data, meta_ajustada")
+        .in("meta_mensal_id", metaIds);
+
+      if (ajustesError) {
+        console.error("[send-report] Erro ao buscar ajustes:", ajustesError);
+      } else {
+        ajustes = ajustesData || [];
+        console.log(`[send-report] ${ajustes.length} ajustes encontrados`);
+      }
+    }
 
     // Fetch today's lancamentos
     const { data: lancamentos, error: lancamentosError } = await supabase
@@ -328,10 +416,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[send-report] ${lancamentos?.length || 0} lançamentos encontrados`);
 
-    // Build ranking data
-    const metasMap = new Map<string, number>();
+    // Build ranking data com ajustes
+    const metasMap = new Map<string, Meta>();
     (metas || []).forEach((m: Meta) => {
-      metasMap.set(m.loja_id, m.meta_diaria_calculada);
+      metasMap.set(m.loja_id, m);
     });
 
     const lancamentosMap = new Map<string, number>();
@@ -344,7 +432,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Usar apenas lojas ativas no dia para o ranking
     const ranking: LojaRanking[] = lojasAtivas.map((loja: Loja) => {
-      const metaDiaria = metasMap.get(loja.id) || 0;
+      const meta = metasMap.get(loja.id);
+      const metaDiaria = calcularMetaDiariaAjustada(loja, meta, ajustes, todayStr);
       const totalVendido = lancamentosMap.get(loja.id) || 0;
       const percentual = metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
