@@ -19,6 +19,7 @@ import { format, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateSalesReport } from "@/lib/generateSalesReport";
 import { registrarAuditLog } from "@/lib/auditLog";
+import { useMetaDiariaAjustada } from "@/hooks/useMetaDiariaAjustada";
 
 type Loja = {
   id: string;
@@ -132,28 +133,20 @@ const Gerente = () => {
     enabled: !!gerenteLojaId,
   });
 
-  // Buscar meta mensal
-  const { data: metaMensal } = useQuery({
-    queryKey: ["meta-mensal", gerenteLojaId],
-    queryFn: async () => {
-      if (!gerenteLojaId) return null;
-
-      const hoje = new Date();
-      const mes = hoje.getMonth() + 1;
-      const ano = hoje.getFullYear();
-
-      const { data, error } = await supabase
-        .from("metas_mensais")
-        .select("id, meta_diaria_calculada")
-        .eq("loja_id", gerenteLojaId)
-        .eq("mes", mes)
-        .eq("ano", ano)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as MetaMensal | null;
-    },
-    enabled: !!gerenteLojaId,
+  // Usar hook de meta ajustada (considera ajustes manuais)
+  const mesAtual = new Date().getMonth() + 1;
+  const anoAtual = new Date().getFullYear();
+  
+  const { 
+    metaHoje, 
+    metaMensalId, 
+    isLoading: isLoadingMeta 
+  } = useMetaDiariaAjustada({
+    lojaId: gerenteLojaId,
+    tipoOperacional: loja?.tipo_operacional || "A",
+    mes: mesAtual,
+    ano: anoAtual,
+    enabled: !!gerenteLojaId && !!loja,
   });
 
   // Buscar lançamentos do dia
@@ -393,10 +386,10 @@ const Gerente = () => {
       await generateSalesReport({
         lojaName: loja?.nome || '',
         data: dataHoje,
-        metaDiaria: metaMensal?.meta_diaria_calculada || 0,
+        metaDiaria: metaHoje,
         totalVendido,
-        percentualAtingimento: metaMensal?.meta_diaria_calculada 
-          ? (totalVendido / metaMensal.meta_diaria_calculada) * 100 
+        percentualAtingimento: metaHoje > 0
+          ? (totalVendido / metaHoje) * 100 
           : 0,
         lancamentos,
         horarios,
@@ -470,7 +463,7 @@ const Gerente = () => {
       <PageContainer maxWidth="lg">
         <div className="space-y-6">
           <MetaDiariaHeader
-            metaDiaria={metaMensal?.meta_diaria_calculada || 0}
+            metaDiaria={metaHoje}
             totalVendido={totalVendido}
             lojaName={loja.nome}
           />
@@ -478,11 +471,11 @@ const Gerente = () => {
           <SalesEvolutionChart
             ref={chartRef}
             lancamentos={lancamentos}
-            metaDiaria={metaMensal?.meta_diaria_calculada || 0}
+            metaDiaria={metaHoje}
             horarios={horarios}
           />
 
-          {!metaMensal && (
+          {!metaMensalId && (
             <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 shadow-sm">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 <strong>Atenção:</strong> Nenhuma meta mensal cadastrada para este mês. 
