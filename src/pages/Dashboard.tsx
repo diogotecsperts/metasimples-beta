@@ -319,16 +319,24 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
       // Calcular tendência comparando com dia anterior ATÉ O MESMO HORÁRIO
+      // SÓ mostrar tendência se houver lançamentos de HOJE para comparar
       let tendencia: number | null = null;
       if (meta && metaDiaria > 0) {
-        // Filtrar lançamentos de ontem apenas até o horário atual
-        const lancamentosLojaOntemAteAgora = lancamentosOntem.filter(
-          (l) => l.loja_id === loja.id && l.horario && horariosAteAgora.includes(l.horario)
+        // Verificar se há lançamentos de hoje nos slots até o horário atual
+        const lancamentosHojeNoSlot = lancamentosLoja.filter(
+          (l) => l.horario && horariosAteAgora.includes(l.horario)
         );
-        if (lancamentosLojaOntemAteAgora.length > 0) {
-          const totalOntemAteAgora = Math.max(...lancamentosLojaOntemAteAgora.map((l) => l.valor_acumulado));
-          const percentualOntemAteAgora = (totalOntemAteAgora / metaDiaria) * 100;
-          tendencia = percentualAtingimento - percentualOntemAteAgora;
+        
+        // Só calcular tendência se tiver dados de hoje para comparar
+        if (lancamentosHojeNoSlot.length > 0) {
+          const lancamentosLojaOntemAteAgora = lancamentosOntem.filter(
+            (l) => l.loja_id === loja.id && l.horario && horariosAteAgora.includes(l.horario)
+          );
+          if (lancamentosLojaOntemAteAgora.length > 0) {
+            const totalOntemAteAgora = Math.max(...lancamentosLojaOntemAteAgora.map((l) => l.valor_acumulado));
+            const percentualOntemAteAgora = (totalOntemAteAgora / metaDiaria) * 100;
+            tendencia = percentualAtingimento - percentualOntemAteAgora;
+          }
         }
       }
 
