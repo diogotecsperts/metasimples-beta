@@ -23,7 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
 import { X, MessageSquare, CalendarDays, Calendar } from "lucide-react";
-
+import { calcularMetasDiariasComAjustes, type AjusteDiario } from "@/lib/calcularMetaDiariaComAjustes";
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
 type Loja = {
@@ -280,6 +280,24 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     },
   });
 
+  // Buscar ajustes diários para o mês selecionado
+  const { data: ajustesDiarios = [] } = useQuery({
+    queryKey: ["ajustes-diarios-dashboard", mesSelecionado, anoSelecionado],
+    queryFn: async () => {
+      const primeiroDia = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
+      const ultimoDia = format(endOfMonth(new Date(anoSelecionado, mesSelecionado - 1)), "yyyy-MM-dd");
+      
+      const { data, error } = await supabase
+        .from("metas_diarias_ajustes")
+        .select("id, meta_mensal_id, loja_id, data, meta_original, meta_ajustada, motivo")
+        .gte("data", primeiroDia)
+        .lte("data", ultimoDia);
+      
+      if (error) throw error;
+      return data as AjusteDiario[];
+    },
+  });
+
   // Função para determinar o slot de horário atual (timezone São Paulo)
   const getHorarioAtual = (): string => {
     const horaStr = new Date().toLocaleString('pt-BR', { 
@@ -314,7 +332,26 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         lancamentosLoja.length > 0
           ? Math.max(...lancamentosLoja.map((l) => l.valor_acumulado))
           : 0;
-      const metaDiaria = meta?.meta_diaria_calculada || 0;
+      
+      // Calcular meta diária considerando ajustes manuais
+      let metaDiaria = meta?.meta_diaria_calculada || 0;
+      if (meta) {
+        const ajustesDaLoja = ajustesDiarios.filter(a => a.loja_id === loja.id);
+        if (ajustesDaLoja.length > 0) {
+          const metasCalculadas = calcularMetasDiariasComAjustes(
+            Number(meta.meta_mensal),
+            loja.tipo_operacional,
+            mesSelecionado,
+            anoSelecionado,
+            ajustesDaLoja
+          );
+          const metaHoje = metasCalculadas.find(m => m.data === dataSelecionada);
+          if (metaHoje) {
+            metaDiaria = metaHoje.metaCalculada;
+          }
+        }
+      }
+      
       const percentualAtingimento =
         metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
