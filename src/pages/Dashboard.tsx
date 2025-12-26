@@ -832,40 +832,110 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                   )
                 ) : (
                   // Visão Diária
-                  ranking.filter(r => r.metaDiaria > 0).length === 0 ? (
-                    <div className="bg-card border rounded-xl p-8 text-center">
-                      <p className="text-muted-foreground mb-2">
-                        {temFiltrosAtivos
-                          ? "Nenhuma loja encontrada com os filtros aplicados."
-                          : `Nenhuma meta configurada para ${nomeMesSelecionado} de ${anoSelecionado}.`}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {temFiltrosAtivos
-                          ? "Tente ajustar os filtros para ver mais resultados."
-                          : `Configure metas mensais para o ${isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.`}
-                      </p>
-                    </div>
-                  ) : (
-                    <div ref={rankingContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {ranking.map((item, index) => {
-                        const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
-                        return (
-                          <RankingCard
-                            key={item.lojaId}
-                            posicao={index + 1}
-                            nomeLoja={item.nomeLoja}
-                            metaDiaria={item.metaDiaria}
-                            totalVendido={item.totalVendido}
-                            percentualAtingimento={item.percentualAtingimento}
-                            tendencia={item.tendencia}
-                            isEmAlerta={isEmAlerta}
-                            ultimaAtualizacao={item.ultimaAtualizacao}
-                            ultimoHorario={item.ultimoHorario}
-                          />
-                        );
-                      })}
-                    </div>
-                  )
+                  (() => {
+                    // Verificar se existem metas mensais configuradas para o período
+                    const temMetasMensaisConfiguradas = metas && metas.length > 0;
+                    
+                    // Verificar se todas as metas estão zeradas por ajuste manual (ex: feriado)
+                    const todasMetasZeradasPorAjuste = ranking.length > 0 && 
+                      ranking.every(r => r.metaDiaria === 0) &&
+                      temMetasMensaisConfiguradas &&
+                      ajustesDiarios.some(a => a.data === dataSelecionada);
+                    
+                    // Nenhuma loja no ranking (filtros ou sem dados)
+                    if (ranking.length === 0) {
+                      return (
+                        <div className="bg-card border rounded-xl p-8 text-center">
+                          <p className="text-muted-foreground mb-2">
+                            {temFiltrosAtivos
+                              ? "Nenhuma loja encontrada com os filtros aplicados."
+                              : "Nenhuma loja encontrada para o período selecionado."}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {temFiltrosAtivos
+                              ? "Tente ajustar os filtros para ver mais resultados."
+                              : "Verifique as configurações de lojas e metas."}
+                          </p>
+                        </div>
+                      );
+                    }
+                    
+                    // Metas zeradas por ajuste manual (feriado)
+                    if (todasMetasZeradasPorAjuste) {
+                      return (
+                        <>
+                          <div className="bg-muted/50 border border-muted-foreground/20 rounded-lg p-4 mb-4 flex items-center gap-3">
+                            <CalendarDays className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                Metas zeradas por ajuste manual
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                As metas deste dia foram ajustadas para R$ 0,00. Exibindo apenas vendas realizadas.
+                              </p>
+                            </div>
+                          </div>
+                          <div ref={rankingContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {ranking.map((item, index) => (
+                              <RankingCard
+                                key={item.lojaId}
+                                posicao={index + 1}
+                                nomeLoja={item.nomeLoja}
+                                metaDiaria={item.metaDiaria}
+                                totalVendido={item.totalVendido}
+                                percentualAtingimento={item.percentualAtingimento}
+                                tendencia={item.tendencia}
+                                isEmAlerta={false}
+                                ultimaAtualizacao={item.ultimaAtualizacao}
+                                ultimoHorario={item.ultimoHorario}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      );
+                    }
+                    
+                    // Sem metas mensais configuradas
+                    if (!temMetasMensaisConfiguradas || ranking.filter(r => r.metaDiaria > 0).length === 0) {
+                      return (
+                        <div className="bg-card border rounded-xl p-8 text-center">
+                          <p className="text-muted-foreground mb-2">
+                            {temFiltrosAtivos
+                              ? "Nenhuma loja encontrada com os filtros aplicados."
+                              : `Nenhuma meta configurada para ${nomeMesSelecionado} de ${anoSelecionado}.`}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {temFiltrosAtivos
+                              ? "Tente ajustar os filtros para ver mais resultados."
+                              : `Configure metas mensais para o ${isAtual ? "mês atual" : "período selecionado"} para visualizar o ranking.`}
+                          </p>
+                        </div>
+                      );
+                    }
+                    
+                    // Ranking normal
+                    return (
+                      <div ref={rankingContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {ranking.map((item, index) => {
+                          const isEmAlerta = isAtual && item.metaDiaria > 0 && item.percentualAtingimento > 0 && item.percentualAtingimento < 70;
+                          return (
+                            <RankingCard
+                              key={item.lojaId}
+                              posicao={index + 1}
+                              nomeLoja={item.nomeLoja}
+                              metaDiaria={item.metaDiaria}
+                              totalVendido={item.totalVendido}
+                              percentualAtingimento={item.percentualAtingimento}
+                              tendencia={item.tendencia}
+                              isEmAlerta={isEmAlerta}
+                              ultimaAtualizacao={item.ultimaAtualizacao}
+                              ultimoHorario={item.ultimoHorario}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 )}
               </>
             )}
