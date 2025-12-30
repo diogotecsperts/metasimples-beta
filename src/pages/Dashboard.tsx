@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
 import { X, MessageSquare, CalendarDays, Calendar } from "lucide-react";
 import { calcularMetasDiariasComAjustes, type AjusteDiario } from "@/lib/calcularMetaDiariaComAjustes";
+import { fetchLancamentosMensais } from "@/lib/fetchAllPaged";
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
 type Loja = {
@@ -234,21 +235,14 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     },
   });
 
-  // Buscar todos os lançamentos do mês para visão mensal
+  // Buscar todos os lançamentos do mês para visão mensal (com paginação para evitar limite de 1000)
   const { data: lancamentosMensais = [] } = useQuery({
     queryKey: ["lancamentos-mensais", mesSelecionado, anoSelecionado],
     queryFn: async () => {
       const primeiroDia = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
       const ultimoDia = format(endOfMonth(new Date(anoSelecionado, mesSelecionado - 1)), "yyyy-MM-dd");
       
-      const { data, error } = await supabase
-        .from("lancamentos_diarios")
-        .select("loja_id, data, valor_acumulado")
-        .gte("data", primeiroDia)
-        .lte("data", ultimoDia);
-
-      if (error) throw error;
-      return data as { loja_id: string; data: string; valor_acumulado: number }[];
+      return fetchLancamentosMensais(primeiroDia, ultimoDia);
     },
     enabled: visaoMensal, // Só busca quando visão mensal está ativa
   });
