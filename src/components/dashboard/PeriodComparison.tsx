@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, endOfMonth } from "date-fns";
+import { fetchLancamentosMensais } from "@/lib/fetchAllPaged";
 
 type ComparisonData = {
   lojaId: string;
@@ -55,7 +56,7 @@ export function PeriodComparison() {
     },
   });
 
-  // Buscar dados do período A
+  // Buscar dados do período A (com paginação para evitar limite de 1000)
   const { data: dataA } = useQuery({
     queryKey: ["comparison-a", mesA, anoA],
     queryFn: async () => {
@@ -68,11 +69,7 @@ export function PeriodComparison() {
       const inicioMes = `${anoA}-${String(mesA).padStart(2, "0")}-01`;
       const fimMes = format(endOfMonth(new Date(anoA, mesA - 1)), "yyyy-MM-dd");
 
-      const { data: lancamentos } = await supabase
-        .from("lancamentos_diarios")
-        .select("loja_id, valor_acumulado")
-        .gte("data", inicioMes)
-        .lte("data", fimMes);
+      const lancamentos = await fetchLancamentosMensais(inicioMes, fimMes);
 
       const result: Record<string, { meta: number; maxVenda: number }> = {};
 
@@ -90,7 +87,7 @@ export function PeriodComparison() {
     },
   });
 
-  // Buscar dados do período B
+  // Buscar dados do período B (com paginação para evitar limite de 1000)
   const { data: dataB, isLoading } = useQuery({
     queryKey: ["comparison-b", mesB, anoB],
     queryFn: async () => {
@@ -103,11 +100,7 @@ export function PeriodComparison() {
       const inicioMes = `${anoB}-${String(mesB).padStart(2, "0")}-01`;
       const fimMes = format(endOfMonth(new Date(anoB, mesB - 1)), "yyyy-MM-dd");
 
-      const { data: lancamentos } = await supabase
-        .from("lancamentos_diarios")
-        .select("loja_id, valor_acumulado")
-        .gte("data", inicioMes)
-        .lte("data", fimMes);
+      const lancamentos = await fetchLancamentosMensais(inicioMes, fimMes);
 
       const result: Record<string, { meta: number; maxVenda: number }> = {};
 

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { fetchLancamentosMensais } from "@/lib/fetchAllPaged";
 
 type LojaEvolution = {
   lojaId: string;
@@ -81,18 +82,14 @@ export function MonthlyEvolutionChart() {
           .eq("mes", month.mes)
           .eq("ano", month.ano);
 
-        // Buscar lançamentos do mês
+        // Buscar lançamentos do mês (com paginação para evitar limite de 1000)
         const inicioMes = `${month.ano}-${String(month.mes).padStart(2, "0")}-01`;
         const fimMes = format(
           new Date(month.ano, month.mes, 0),
           "yyyy-MM-dd"
         );
 
-        const { data: lancamentos } = await supabase
-          .from("lancamentos_diarios")
-          .select("loja_id, valor_acumulado")
-          .gte("data", inicioMes)
-          .lte("data", fimMes);
+        const lancamentos = await fetchLancamentosMensais(inicioMes, fimMes);
 
         // Agrupar por loja
         const lojaData: Record<string, { meta: number; maxVenda: number }> = {};
