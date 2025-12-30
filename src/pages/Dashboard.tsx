@@ -148,6 +148,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
           }
           queryClient.invalidateQueries({ queryKey: ["lancamentos-dashboard"] });
           queryClient.invalidateQueries({ queryKey: ["lancamentos-ontem"] });
+          queryClient.invalidateQueries({ queryKey: ["lancamentos-mensais"] });
         }
       )
       .subscribe((status) => {
