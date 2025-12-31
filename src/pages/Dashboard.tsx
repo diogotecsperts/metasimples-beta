@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format, endOfMonth, subDays } from "date-fns";
+import { format, endOfMonth } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
@@ -53,7 +53,6 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
-  tendencia: number | null;
   ultimaAtualizacao?: string;
   ultimoHorario?: string | null;
 };
@@ -84,7 +83,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
   
   // Data selecionada formatada
   const dataSelecionada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaSelecionado).padStart(2, '0')}`;
-  const dataOntem = format(subDays(new Date(anoSelecionado, mesSelecionado - 1, diaSelecionado), 1), "yyyy-MM-dd");
 
   // Gerar lista de dias disponíveis
   const isAtualMes = mesSelecionado === (hoje.getMonth() + 1) && anoSelecionado === hoje.getFullYear();
@@ -261,20 +259,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
     },
   });
 
-  // Buscar lançamentos do dia anterior para calcular tendência
-  const { data: lancamentosOntem = [] } = useQuery({
-    queryKey: ["lancamentos-ontem", dataOntem],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_diarios")
-        .select("loja_id, valor_acumulado, horario")
-        .eq("data", dataOntem);
-      
-      if (error) throw error;
-      return data as Lancamento[];
-    },
-  });
-
   // Buscar ajustes diários para o mês selecionado
   const { data: ajustesDiarios = [] } = useQuery({
     queryKey: ["ajustes-diarios-dashboard", mesSelecionado, anoSelecionado],
@@ -292,29 +276,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       return data as AjusteDiario[];
     },
   });
-
-  // Função para determinar o slot de horário atual (timezone São Paulo)
-  const getHorarioAtual = (): string => {
-    const horaStr = new Date().toLocaleString('pt-BR', { 
-      timeZone: 'America/Sao_Paulo', 
-      hour: 'numeric',
-      hour12: false
-    });
-    const hora = parseInt(horaStr);
-    
-    if (hora < 14) return "10:00";
-    if (hora < 16) return "14:00";
-    if (hora < 19) return "16:00";
-    if (hora < 23) return "19:00";
-    return "23:00";
-  };
-
-  // Horários disponíveis ordenados
-  const HORARIOS_ORDENADOS = ["10:00", "14:00", "16:00", "19:00", "23:00"];
-  
-  // Horários até o momento atual (para comparação justa)
-  const horarioAtual = getHorarioAtual();
-  const horariosAteAgora = HORARIOS_ORDENADOS.filter(h => h <= horarioAtual);
 
   // Processar ranking
   const rankingCompleto: RankingItem[] = lojas
@@ -350,28 +311,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
       const percentualAtingimento =
         metaDiaria > 0 ? (totalVendido / metaDiaria) * 100 : 0;
 
-      // Calcular tendência comparando com dia anterior ATÉ O MESMO HORÁRIO
-      // SÓ mostrar tendência se houver lançamentos de HOJE para comparar
-      let tendencia: number | null = null;
-      if (meta && metaDiaria > 0) {
-        // Verificar se há lançamentos de hoje nos slots até o horário atual
-        const lancamentosHojeNoSlot = lancamentosLoja.filter(
-          (l) => l.horario && horariosAteAgora.includes(l.horario)
-        );
-        
-        // Só calcular tendência se tiver dados de hoje para comparar
-        if (lancamentosHojeNoSlot.length > 0) {
-          const lancamentosLojaOntemAteAgora = lancamentosOntem.filter(
-            (l) => l.loja_id === loja.id && l.horario && horariosAteAgora.includes(l.horario)
-          );
-          if (lancamentosLojaOntemAteAgora.length > 0) {
-            const totalOntemAteAgora = Math.max(...lancamentosLojaOntemAteAgora.map((l) => l.valor_acumulado));
-            const percentualOntemAteAgora = (totalOntemAteAgora / metaDiaria) * 100;
-            tendencia = percentualAtingimento - percentualOntemAteAgora;
-          }
-        }
-      }
-
       // Encontrar última atualização (lançamento mais recente por updated_at)
       let ultimaAtualizacao: string | undefined;
       let ultimoHorario: string | null | undefined;
@@ -389,7 +328,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         metaDiaria,
         totalVendido,
         percentualAtingimento,
-        tendencia,
         ultimaAtualizacao,
         ultimoHorario,
       };
@@ -761,7 +699,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                             metaDiaria: item.metaMensal || 0,
                             totalVendido: item.totalVendidoMes,
                             percentualAtingimento: item.percentualAtingimento || 0,
-                            tendencia: null,
                           }))}
                           dataFormatada={`${nomeMesSelecionado.charAt(0).toUpperCase() + nomeMesSelecionado.slice(1)} de ${anoSelecionado}`}
                           metaTotal={rankingMensal.filter(r => r.metaMensal !== null).reduce((acc, r) => acc + (r.metaMensal || 0), 0)}
@@ -879,7 +816,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                                 metaDiaria={item.metaDiaria}
                                 totalVendido={item.totalVendido}
                                 percentualAtingimento={item.percentualAtingimento}
-                                tendencia={item.tendencia}
                                 isEmAlerta={false}
                                 ultimaAtualizacao={item.ultimaAtualizacao}
                                 ultimoHorario={item.ultimoHorario}
@@ -921,7 +857,6 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
                               metaDiaria={item.metaDiaria}
                               totalVendido={item.totalVendido}
                               percentualAtingimento={item.percentualAtingimento}
-                              tendencia={item.tendencia}
                               isEmAlerta={isEmAlerta}
                               ultimaAtualizacao={item.ultimaAtualizacao}
                               ultimoHorario={item.ultimoHorario}
