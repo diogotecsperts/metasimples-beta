@@ -25,6 +25,11 @@ const TEMPLATES_POR_NIVEL: Record<number, string> = {
   3: "lembrete_meta_final_v1",   // Último aviso
 };
 
+// Mapa de contact_ids conhecidos para contatos banidos (fallback)
+const KNOWN_CONTACTS: Record<string, string> = {
+  "+5582981627838": "69322fead2b7eee6000b2336", // Diogo
+};
+
 function normalizePhoneNumber(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('55')) {
@@ -105,11 +110,16 @@ async function sendWhatsAppTemplateByPhone(
     // Tentar extrair código de erro específico
     try {
       const errorData = JSON.parse(responseText);
-      const errorMessage = errorData.message || errorData.errors?.phone?.[0] || errorData.errors?.contact_id?.[0] || JSON.stringify(errorData.errors) || responseText;
+      const errorMessage = errorData.message || errorData.errors?.phone?.[0] || errorData.errors?.contact_id?.[0] || errorData.errors?.contact?.[0] || JSON.stringify(errorData.errors) || responseText;
       
       // Verificar se é "Contact does not exist"
       if (responseText.includes("Contact does not exist") || responseText.includes("does not exist")) {
         return { success: false, error: errorMessage, errorCode: "CONTACT_NOT_FOUND" };
+      }
+      
+      // Verificar se é "Contact is banned"
+      if (responseText.includes("Contact is banned") || responseText.includes("is banned")) {
+        return { success: false, error: errorMessage, errorCode: "CONTACT_BANNED" };
       }
       
       return { success: false, error: `HTTP ${response.status}: ${errorMessage}` };
@@ -177,12 +187,83 @@ async function createContact(
   return { success: true };
 }
 
+// Habilitar contato banido no SendPulse
+async function enableContact(
+  accessToken: string,
+  contactId: string
+): Promise<boolean> {
+  console.log(`[send-whatsapp-cobranca] Habilitando contato ${contactId}...`);
+  
+  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/enable", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ contact_id: contactId }),
+  });
+
+  const responseText = await response.text();
+  console.log(`[send-whatsapp-cobranca] Resposta enableContact:`, response.status, responseText);
+
+  return response.ok;
+}
+
+// Enviar template por contact_id (fallback para contatos banidos)
+async function sendWhatsAppTemplate(
+  accessToken: string,
+  contactId: string,
+  templateName: string,
+  parameters: string[]
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`[send-whatsapp-cobranca] Enviando template ${templateName} para contact_id ${contactId}...`);
+  
+  const bodyParameters = parameters.map(text => ({ type: "text", text }));
+  
+  const requestBody = {
+    contact_id: contactId,
+    template: {
+      name: templateName,
+      language: { 
+        policy: "deterministic", 
+        code: "pt_BR" 
+      },
+      components: [
+        {
+          type: "body",
+          parameters: bodyParameters
+        }
+      ]
+    }
+  };
+
+  console.log(`[send-whatsapp-cobranca] Request body sendTemplate:`, JSON.stringify(requestBody, null, 2));
+
+  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/sendTemplate", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  const responseText = await response.text();
+  console.log(`[send-whatsapp-cobranca] Resposta sendTemplate:`, response.status, responseText);
+
+  if (!response.ok) {
+    return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+  }
+
+  return { success: true };
+}
+
 // Resultado do envio com motivo detalhado
 interface SendResult {
   gerente: string;
   success: boolean;
   error?: string;
-  reason?: "sem_telefone" | "contato_nao_existe" | "erro_sendpulse" | "enviado";
+  reason?: "sem_telefone" | "contato_nao_existe" | "contato_banido" | "erro_sendpulse" | "enviado";
 }
 
 // Função principal de envio para um gerente
@@ -239,8 +320,47 @@ async function enviarParaGerente(
     };
   }
 
-  // 3. Outro erro do SendPulse
-  return { 
+  // 3. Se contato está banido, tentar habilitar e reenviar por contact_id
+  if (result.errorCode === "CONTACT_BANNED") {
+    console.log(`[send-whatsapp-cobranca] Contato banido para ${gerente.nome}, tentando fallback...`);
+    
+    // Verificar se temos contact_id conhecido
+    const knownContactId = KNOWN_CONTACTS[normalizedPhone];
+    
+    if (knownContactId) {
+      console.log(`[send-whatsapp-cobranca] contact_id conhecido encontrado: ${knownContactId}`);
+      
+      // Tentar habilitar o contato
+      const enabled = await enableContact(accessToken, knownContactId);
+      console.log(`[send-whatsapp-cobranca] enableContact resultado: ${enabled}`);
+      
+      // Tentar enviar por contact_id
+      const retryResult = await sendWhatsAppTemplate(accessToken, knownContactId, templateName, parameters);
+      
+      if (retryResult.success) {
+        return { gerente: gerente.nome, success: true, reason: "enviado" };
+      }
+      
+      // Mesmo após enable, ainda falhou
+      return { 
+        gerente: gerente.nome, 
+        success: false, 
+        error: `Contato banido. Tentamos habilitar mas ainda falhou: ${retryResult.error}`,
+        reason: "contato_banido"
+      };
+    } else {
+      // Não temos contact_id conhecido - não podemos fazer nada
+      return { 
+        gerente: gerente.nome, 
+        success: false, 
+        error: `Contato banido no SendPulse. Não temos contact_id para tentar habilitar. Peça ao gerente para iniciar uma conversa com o bot.`,
+        reason: "contato_banido"
+      };
+    }
+  }
+
+  // 4. Outro erro do SendPulse
+  return {
     gerente: gerente.nome, 
     success: false, 
     error: result.error || "Erro desconhecido do SendPulse",
@@ -362,11 +482,13 @@ const handler = async (req: Request): Promise<Response> => {
       if (failCount > 0) {
         const semTelefone = results.filter(r => r.reason === "sem_telefone").length;
         const contatoNaoExiste = results.filter(r => r.reason === "contato_nao_existe").length;
+        const contatoBanido = results.filter(r => r.reason === "contato_banido").length;
         const erroSendpulse = results.filter(r => r.reason === "erro_sendpulse").length;
         
         const detalhes: string[] = [];
         if (semTelefone > 0) detalhes.push(`${semTelefone} sem telefone`);
         if (contatoNaoExiste > 0) detalhes.push(`${contatoNaoExiste} contato não existe no SendPulse`);
+        if (contatoBanido > 0) detalhes.push(`${contatoBanido} contato banido`);
         if (erroSendpulse > 0) detalhes.push(`${erroSendpulse} erro SendPulse`);
         
         if (detalhes.length > 0) {
