@@ -194,17 +194,21 @@ export function WhatsAppAutomatico() {
   }
 
   return (
-    <Tabs defaultValue="relatorios" className="space-y-6">
+    <Tabs defaultValue="cobrancas" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="relatorios" className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4" />
-          Relatórios
-        </TabsTrigger>
         <TabsTrigger value="cobrancas" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
           Cobranças
         </TabsTrigger>
+        <TabsTrigger value="relatorios" className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          Relatórios
+        </TabsTrigger>
       </TabsList>
+
+      <TabsContent value="cobrancas">
+        <WhatsAppCobranca />
+      </TabsContent>
 
       <TabsContent value="relatorios" className="space-y-6">
         {/* Header */}
@@ -387,10 +391,6 @@ export function WhatsAppAutomatico() {
             Selecione pelo menos um gerente para habilitar o envio de teste.
           </p>
         )}
-      </TabsContent>
-
-      <TabsContent value="cobrancas">
-        <WhatsAppCobranca />
       </TabsContent>
     </Tabs>
   );
