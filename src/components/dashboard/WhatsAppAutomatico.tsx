@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Store, Wrench } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Store, Wrench, Bell } from "lucide-react";
+import { WhatsAppCobranca } from "./WhatsAppCobranca";
 
 interface Gerente {
   id: string;
@@ -192,187 +194,204 @@ export function WhatsAppAutomatico() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                <MessageSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  Relatórios WhatsApp
-                  <Badge variant="outline" className="gap-1">
-                    <Wrench className="h-3 w-3" />
-                    Beta
-                  </Badge>
-                </CardTitle>
-                <CardDescription>
-                  Envie ranking automático para gerentes via WhatsApp
-                </CardDescription>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {ativo ? "Ativo" : "Inativo"}
-              </span>
-              <Switch
-                checked={ativo}
-                onCheckedChange={setAtivo}
-              />
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+    <Tabs defaultValue="relatorios" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="relatorios" className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          Relatórios
+        </TabsTrigger>
+        <TabsTrigger value="cobrancas" className="flex items-center gap-2">
+          <Bell className="h-4 w-4" />
+          Cobranças
+        </TabsTrigger>
+      </TabsList>
 
-      {/* Horários de Envio */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Horários de Envio</CardTitle>
-          <CardDescription>
-            Selecione os horários em que os relatórios serão enviados automaticamente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {HORARIOS_DISPONIVEIS.map((horario) => (
-              <div
-                key={horario.value}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
-                  horariosAtivos.includes(horario.value)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted"
-                }`}
-                onClick={() => toggleHorario(horario.value)}
-              >
-                <Checkbox
-                  checked={horariosAtivos.includes(horario.value)}
-                  className="pointer-events-none"
-                />
-                <span className="font-medium">{horario.label}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Gerentes Destinatários */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Gerentes Destinatários</CardTitle>
-          <CardDescription>
-            Selecione quais gerentes receberão os relatórios via WhatsApp
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              Nenhum gerente cadastrado no sistema.
-            </p>
-          ) : (
-            <>
-              {gerentesComTelefone.length > 0 && (
-                <div className="space-y-2">
-                  {gerentesComTelefone.map((gerente) => (
-                    <div
-                      key={gerente.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                        gerentesAtivos.includes(gerente.id)
-                          ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                          : "bg-background hover:bg-muted"
-                      }`}
-                      onClick={() => toggleGerente(gerente.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={gerentesAtivos.includes(gerente.id)}
-                          className="pointer-events-none"
-                        />
-                        <div>
-                          <p className="font-medium">{gerente.nome}</p>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {gerente.telefone}
-                            </span>
-                            {gerente.loja && (
-                              <span className="flex items-center gap-1">
-                                <Store className="h-3 w-3" />
-                                {gerente.loja.nome}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+      <TabsContent value="relatorios" className="space-y-6">
+        {/* Header */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                  <MessageSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
-              )}
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Relatórios WhatsApp
+                    <Badge variant="outline" className="gap-1">
+                      <Wrench className="h-3 w-3" />
+                      Beta
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Envie ranking automático para gerentes via WhatsApp
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {ativo ? "Ativo" : "Inativo"}
+                </span>
+                <Switch
+                  checked={ativo}
+                  onCheckedChange={setAtivo}
+                />
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
-              {gerentesSemTelefone.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Gerentes sem telefone cadastrado:
-                  </p>
+        {/* Horários de Envio */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Horários de Envio</CardTitle>
+            <CardDescription>
+              Selecione os horários em que os relatórios serão enviados automaticamente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {HORARIOS_DISPONIVEIS.map((horario) => (
+                <div
+                  key={horario.value}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
+                    horariosAtivos.includes(horario.value)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                  onClick={() => toggleHorario(horario.value)}
+                >
+                  <Checkbox
+                    checked={horariosAtivos.includes(horario.value)}
+                    className="pointer-events-none"
+                  />
+                  <span className="font-medium">{horario.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Gerentes Destinatários */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Gerentes Destinatários</CardTitle>
+            <CardDescription>
+              Selecione quais gerentes receberão os relatórios via WhatsApp
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                Nenhum gerente cadastrado no sistema.
+              </p>
+            ) : (
+              <>
+                {gerentesComTelefone.length > 0 && (
                   <div className="space-y-2">
-                    {gerentesSemTelefone.map((gerente) => (
+                    {gerentesComTelefone.map((gerente) => (
                       <div
                         key={gerente.id}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 opacity-60"
+                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                          gerentesAtivos.includes(gerente.id)
+                            ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                        onClick={() => toggleGerente(gerente.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <Checkbox disabled checked={false} />
+                          <Checkbox
+                            checked={gerentesAtivos.includes(gerente.id)}
+                            className="pointer-events-none"
+                          />
                           <div>
                             <p className="font-medium">{gerente.nome}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Telefone não cadastrado
-                            </p>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {gerente.telefone}
+                              </span>
+                              {gerente.loja && (
+                                <span className="flex items-center gap-1">
+                                  <Store className="h-3 w-3" />
+                                  {gerente.loja.nome}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+                )}
 
-      {/* Ações */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button
-          onClick={() => salvarMutation.mutate()}
-          disabled={salvarMutation.isPending}
-          className="flex-1"
-        >
-          {salvarMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : null}
-          Salvar Configuração
-        </Button>
-        <Button
-          variant="outline"
-          onClick={enviarTeste}
-          disabled={isEnviandoTeste || gerentesAtivos.length === 0}
-          className="flex-1 gap-2"
-        >
-          {isEnviandoTeste ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-          Enviar Teste Agora
-        </Button>
-      </div>
+                {gerentesSemTelefone.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Gerentes sem telefone cadastrado:
+                    </p>
+                    <div className="space-y-2">
+                      {gerentesSemTelefone.map((gerente) => (
+                        <div
+                          key={gerente.id}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 opacity-60"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox disabled checked={false} />
+                            <div>
+                              <p className="font-medium">{gerente.nome}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Telefone não cadastrado
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-      {gerentesAtivos.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center">
-          Selecione pelo menos um gerente para habilitar o envio de teste.
-        </p>
-      )}
-    </div>
+        {/* Ações */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            onClick={() => salvarMutation.mutate()}
+            disabled={salvarMutation.isPending}
+            className="flex-1"
+          >
+            {salvarMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            Salvar Configuração
+          </Button>
+          <Button
+            variant="outline"
+            onClick={enviarTeste}
+            disabled={isEnviandoTeste || gerentesAtivos.length === 0}
+            className="flex-1 gap-2"
+          >
+            {isEnviandoTeste ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            Enviar Teste Agora
+          </Button>
+        </div>
+
+        {gerentesAtivos.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center">
+            Selecione pelo menos um gerente para habilitar o envio de teste.
+          </p>
+        )}
+      </TabsContent>
+
+      <TabsContent value="cobrancas">
+        <WhatsAppCobranca />
+      </TabsContent>
+    </Tabs>
   );
 }

@@ -358,6 +358,81 @@ export type Database = {
           },
         ]
       }
+      whatsapp_cobranca_log: {
+        Row: {
+          data: string
+          enviado_em: string
+          erro_detalhes: string | null
+          gerente_id: string
+          horario_lancamento: string
+          id: string
+          loja_id: string
+          minutos_atraso: number
+          nivel_cobranca: number
+          status: string
+          template_usado: string
+        }
+        Insert: {
+          data: string
+          enviado_em?: string
+          erro_detalhes?: string | null
+          gerente_id: string
+          horario_lancamento: string
+          id?: string
+          loja_id: string
+          minutos_atraso: number
+          nivel_cobranca: number
+          status?: string
+          template_usado: string
+        }
+        Update: {
+          data?: string
+          enviado_em?: string
+          erro_detalhes?: string | null
+          gerente_id?: string
+          horario_lancamento?: string
+          id?: string
+          loja_id?: string
+          minutos_atraso?: number
+          nivel_cobranca?: number
+          status?: string
+          template_usado?: string
+        }
+        Relationships: []
+      }
+      whatsapp_cobranca_settings: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          gerentes_ativos: string[]
+          horarios_monitorados: string[]
+          id: string
+          intervalos_cobranca: string[]
+          tolerancia_minutos: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          gerentes_ativos?: string[]
+          horarios_monitorados?: string[]
+          id?: string
+          intervalos_cobranca?: string[]
+          tolerancia_minutos?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          gerentes_ativos?: string[]
+          horarios_monitorados?: string[]
+          id?: string
+          intervalos_cobranca?: string[]
+          tolerancia_minutos?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_report_settings: {
         Row: {
           ativo: boolean

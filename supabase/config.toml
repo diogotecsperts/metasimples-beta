@@ -38,3 +38,9 @@ verify_jwt = true
 
 [functions.check-manual-reports]
 verify_jwt = false
+
+[functions.send-whatsapp-cobranca]
+verify_jwt = true
+
+[functions.check-pending-lancamentos]
+verify_jwt = false
