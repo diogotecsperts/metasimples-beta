@@ -31,6 +31,11 @@ const TEMPLATES_POR_NIVEL: Record<number, string> = {
   3: "lembrete_meta_final_v1",   // Último aviso
 };
 
+// Mapeamento de fallback para contatos conhecidos (usado quando API retorna banned/erro)
+const KNOWN_CONTACTS: Record<string, string> = {
+  "+5582981627838": "69322fead2b7eee6000b2336", // Diogo
+};
+
 function normalizePhoneNumber(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('55')) {
@@ -63,11 +68,17 @@ async function getAccessToken(clientId: string, clientSecret: string): Promise<s
   return data.access_token;
 }
 
+interface ContactLookupResult {
+  contact: SendPulseContact | null;
+  isBanned: boolean;
+  bannedContactId?: string;
+}
+
 async function getContactByPhone(
   accessToken: string,
   botId: string,
   phone: string
-): Promise<SendPulseContact | null> {
+): Promise<ContactLookupResult> {
   console.log(`[send-whatsapp-cobranca] Buscando contato pelo telefone ${phone}...`);
   
   const url = `https://api.sendpulse.com/whatsapp/contacts/getByPhone?bot_id=${botId}&phone=${encodeURIComponent(phone)}`;
@@ -82,25 +93,35 @@ async function getContactByPhone(
   const responseText = await response.text();
   console.log(`[send-whatsapp-cobranca] Resposta getContactByPhone:`, response.status, responseText);
 
-  if (!response.ok) {
-    console.log(`[send-whatsapp-cobranca] Contato não encontrado para ${phone}`);
-    return null;
-  }
-
   try {
     const data = JSON.parse(responseText);
-    if (data.success && data.data) {
+    
+    // Verificar se é erro de contato banido
+    if (!response.ok && data.errors?.contact?.includes("Contact is banned")) {
+      console.log(`[send-whatsapp-cobranca] Contato ${phone} está banido, usando fallback...`);
+      const fallbackId = KNOWN_CONTACTS[phone];
+      return { 
+        contact: null, 
+        isBanned: true, 
+        bannedContactId: fallbackId 
+      };
+    }
+    
+    if (response.ok && data.success && data.data) {
       return {
-        id: data.data.id,
-        status: data.data.status,
-        phone: data.data.phone || phone
+        contact: {
+          id: data.data.id,
+          status: data.data.status,
+          phone: data.data.phone || phone
+        },
+        isBanned: false
       };
     }
   } catch (e) {
     console.error(`[send-whatsapp-cobranca] Erro ao parsear resposta:`, e);
   }
 
-  return null;
+  return { contact: null, isBanned: false };
 }
 
 async function enableContact(
@@ -256,9 +277,35 @@ const handler = async (req: Request): Promise<Response> => {
         const normalizedPhone = normalizePhoneNumber(gerente.telefone);
         
         // Buscar contact_id dinamicamente via API do SendPulse
-        const contact = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
+        const lookupResult = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
         
-        if (!contact) {
+        let contactId: string | null = null;
+        
+        if (lookupResult.contact) {
+          // Contato encontrado normalmente
+          contactId = lookupResult.contact.id;
+          
+          // Se desabilitado, tentar habilitar
+          if (lookupResult.contact.status !== 1) {
+            console.log(`[send-whatsapp-cobranca] Contato ${gerente.nome} está desabilitado (status ${lookupResult.contact.status}), tentando habilitar...`);
+            await enableContact(accessToken, contactId);
+          }
+        } else if (lookupResult.isBanned && lookupResult.bannedContactId) {
+          // Contato banido - usar fallback e tentar habilitar
+          contactId = lookupResult.bannedContactId;
+          console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId} para contato banido`);
+          await enableContact(accessToken, contactId);
+        } else {
+          // Tentar fallback mesmo sem indicação de banned
+          const fallbackId = KNOWN_CONTACTS[normalizedPhone];
+          if (fallbackId) {
+            contactId = fallbackId;
+            console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId}`);
+            await enableContact(accessToken, contactId);
+          }
+        }
+        
+        if (!contactId) {
           console.log(`[send-whatsapp-cobranca] Contato não encontrado no SendPulse para ${gerente.nome} (${normalizedPhone})`);
           results.push({
             gerente: gerente.nome,
@@ -267,14 +314,6 @@ const handler = async (req: Request): Promise<Response> => {
           });
           continue;
         }
-
-        // Se contato está desabilitado (status != 1), tentar habilitar
-        if (contact.status !== 1) {
-          console.log(`[send-whatsapp-cobranca] Contato ${gerente.nome} está desabilitado (status ${contact.status}), tentando habilitar...`);
-          await enableContact(accessToken, contact.id);
-        }
-
-        const contactId = contact.id;
         const lojaNome = gerente.loja_id ? (lojasMap[gerente.loja_id] || "Sua farmácia") : "Sua farmácia";
         const templateName = TEMPLATES_POR_NIVEL[1]; // Nível 1 para teste
         
@@ -289,7 +328,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         console.log(`[send-whatsapp-cobranca] Enviando teste para ${gerente.nome} (contact_id: ${contactId}) com params:`, parameters);
         
-        const result = await sendWhatsAppTemplateByContactId(
+        const sendResult = await sendWhatsAppTemplateByContactId(
           accessToken,
           contactId,
           templateName,
@@ -298,8 +337,8 @@ const handler = async (req: Request): Promise<Response> => {
         
         results.push({
           gerente: gerente.nome,
-          success: result.success,
-          error: result.error
+          success: sendResult.success,
+          error: sendResult.error
         });
 
         // Registrar no log (como teste)
@@ -311,8 +350,8 @@ const handler = async (req: Request): Promise<Response> => {
           minutos_atraso: 0,
           nivel_cobranca: 0, // 0 indica teste
           template_usado: templateName,
-          status: result.success ? 'enviado' : 'erro',
-          erro_detalhes: result.error || null
+          status: sendResult.success ? 'enviado' : 'erro',
+          erro_detalhes: sendResult.error || null
         });
       }
 
@@ -378,9 +417,35 @@ const handler = async (req: Request): Promise<Response> => {
     const normalizedPhone = normalizePhoneNumber(gerente.telefone);
     
     // Buscar contact_id dinamicamente via API do SendPulse
-    const contact = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
+    const lookupResult = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
     
-    if (!contact) {
+    let contactId: string | null = null;
+    
+    if (lookupResult.contact) {
+      // Contato encontrado normalmente
+      contactId = lookupResult.contact.id;
+      
+      // Se desabilitado, tentar habilitar
+      if (lookupResult.contact.status !== 1) {
+        console.log(`[send-whatsapp-cobranca] Contato ${gerente.nome} está desabilitado (status ${lookupResult.contact.status}), tentando habilitar...`);
+        await enableContact(accessToken, contactId);
+      }
+    } else if (lookupResult.isBanned && lookupResult.bannedContactId) {
+      // Contato banido - usar fallback e tentar habilitar
+      contactId = lookupResult.bannedContactId;
+      console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId} para contato banido`);
+      await enableContact(accessToken, contactId);
+    } else {
+      // Tentar fallback mesmo sem indicação de banned
+      const fallbackId = KNOWN_CONTACTS[normalizedPhone];
+      if (fallbackId) {
+        contactId = fallbackId;
+        console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId}`);
+        await enableContact(accessToken, contactId);
+      }
+    }
+    
+    if (!contactId) {
       console.log(`[send-whatsapp-cobranca] Contato não encontrado no SendPulse para ${gerente.nome} (${normalizedPhone})`);
       return new Response(
         JSON.stringify({ 
@@ -390,14 +455,6 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Se contato está desabilitado (status != 1), tentar habilitar
-    if (contact.status !== 1) {
-      console.log(`[send-whatsapp-cobranca] Contato ${gerente.nome} está desabilitado (status ${contact.status}), tentando habilitar...`);
-      await enableContact(accessToken, contact.id);
-    }
-
-    const contactId = contact.id;
     const templateName = TEMPLATES_POR_NIVEL[nivelCobranca] || TEMPLATES_POR_NIVEL[1];
     
     // Parâmetros: {{1}} nome, {{2}} horário, {{3}} loja
