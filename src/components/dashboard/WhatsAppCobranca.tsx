@@ -11,15 +11,15 @@ import { toast } from "sonner";
 import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
 interface Gerente {
   id: string;
   nome: string;
   telefone: string | null;
   loja_id: string | null;
-  loja?: { nome: string } | null;
+  loja?: {
+    nome: string;
+  } | null;
 }
-
 interface CobrancaSettings {
   id: string;
   ativo: boolean;
@@ -28,7 +28,6 @@ interface CobrancaSettings {
   gerentes_ativos: string[];
   horarios_monitorados: string[];
 }
-
 interface CobrancaLog {
   id: string;
   gerente_id: string;
@@ -42,23 +41,38 @@ interface CobrancaLog {
   status: string;
   erro_detalhes: string | null;
 }
-
-const HORARIOS_LANCAMENTO = [
-  { value: "10:00", label: "10:00" },
-  { value: "14:00", label: "14:00" },
-  { value: "16:00", label: "16:00" },
-  { value: "19:00", label: "19:00" },
-  { value: "23:00", label: "23:00" },
-];
-
-const INTERVALOS_DISPONIVEIS = [
-  { value: "05", label: "5 min" },
-  { value: "10", label: "10 min" },
-  { value: "15", label: "15 min" },
-  { value: "20", label: "20 min" },
-  { value: "30", label: "30 min" },
-];
-
+const HORARIOS_LANCAMENTO = [{
+  value: "10:00",
+  label: "10:00"
+}, {
+  value: "14:00",
+  label: "14:00"
+}, {
+  value: "16:00",
+  label: "16:00"
+}, {
+  value: "19:00",
+  label: "19:00"
+}, {
+  value: "23:00",
+  label: "23:00"
+}];
+const INTERVALOS_DISPONIVEIS = [{
+  value: "05",
+  label: "5 min"
+}, {
+  value: "10",
+  label: "10 min"
+}, {
+  value: "15",
+  label: "15 min"
+}, {
+  value: "20",
+  label: "20 min"
+}, {
+  value: "30",
+  label: "30 min"
+}];
 export function WhatsAppCobranca() {
   const queryClient = useQueryClient();
   const [ativo, setAtivo] = useState(false);
@@ -69,72 +83,76 @@ export function WhatsAppCobranca() {
   const [isEnviandoTeste, setIsEnviandoTeste] = useState(false);
 
   // Buscar configurações existentes
-  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+  const {
+    data: settings,
+    isLoading: isLoadingSettings
+  } = useQuery({
     queryKey: ["whatsapp-cobranca-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("whatsapp_cobranca_settings")
-        .select("*")
-        .limit(1)
-        .maybeSingle();
-
+      const {
+        data,
+        error
+      } = await supabase.from("whatsapp_cobranca_settings").select("*").limit(1).maybeSingle();
       if (error) throw error;
       return data as CobrancaSettings | null;
-    },
+    }
   });
 
   // Buscar logs recentes
-  const { data: logs = [], isLoading: isLoadingLogs } = useQuery({
+  const {
+    data: logs = [],
+    isLoading: isLoadingLogs
+  } = useQuery({
     queryKey: ["whatsapp-cobranca-logs"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("whatsapp_cobranca_log")
-        .select("*")
-        .order("enviado_em", { ascending: false })
-        .limit(20);
-
+      const {
+        data,
+        error
+      } = await supabase.from("whatsapp_cobranca_log").select("*").order("enviado_em", {
+        ascending: false
+      }).limit(20);
       if (error) throw error;
       return data as CobrancaLog[];
-    },
+    }
   });
 
   // Buscar todos os gerentes com suas lojas
-  const { data: gerentes = [], isLoading: isLoadingGerentes } = useQuery({
+  const {
+    data: gerentes = [],
+    isLoading: isLoadingGerentes
+  } = useQuery({
     queryKey: ["gerentes-cobranca"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(`
+      const {
+        data,
+        error
+      } = await supabase.from("profiles").select(`
           id,
           nome,
           telefone,
           loja_id,
           user_roles!inner(role)
-        `)
-        .eq("user_roles.role", "gerente");
-
+        `).eq("user_roles.role", "gerente");
       if (error) throw error;
 
       // Buscar nomes das lojas
       const lojasIds = data?.filter(g => g.loja_id).map(g => g.loja_id) || [];
       let lojasMap: Record<string, string> = {};
-      
       if (lojasIds.length > 0) {
-        const { data: lojas } = await supabase
-          .from("lojas")
-          .select("id, nome")
-          .in("id", lojasIds);
-        
+        const {
+          data: lojas
+        } = await supabase.from("lojas").select("id, nome").in("id", lojasIds);
         if (lojas) {
           lojasMap = Object.fromEntries(lojas.map(l => [l.id, l.nome]));
         }
       }
-
       return (data || []).map(g => ({
         ...g,
-        loja: g.loja_id ? { nome: lojasMap[g.loja_id] || "Loja não encontrada" } : null
+        loja: g.loja_id ? {
+          nome: lojasMap[g.loja_id] || "Loja não encontrada"
+        } : null
       })) as Gerente[];
-    },
+    }
   });
 
   // Atualizar estado local quando settings carregar
@@ -156,29 +174,29 @@ export function WhatsAppCobranca() {
         tolerancia_minutos: toleranciaMinutos,
         intervalos_cobranca: intervalosCobranca,
         horarios_monitorados: horariosMonitorados,
-        gerentes_ativos: gerentesAtivos,
+        gerentes_ativos: gerentesAtivos
       };
-
       if (settings?.id) {
-        const { error } = await supabase
-          .from("whatsapp_cobranca_settings")
-          .update(payload)
-          .eq("id", settings.id);
+        const {
+          error
+        } = await supabase.from("whatsapp_cobranca_settings").update(payload).eq("id", settings.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("whatsapp_cobranca_settings")
-          .insert(payload);
+        const {
+          error
+        } = await supabase.from("whatsapp_cobranca_settings").insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-settings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["whatsapp-cobranca-settings"]
+      });
       toast.success("Configurações salvas com sucesso!");
     },
     onError: (error: any) => {
       toast.error(`Erro ao salvar: ${error.message}`);
-    },
+    }
   });
 
   // Função para enviar teste
@@ -187,32 +205,35 @@ export function WhatsAppCobranca() {
       toast.error("Selecione pelo menos um gerente para enviar o teste");
       return;
     }
-
     setIsEnviandoTeste(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-whatsapp-cobranca", {
-        body: { isTest: true, gerenteIds: gerentesAtivos },
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("send-whatsapp-cobranca", {
+        body: {
+          isTest: true,
+          gerenteIds: gerentesAtivos
+        }
       });
-
-      console.log("[WhatsAppCobranca] Resposta do teste:", { data, error });
-
+      console.log("[WhatsAppCobranca] Resposta do teste:", {
+        data,
+        error
+      });
       if (error) {
         console.error("[WhatsAppCobranca] Erro do invoke:", error);
         throw error;
       }
-
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
-
+      queryClient.invalidateQueries({
+        queryKey: ["whatsapp-cobranca-logs"]
+      });
       if (data.success) {
         // Sucesso total ou parcial
         if (data.failCount > 0) {
           // Sucesso parcial - mostrar detalhes das falhas
           toast.warning(data.message, {
-            description: data.results
-              ?.filter((r: any) => !r.success)
-              .map((r: any) => `${r.gerente}: ${r.error || "Erro desconhecido"}`)
-              .join("\n"),
-            duration: 8000,
+            description: data.results?.filter((r: any) => !r.success).map((r: any) => `${r.gerente}: ${r.error || "Erro desconhecido"}`).join("\n"),
+            duration: 8000
           });
         } else {
           toast.success(data.message || "Teste enviado com sucesso!");
@@ -220,16 +241,12 @@ export function WhatsAppCobranca() {
       } else {
         // Nenhum envio teve sucesso
         const failedResults = data.results?.filter((r: any) => !r.success) || [];
-        
         if (failedResults.length > 0) {
           // Mostrar detalhes de cada falha
-          const detalhes = failedResults
-            .map((r: any) => `• ${r.gerente}: ${r.error || "Erro desconhecido"}`)
-            .join("\n");
-          
+          const detalhes = failedResults.map((r: any) => `• ${r.gerente}: ${r.error || "Erro desconhecido"}`).join("\n");
           toast.error(data.message || "Nenhum teste foi enviado", {
             description: detalhes,
-            duration: 10000,
+            duration: 10000
           });
         } else {
           toast.error(data.message || data.error || "Erro ao enviar teste");
@@ -242,24 +259,18 @@ export function WhatsAppCobranca() {
       setIsEnviandoTeste(false);
     }
   };
-
   const toggleHorario = (horario: string) => {
-    setHorariosMonitorados((prev) =>
-      prev.includes(horario)
-        ? prev.filter((h) => h !== horario)
-        : [...prev, horario]
-    );
+    setHorariosMonitorados(prev => prev.includes(horario) ? prev.filter(h => h !== horario) : [...prev, horario]);
   };
-
   const toggleIntervalo = (intervalo: string) => {
-    setIntervalosCobranca((prev) => {
+    setIntervalosCobranca(prev => {
       if (prev.includes(intervalo)) {
         // Não permitir remover todos
         if (prev.length === 1) {
           toast.error("Selecione pelo menos um intervalo de cobrança");
           return prev;
         }
-        return prev.filter((i) => i !== intervalo);
+        return prev.filter(i => i !== intervalo);
       }
       // Máximo 3 intervalos
       if (prev.length >= 3) {
@@ -269,22 +280,14 @@ export function WhatsAppCobranca() {
       return [...prev, intervalo].sort((a, b) => parseInt(a) - parseInt(b));
     });
   };
-
   const toggleGerente = (gerenteId: string) => {
-    setGerentesAtivos((prev) =>
-      prev.includes(gerenteId)
-        ? prev.filter((g) => g !== gerenteId)
-        : [...prev, gerenteId]
-    );
+    setGerentesAtivos(prev => prev.includes(gerenteId) ? prev.filter(g => g !== gerenteId) : [...prev, gerenteId]);
   };
-
   const gerentesComTelefone = gerentes.filter(g => g.telefone && g.telefone.trim() !== '');
   const gerentesSemTelefone = gerentes.filter(g => !g.telefone || g.telefone.trim() === '');
-
   const toggleTodosGerentes = () => {
     const todosComTelefoneIds = gerentesComTelefone.map(g => g.id);
     const todosMarcados = todosComTelefoneIds.length > 0 && todosComTelefoneIds.every(id => gerentesAtivos.includes(id));
-    
     if (todosMarcados) {
       setGerentesAtivos([]);
     } else {
@@ -294,17 +297,12 @@ export function WhatsAppCobranca() {
 
   // Mapa de gerentes para mostrar nos logs
   const gerentesMap = Object.fromEntries(gerentes.map(g => [g.id, g.nome]));
-
   if (isLoadingSettings || isLoadingGerentes) {
-    return (
-      <div className="flex items-center justify-center p-8">
+    return <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header */}
       <Card>
         <CardHeader>
@@ -315,7 +313,7 @@ export function WhatsAppCobranca() {
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  Sistema de Cobranças
+                  Cobrança dos gerentes  
                   <Badge variant="outline" className="gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     Beta
@@ -330,10 +328,7 @@ export function WhatsAppCobranca() {
               <span className="text-sm text-muted-foreground">
                 {ativo ? "Ativo" : "Inativo"}
               </span>
-              <Switch
-                checked={ativo}
-                onCheckedChange={setAtivo}
-              />
+              <Switch checked={ativo} onCheckedChange={setAtivo} />
             </div>
           </div>
         </CardHeader>
@@ -352,23 +347,10 @@ export function WhatsAppCobranca() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            {HORARIOS_LANCAMENTO.map((horario) => (
-              <div
-                key={horario.value}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
-                  horariosMonitorados.includes(horario.value)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted"
-                }`}
-                onClick={() => toggleHorario(horario.value)}
-              >
-                <Checkbox
-                  checked={horariosMonitorados.includes(horario.value)}
-                  className="pointer-events-none"
-                />
+            {HORARIOS_LANCAMENTO.map(horario => <div key={horario.value} className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${horariosMonitorados.includes(horario.value) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`} onClick={() => toggleHorario(horario.value)}>
+                <Checkbox checked={horariosMonitorados.includes(horario.value)} className="pointer-events-none" />
                 <span className="font-medium">{horario.label}</span>
-              </div>
-            ))}
+              </div>)}
           </div>
         </CardContent>
       </Card>
@@ -390,14 +372,7 @@ export function WhatsAppCobranca() {
                 {toleranciaMinutos} minuto{toleranciaMinutos !== 1 ? 's' : ''}
               </span>
             </div>
-            <Slider
-              value={[toleranciaMinutos]}
-              onValueChange={(value) => setToleranciaMinutos(value[0])}
-              min={0}
-              max={30}
-              step={1}
-              className="w-full"
-            />
+            <Slider value={[toleranciaMinutos]} onValueChange={value => setToleranciaMinutos(value[0])} min={0} max={30} step={1} className="w-full" />
             <p className="text-xs text-muted-foreground">
               Tempo de espera antes de iniciar as cobranças após o horário de preenchimento
             </p>
@@ -407,23 +382,10 @@ export function WhatsAppCobranca() {
           <div className="space-y-3">
             <label className="text-sm font-medium">Intervalos de Cobrança (máx. 3)</label>
             <div className="flex flex-wrap gap-2">
-              {INTERVALOS_DISPONIVEIS.map((intervalo) => (
-                <div
-                  key={intervalo.value}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors text-sm ${
-                    intervalosCobranca.includes(intervalo.value)
-                      ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
-                      : "bg-background hover:bg-muted"
-                  }`}
-                  onClick={() => toggleIntervalo(intervalo.value)}
-                >
-                  <Checkbox
-                    checked={intervalosCobranca.includes(intervalo.value)}
-                    className="pointer-events-none h-4 w-4"
-                  />
+              {INTERVALOS_DISPONIVEIS.map(intervalo => <div key={intervalo.value} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors text-sm ${intervalosCobranca.includes(intervalo.value) ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700" : "bg-background hover:bg-muted"}`} onClick={() => toggleIntervalo(intervalo.value)}>
+                  <Checkbox checked={intervalosCobranca.includes(intervalo.value)} className="pointer-events-none h-4 w-4" />
                   <span>{intervalo.label}</span>
-                </div>
-              ))}
+                </div>)}
             </div>
             <p className="text-xs text-muted-foreground">
               Exemplo: Com tolerância de 5 min e intervalos [5, 15, 30], as cobranças serão enviadas às 10:10, 10:20 e 10:35 para o horário das 10:00
@@ -442,44 +404,19 @@ export function WhatsAppCobranca() {
                 Selecione quais gerentes receberão lembretes de preenchimento
               </CardDescription>
             </div>
-            {gerentesComTelefone.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleTodosGerentes}
-                className="text-sm"
-              >
-                {gerentesComTelefone.every(g => gerentesAtivos.includes(g.id))
-                  ? "Desmarcar todos"
-                  : "Marcar todos"}
-              </Button>
-            )}
+            {gerentesComTelefone.length > 0 && <Button variant="ghost" size="sm" onClick={toggleTodosGerentes} className="text-sm">
+                {gerentesComTelefone.every(g => gerentesAtivos.includes(g.id)) ? "Desmarcar todos" : "Marcar todos"}
+              </Button>}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
+          {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? <p className="text-muted-foreground text-center py-4">
               Nenhum gerente cadastrado no sistema.
-            </p>
-          ) : (
-            <>
-              {gerentesComTelefone.length > 0 && (
-                <div className="space-y-2">
-                  {gerentesComTelefone.map((gerente) => (
-                    <div
-                      key={gerente.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                        gerentesAtivos.includes(gerente.id)
-                          ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
-                          : "bg-background hover:bg-muted"
-                      }`}
-                      onClick={() => toggleGerente(gerente.id)}
-                    >
+            </p> : <>
+              {gerentesComTelefone.length > 0 && <div className="space-y-2">
+                  {gerentesComTelefone.map(gerente => <div key={gerente.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${gerentesAtivos.includes(gerente.id) ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800" : "bg-background hover:bg-muted"}`} onClick={() => toggleGerente(gerente.id)}>
                       <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={gerentesAtivos.includes(gerente.id)}
-                          className="pointer-events-none"
-                        />
+                        <Checkbox checked={gerentesAtivos.includes(gerente.id)} className="pointer-events-none" />
                         <div>
                           <p className="font-medium">{gerente.nome}</p>
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -487,31 +424,22 @@ export function WhatsAppCobranca() {
                               <Phone className="h-3 w-3" />
                               {gerente.telefone}
                             </span>
-                            {gerente.loja && (
-                              <span className="flex items-center gap-1">
+                            {gerente.loja && <span className="flex items-center gap-1">
                                 <Store className="h-3 w-3" />
                                 {gerente.loja.nome}
-                              </span>
-                            )}
+                              </span>}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    </div>)}
+                </div>}
 
-              {gerentesSemTelefone.length > 0 && (
-                <div className="mt-4">
+              {gerentesSemTelefone.length > 0 && <div className="mt-4">
                   <p className="text-sm text-muted-foreground mb-2">
                     Gerentes sem telefone cadastrado:
                   </p>
                   <div className="space-y-2">
-                    {gerentesSemTelefone.map((gerente) => (
-                      <div
-                        key={gerente.id}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 opacity-60"
-                      >
+                    {gerentesSemTelefone.map(gerente => <div key={gerente.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 opacity-60">
                         <div className="flex items-center gap-3">
                           <Checkbox disabled checked={false} />
                           <div>
@@ -521,52 +449,31 @@ export function WhatsAppCobranca() {
                             </p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      </div>)}
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                </div>}
+            </>}
         </CardContent>
       </Card>
 
       {/* Ações */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button
-          onClick={() => salvarMutation.mutate()}
-          disabled={salvarMutation.isPending}
-          className="flex-1"
-        >
-          {salvarMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : null}
+        <Button onClick={() => salvarMutation.mutate()} disabled={salvarMutation.isPending} className="flex-1">
+          {salvarMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           Salvar Configuração
         </Button>
-        <Button
-          variant="outline"
-          onClick={enviarTeste}
-          disabled={isEnviandoTeste || gerentesAtivos.length === 0}
-          className="flex-1 gap-2"
-        >
-          {isEnviandoTeste ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
+        <Button variant="outline" onClick={enviarTeste} disabled={isEnviandoTeste || gerentesAtivos.length === 0} className="flex-1 gap-2">
+          {isEnviandoTeste ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Enviar Teste de Cobrança
         </Button>
       </div>
 
-      {gerentesAtivos.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center">
+      {gerentesAtivos.length === 0 && <p className="text-sm text-muted-foreground text-center">
           Selecione pelo menos um gerente para habilitar o envio de teste.
-        </p>
-      )}
+        </p>}
 
       {/* Logs Recentes */}
-      {logs.length > 0 && (
-        <Card>
+      {logs.length > 0 && <Card>
           <CardHeader>
             <CardTitle className="text-lg">Cobranças Recentes</CardTitle>
             <CardDescription>
@@ -575,21 +482,9 @@ export function WhatsAppCobranca() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border text-sm ${
-                    log.status === 'enviado'
-                      ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
-                      : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-                  }`}
-                >
+              {logs.map(log => <div key={log.id} className={`flex items-center justify-between p-3 rounded-lg border text-sm ${log.status === 'enviado' ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"}`}>
                   <div className="flex items-center gap-3">
-                    {log.status === 'enviado' ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-600" />
-                    )}
+                    {log.status === 'enviado' ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
                     <div>
                       <p className="font-medium">{gerentesMap[log.gerente_id] || "Gerente"}</p>
                       <p className="text-xs text-muted-foreground">
@@ -598,14 +493,13 @@ export function WhatsAppCobranca() {
                     </div>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
-                    {format(new Date(log.enviado_em), "dd/MM HH:mm", { locale: ptBR })}
+                    {format(new Date(log.enviado_em), "dd/MM HH:mm", {
+                locale: ptBR
+              })}
                   </div>
-                </div>
-              ))}
+                </div>)}
             </div>
           </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+        </Card>}
+    </div>;
 }
