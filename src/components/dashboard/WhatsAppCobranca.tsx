@@ -194,17 +194,50 @@ export function WhatsAppCobranca() {
         body: { isTest: true, gerenteIds: gerentesAtivos },
       });
 
-      if (error) throw error;
+      console.log("[WhatsAppCobranca] Resposta do teste:", { data, error });
+
+      if (error) {
+        console.error("[WhatsAppCobranca] Erro do invoke:", error);
+        throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
 
       if (data.success) {
-        toast.success(data.message || "Teste enviado com sucesso!");
-        queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
+        // Sucesso total ou parcial
+        if (data.failCount > 0) {
+          // Sucesso parcial - mostrar detalhes das falhas
+          toast.warning(data.message, {
+            description: data.results
+              ?.filter((r: any) => !r.success)
+              .map((r: any) => `${r.gerente}: ${r.error || "Erro desconhecido"}`)
+              .join("\n"),
+            duration: 8000,
+          });
+        } else {
+          toast.success(data.message || "Teste enviado com sucesso!");
+        }
       } else {
-        toast.error(data.message || data.error || "Erro ao enviar teste");
+        // Nenhum envio teve sucesso
+        const failedResults = data.results?.filter((r: any) => !r.success) || [];
+        
+        if (failedResults.length > 0) {
+          // Mostrar detalhes de cada falha
+          const detalhes = failedResults
+            .map((r: any) => `• ${r.gerente}: ${r.error || "Erro desconhecido"}`)
+            .join("\n");
+          
+          toast.error(data.message || "Nenhum teste foi enviado", {
+            description: detalhes,
+            duration: 10000,
+          });
+        } else {
+          toast.error(data.message || data.error || "Erro ao enviar teste");
+        }
       }
     } catch (error: any) {
-      console.error("Erro ao enviar teste:", error);
-      toast.error(`Erro ao enviar teste: ${error.message}`);
+      console.error("[WhatsAppCobranca] Erro ao enviar teste:", error);
+      toast.error(`Erro ao enviar teste: ${error.message || "Erro desconhecido"}`);
     } finally {
       setIsEnviandoTeste(false);
     }

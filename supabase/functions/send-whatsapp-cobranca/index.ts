@@ -18,22 +18,11 @@ interface Loja {
   nome: string;
 }
 
-interface SendPulseContact {
-  id: string;
-  status: number;
-  phone: string;
-}
-
 // Templates por nível de cobrança
 const TEMPLATES_POR_NIVEL: Record<number, string> = {
   1: "lembrete_meta_v1",      // Lembrete suave
   2: "lembrete_meta_urgente_v2", // Lembrete urgente
   3: "lembrete_meta_final_v1",   // Último aviso
-};
-
-// Mapeamento de fallback para contatos conhecidos (usado quando API retorna banned/erro)
-const KNOWN_CONTACTS: Record<string, string> = {
-  "+5582981627838": "69322fead2b7eee6000b2336", // Diogo
 };
 
 function normalizePhoneNumber(phone: string): string {
@@ -68,94 +57,21 @@ async function getAccessToken(clientId: string, clientSecret: string): Promise<s
   return data.access_token;
 }
 
-interface ContactLookupResult {
-  contact: SendPulseContact | null;
-  isBanned: boolean;
-  bannedContactId?: string;
-}
-
-async function getContactByPhone(
+// NOVA FUNÇÃO: Enviar template por telefone (método principal)
+async function sendWhatsAppTemplateByPhone(
   accessToken: string,
   botId: string,
-  phone: string
-): Promise<ContactLookupResult> {
-  console.log(`[send-whatsapp-cobranca] Buscando contato pelo telefone ${phone}...`);
-  
-  const url = `https://api.sendpulse.com/whatsapp/contacts/getByPhone?bot_id=${botId}&phone=${encodeURIComponent(phone)}`;
-  
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-    },
-  });
-
-  const responseText = await response.text();
-  console.log(`[send-whatsapp-cobranca] Resposta getContactByPhone:`, response.status, responseText);
-
-  try {
-    const data = JSON.parse(responseText);
-    
-    // Verificar se é erro de contato banido
-    if (!response.ok && data.errors?.contact?.includes("Contact is banned")) {
-      console.log(`[send-whatsapp-cobranca] Contato ${phone} está banido, usando fallback...`);
-      const fallbackId = KNOWN_CONTACTS[phone];
-      return { 
-        contact: null, 
-        isBanned: true, 
-        bannedContactId: fallbackId 
-      };
-    }
-    
-    if (response.ok && data.success && data.data) {
-      return {
-        contact: {
-          id: data.data.id,
-          status: data.data.status,
-          phone: data.data.phone || phone
-        },
-        isBanned: false
-      };
-    }
-  } catch (e) {
-    console.error(`[send-whatsapp-cobranca] Erro ao parsear resposta:`, e);
-  }
-
-  return { contact: null, isBanned: false };
-}
-
-async function enableContact(
-  accessToken: string,
-  contactId: string
-): Promise<boolean> {
-  console.log(`[send-whatsapp-cobranca] Tentando habilitar contato ${contactId}...`);
-  
-  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/enable", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ contact_id: contactId }),
-  });
-
-  const ok = response.ok;
-  console.log(`[send-whatsapp-cobranca] Resultado enableContact: ${ok}`);
-  return ok;
-}
-
-async function sendWhatsAppTemplateByContactId(
-  accessToken: string,
-  contactId: string,
+  phone: string,
   templateName: string,
   parameters: string[]
-): Promise<{ success: boolean; error?: string }> {
-  console.log(`[send-whatsapp-cobranca] Enviando template ${templateName} para contact_id ${contactId}...`);
+): Promise<{ success: boolean; error?: string; errorCode?: string }> {
+  console.log(`[send-whatsapp-cobranca] Enviando template ${templateName} para telefone ${phone}...`);
   
   const bodyParameters = parameters.map(text => ({ type: "text", text }));
   
   const requestBody = {
-    contact_id: contactId,
+    bot_id: botId,
+    phone: phone,
     template: {
       name: templateName,
       language: { 
@@ -171,9 +87,9 @@ async function sendWhatsAppTemplateByContactId(
     }
   };
 
-  console.log(`[send-whatsapp-cobranca] Request body:`, JSON.stringify(requestBody, null, 2));
+  console.log(`[send-whatsapp-cobranca] Request body sendTemplateByPhone:`, JSON.stringify(requestBody, null, 2));
 
-  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/sendTemplate", {
+  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/sendTemplateByPhone", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${accessToken}`,
@@ -183,10 +99,23 @@ async function sendWhatsAppTemplateByContactId(
   });
 
   const responseText = await response.text();
-  console.log(`[send-whatsapp-cobranca] Resposta sendTemplate:`, response.status, responseText);
+  console.log(`[send-whatsapp-cobranca] Resposta sendTemplateByPhone:`, response.status, responseText);
 
   if (!response.ok) {
-    return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+    // Tentar extrair código de erro específico
+    try {
+      const errorData = JSON.parse(responseText);
+      const errorMessage = errorData.message || errorData.errors?.phone?.[0] || errorData.errors?.contact_id?.[0] || JSON.stringify(errorData.errors) || responseText;
+      
+      // Verificar se é "Contact does not exist"
+      if (responseText.includes("Contact does not exist") || responseText.includes("does not exist")) {
+        return { success: false, error: errorMessage, errorCode: "CONTACT_NOT_FOUND" };
+      }
+      
+      return { success: false, error: `HTTP ${response.status}: ${errorMessage}` };
+    } catch {
+      return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+    }
   }
 
   try {
@@ -194,11 +123,129 @@ async function sendWhatsAppTemplateByContactId(
     if (responseJson.success === false) {
       return { success: false, error: responseJson.message || JSON.stringify(responseJson.errors) || "SendPulse returned success: false" };
     }
-  } catch (e) {
+  } catch {
     // Response wasn't JSON, continue
   }
 
   return { success: true };
+}
+
+// NOVA FUNÇÃO: Criar contato no SendPulse
+async function createContact(
+  accessToken: string,
+  botId: string,
+  phone: string,
+  name: string
+): Promise<{ success: boolean; contactId?: string; error?: string }> {
+  console.log(`[send-whatsapp-cobranca] Criando contato ${name} (${phone})...`);
+  
+  const requestBody = {
+    bot_id: botId,
+    phone: phone,
+    name: name
+  };
+
+  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  const responseText = await response.text();
+  console.log(`[send-whatsapp-cobranca] Resposta createContact:`, response.status, responseText);
+
+  if (!response.ok) {
+    return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+  }
+
+  try {
+    const data = JSON.parse(responseText);
+    if (data.success && data.data?.id) {
+      return { success: true, contactId: data.data.id };
+    }
+    // Mesmo sem success explícito, pode ter criado
+    if (data.data?.id) {
+      return { success: true, contactId: data.data.id };
+    }
+  } catch {
+    // Se não é JSON mas retornou 200, considerar sucesso
+  }
+
+  return { success: true };
+}
+
+// Resultado do envio com motivo detalhado
+interface SendResult {
+  gerente: string;
+  success: boolean;
+  error?: string;
+  reason?: "sem_telefone" | "contato_nao_existe" | "erro_sendpulse" | "enviado";
+}
+
+// Função principal de envio para um gerente
+async function enviarParaGerente(
+  accessToken: string,
+  botId: string,
+  gerente: Gerente,
+  lojaNome: string,
+  templateName: string,
+  horario: string
+): Promise<SendResult> {
+  if (!gerente.telefone) {
+    return { gerente: gerente.nome, success: false, error: "Sem telefone cadastrado", reason: "sem_telefone" };
+  }
+
+  const normalizedPhone = normalizePhoneNumber(gerente.telefone);
+  const parameters = [gerente.nome, horario, lojaNome];
+
+  console.log(`[send-whatsapp-cobranca] Tentando enviar para ${gerente.nome} (${normalizedPhone}) com params:`, parameters);
+
+  // 1. Tentar enviar por telefone (método principal)
+  let result = await sendWhatsAppTemplateByPhone(accessToken, botId, normalizedPhone, templateName, parameters);
+
+  if (result.success) {
+    return { gerente: gerente.nome, success: true, reason: "enviado" };
+  }
+
+  // 2. Se contato não existe, tentar criar e reenviar
+  if (result.errorCode === "CONTACT_NOT_FOUND") {
+    console.log(`[send-whatsapp-cobranca] Contato não existe para ${gerente.nome}, tentando criar...`);
+    
+    const createResult = await createContact(accessToken, botId, normalizedPhone, gerente.nome);
+    
+    if (createResult.success) {
+      console.log(`[send-whatsapp-cobranca] Contato criado, tentando reenviar...`);
+      
+      // Aguardar um pouco para o contato ser indexado
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Tentar reenviar
+      result = await sendWhatsAppTemplateByPhone(accessToken, botId, normalizedPhone, templateName, parameters);
+      
+      if (result.success) {
+        return { gerente: gerente.nome, success: true, reason: "enviado" };
+      }
+    }
+    
+    // Se ainda falhou após criar contato
+    return { 
+      gerente: gerente.nome, 
+      success: false, 
+      error: `Contato não existe no SendPulse e não foi possível criar. O número ${normalizedPhone} precisa iniciar uma conversa com o bot primeiro.`,
+      reason: "contato_nao_existe"
+    };
+  }
+
+  // 3. Outro erro do SendPulse
+  return { 
+    gerente: gerente.nome, 
+    success: false, 
+    error: result.error || "Erro desconhecido do SendPulse",
+    reason: "erro_sendpulse"
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -239,6 +286,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Get SendPulse access token
     const accessToken = await getAccessToken(sendpulseClientId, sendpulseClientSecret);
 
+    // Get current time in Brazil timezone
+    const now = new Date();
+    const brasilOffsetMs = -3 * 60 * 60 * 1000;
+    const nowBrasil = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + brasilOffsetMs);
+    const horaAtual = nowBrasil.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const todayStr = nowBrasil.toISOString().split('T')[0];
+
     // Se for teste, enviar para todos os gerentes selecionados
     if (isTest && gerenteIds && gerenteIds.length > 0) {
       const { data: gerentes, error: gerentesError } = await supabase
@@ -248,7 +302,10 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (gerentesError) {
         console.error("[send-whatsapp-cobranca] Erro ao buscar gerentes:", gerentesError);
-        throw new Error("Erro ao buscar gerentes");
+        return new Response(
+          JSON.stringify({ success: false, error: "Erro ao buscar gerentes", results: [] }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // Buscar lojas
@@ -266,86 +323,28 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      const results: { gerente: string; success: boolean; error?: string }[] = [];
+      const templateName = TEMPLATES_POR_NIVEL[1]; // Nível 1 para teste
+      const results: SendResult[] = [];
       
       for (const gerente of (gerentes || [])) {
-        if (!gerente.telefone) {
-          results.push({ gerente: gerente.nome, success: false, error: "Sem telefone" });
-          continue;
-        }
-
-        const normalizedPhone = normalizePhoneNumber(gerente.telefone);
-        
-        // Buscar contact_id dinamicamente via API do SendPulse
-        const lookupResult = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
-        
-        let contactId: string | null = null;
-        
-        if (lookupResult.contact) {
-          // Contato encontrado normalmente
-          contactId = lookupResult.contact.id;
-          
-          // Se desabilitado, tentar habilitar
-          if (lookupResult.contact.status !== 1) {
-            console.log(`[send-whatsapp-cobranca] Contato ${gerente.nome} está desabilitado (status ${lookupResult.contact.status}), tentando habilitar...`);
-            await enableContact(accessToken, contactId);
-          }
-        } else if (lookupResult.isBanned && lookupResult.bannedContactId) {
-          // Contato banido - usar fallback e tentar habilitar
-          contactId = lookupResult.bannedContactId;
-          console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId} para contato banido`);
-          await enableContact(accessToken, contactId);
-        } else {
-          // Tentar fallback mesmo sem indicação de banned
-          const fallbackId = KNOWN_CONTACTS[normalizedPhone];
-          if (fallbackId) {
-            contactId = fallbackId;
-            console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId}`);
-            await enableContact(accessToken, contactId);
-          }
-        }
-        
-        if (!contactId) {
-          console.log(`[send-whatsapp-cobranca] Contato não encontrado no SendPulse para ${gerente.nome} (${normalizedPhone})`);
-          results.push({
-            gerente: gerente.nome,
-            success: false,
-            error: `Contato não encontrado no SendPulse para ${normalizedPhone}. O número precisa ter iniciado uma conversa com o bot primeiro.`
-          });
-          continue;
-        }
         const lojaNome = gerente.loja_id ? (lojasMap[gerente.loja_id] || "Sua farmácia") : "Sua farmácia";
-        const templateName = TEMPLATES_POR_NIVEL[1]; // Nível 1 para teste
         
-        // Get current time for test
-        const now = new Date();
-        const brasilOffsetMs = -3 * 60 * 60 * 1000;
-        const nowBrasil = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + brasilOffsetMs);
-        const horaAtual = nowBrasil.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        
-        // Parâmetros: {{1}} nome, {{2}} horário, {{3}} loja
-        const parameters = [gerente.nome, horaAtual, lojaNome];
-        
-        console.log(`[send-whatsapp-cobranca] Enviando teste para ${gerente.nome} (contact_id: ${contactId}) com params:`, parameters);
-        
-        const sendResult = await sendWhatsAppTemplateByContactId(
+        const sendResult = await enviarParaGerente(
           accessToken,
-          contactId,
+          sendpulseBotId,
+          gerente as Gerente,
+          lojaNome,
           templateName,
-          parameters
+          horaAtual
         );
         
-        results.push({
-          gerente: gerente.nome,
-          success: sendResult.success,
-          error: sendResult.error
-        });
+        results.push(sendResult);
 
         // Registrar no log (como teste)
         await supabase.from("whatsapp_cobranca_log").insert({
           gerente_id: gerente.id,
           loja_id: gerente.loja_id || '00000000-0000-0000-0000-000000000000',
-          data: nowBrasil.toISOString().split('T')[0],
+          data: todayStr,
           horario_lancamento: horaAtual,
           minutos_atraso: 0,
           nivel_cobranca: 0, // 0 indica teste
@@ -357,11 +356,28 @@ const handler = async (req: Request): Promise<Response> => {
 
       const successCount = results.filter(r => r.success).length;
       const failCount = results.filter(r => !r.success).length;
+      
+      // Construir mensagem detalhada
+      let message = `Teste enviado para ${successCount} de ${results.length} gerente(s)`;
+      if (failCount > 0) {
+        const semTelefone = results.filter(r => r.reason === "sem_telefone").length;
+        const contatoNaoExiste = results.filter(r => r.reason === "contato_nao_existe").length;
+        const erroSendpulse = results.filter(r => r.reason === "erro_sendpulse").length;
+        
+        const detalhes: string[] = [];
+        if (semTelefone > 0) detalhes.push(`${semTelefone} sem telefone`);
+        if (contatoNaoExiste > 0) detalhes.push(`${contatoNaoExiste} contato não existe no SendPulse`);
+        if (erroSendpulse > 0) detalhes.push(`${erroSendpulse} erro SendPulse`);
+        
+        if (detalhes.length > 0) {
+          message += `. Falhas: ${detalhes.join(", ")}`;
+        }
+      }
 
       return new Response(
         JSON.stringify({ 
-          success: true, 
-          message: `Teste enviado para ${successCount} gerente(s)`,
+          success: successCount > 0, // success = true somente se pelo menos 1 enviou
+          message,
           results,
           successCount,
           failCount
@@ -373,7 +389,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Envio real (não teste) - para um gerente específico
     if (!gerenteId) {
       return new Response(
-        JSON.stringify({ success: false, error: "gerenteId é obrigatório" }),
+        JSON.stringify({ success: false, error: "gerenteId é obrigatório", results: [] }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -388,15 +404,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (gerenteError || !gerente) {
       console.error("[send-whatsapp-cobranca] Gerente não encontrado:", gerenteError);
       return new Response(
-        JSON.stringify({ success: false, error: "Gerente não encontrado" }),
+        JSON.stringify({ success: false, error: "Gerente não encontrado", results: [] }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!gerente.telefone) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Gerente sem telefone cadastrado" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -414,66 +423,16 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const normalizedPhone = normalizePhoneNumber(gerente.telefone);
-    
-    // Buscar contact_id dinamicamente via API do SendPulse
-    const lookupResult = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
-    
-    let contactId: string | null = null;
-    
-    if (lookupResult.contact) {
-      // Contato encontrado normalmente
-      contactId = lookupResult.contact.id;
-      
-      // Se desabilitado, tentar habilitar
-      if (lookupResult.contact.status !== 1) {
-        console.log(`[send-whatsapp-cobranca] Contato ${gerente.nome} está desabilitado (status ${lookupResult.contact.status}), tentando habilitar...`);
-        await enableContact(accessToken, contactId);
-      }
-    } else if (lookupResult.isBanned && lookupResult.bannedContactId) {
-      // Contato banido - usar fallback e tentar habilitar
-      contactId = lookupResult.bannedContactId;
-      console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId} para contato banido`);
-      await enableContact(accessToken, contactId);
-    } else {
-      // Tentar fallback mesmo sem indicação de banned
-      const fallbackId = KNOWN_CONTACTS[normalizedPhone];
-      if (fallbackId) {
-        contactId = fallbackId;
-        console.log(`[send-whatsapp-cobranca] Usando fallback contact_id ${contactId}`);
-        await enableContact(accessToken, contactId);
-      }
-    }
-    
-    if (!contactId) {
-      console.log(`[send-whatsapp-cobranca] Contato não encontrado no SendPulse para ${gerente.nome} (${normalizedPhone})`);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Contato não encontrado no SendPulse para ${normalizedPhone}. O número precisa ter iniciado uma conversa com o bot primeiro.` 
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
     const templateName = TEMPLATES_POR_NIVEL[nivelCobranca] || TEMPLATES_POR_NIVEL[1];
     
-    // Parâmetros: {{1}} nome, {{2}} horário, {{3}} loja
-    const parameters = [gerente.nome, horarioLancamento || "10:00", lojaNome];
-    
-    console.log(`[send-whatsapp-cobranca] Enviando cobrança nível ${nivelCobranca} para ${gerente.nome} (contact_id: ${contactId}) com params:`, parameters);
-    
-    const result = await sendWhatsAppTemplateByContactId(
+    const result = await enviarParaGerente(
       accessToken,
-      contactId,
+      sendpulseBotId,
+      gerente as Gerente,
+      lojaNome,
       templateName,
-      parameters
+      horarioLancamento || "10:00"
     );
-
-    // Get current date in Brazil timezone
-    const now = new Date();
-    const brasilOffsetMs = -3 * 60 * 60 * 1000;
-    const nowBrasil = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + brasilOffsetMs);
-    const todayStr = nowBrasil.toISOString().split('T')[0];
 
     // Registrar no log
     await supabase.from("whatsapp_cobranca_log").insert({
@@ -490,8 +449,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!result.success) {
       return new Response(
-        JSON.stringify({ success: false, error: result.error }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: result.error, results: [result] }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -499,14 +458,15 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: `Cobrança nível ${nivelCobranca} enviada para ${gerente.nome}`,
-        templateUsed: templateName
+        templateUsed: templateName,
+        results: [result]
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("[send-whatsapp-cobranca] Erro:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: error.message, results: [] }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
