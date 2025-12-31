@@ -400,36 +400,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!settings.gerentes_ativos || settings.gerentes_ativos.length === 0) {
-      console.log("[send-whatsapp-report] Nenhum gerente configurado");
+      console.log("[send-whatsapp-report] Nenhum administrador configurado");
       return new Response(
-        JSON.stringify({ success: false, message: "Nenhum gerente configurado" }),
+        JSON.stringify({ success: false, message: "Nenhum administrador configurado" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch active gerentes with their phone numbers
-    const { data: gerentes, error: gerentesError } = await supabase
-      .from("profiles")
-      .select("id, nome, telefone, loja_id")
-      .in("id", settings.gerentes_ativos);
-
-    if (gerentesError) {
-      console.error("[send-whatsapp-report] Erro ao buscar gerentes:", gerentesError);
-      throw new Error("Erro ao buscar gerentes");
-    }
-
-    // Filter gerentes with valid phone numbers
-    const gerentesComTelefone = (gerentes || []).filter(g => g.telefone && g.telefone.trim() !== '');
-    
-    if (gerentesComTelefone.length === 0) {
-      console.log("[send-whatsapp-report] Nenhum gerente com telefone válido");
-      return new Response(
-        JSON.stringify({ success: false, message: "Nenhum gerente com telefone válido" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`[send-whatsapp-report] ${gerentesComTelefone.length} gerentes com telefone encontrados`);
+    console.log(`[send-whatsapp-report] ${settings.gerentes_ativos.length} administradores configurados`);
 
     // Get today's date in Brazil timezone
     const today = new Date();
@@ -565,43 +543,70 @@ const handler = async (req: Request): Promise<Response> => {
     // Get SendPulse access token
     const accessToken = await getAccessToken(sendpulseClientId, sendpulseClientSecret);
 
-    // Mapeamento fixo de telefone -> contact_id (contatos ativos no SendPulse)
-    // Isso evita a busca por telefone que pode encontrar contatos banidos
-    const phoneToContactId: Record<string, string> = {
-      "+5582981627838": "69322fead2b7eee6000b2336"  // Diogo - Proprietário (ativo)
+    // Mapeamento fixo de telefone -> contact_id para ADMINISTRADORES
+    // Estes são os únicos que recebem relatórios
+    const KNOWN_CONTACTS: Record<string, string> = {
+      "+5582981627838": "69322fead2b7eee6000b2336", // Diogo DEV
+      "+5587981757169": "69370bb93debac0d790a7a42", // Thiago
+      "+5581982882100": "69556ee0143b1c873907e644", // Dyogo
     };
 
-    // Send to each gerente
-    const results: { gerente: string; success: boolean; error?: string }[] = [];
+    // Lista fixa de administradores com seus dados
+    const ADMIN_CONTACTS: { id: string; nome: string; telefone: string; contactId: string }[] = [
+      { id: "ca936b16-8a15-43f4-976d-6be91e294099", nome: "Diogo DEV", telefone: "+5582981627838", contactId: "69322fead2b7eee6000b2336" },
+      { id: "766164b8-23c5-490a-8409-412e8651da33", nome: "Thiago", telefone: "+5587981757169", contactId: "69370bb93debac0d790a7a42" },
+      { id: "687d830b-4bad-4e39-9273-fab71f0d4bd0", nome: "Dyogo", telefone: "+5581982882100", contactId: "69556ee0143b1c873907e644" },
+    ];
+
+    // Filtrar apenas os admins selecionados nas configurações
+    const adminsParaEnviar = ADMIN_CONTACTS.filter(admin => 
+      settings.gerentes_ativos.includes(admin.id)
+    );
+
+    console.log(`[send-whatsapp-report] ${adminsParaEnviar.length} administradores configurados para receber relatório`);
+
+    if (adminsParaEnviar.length === 0) {
+      console.log("[send-whatsapp-report] Nenhum administrador selecionado");
+      return new Response(
+        JSON.stringify({ success: false, message: "Nenhum administrador selecionado para receber relatórios" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Send to each admin
+    const results: { admin: string; success: boolean; error?: string }[] = [];
     
-    for (const gerente of gerentesComTelefone) {
-      const normalizedPhone = normalizePhoneNumber(gerente.telefone);
-      console.log(`[send-whatsapp-report] Processando ${gerente.nome} (${normalizedPhone})...`);
+    for (const admin of adminsParaEnviar) {
+      console.log(`[send-whatsapp-report] Processando ${admin.nome} (${admin.telefone})...`);
       
-      // Usar contact_id mapeado diretamente
-      const contactId = phoneToContactId[normalizedPhone];
+      // Tentar enviar usando contact_id diretamente
+      console.log(`[send-whatsapp-report] Enviando para ${admin.nome} usando contact_id: ${admin.contactId}`);
       
-      if (!contactId) {
-        console.log(`[send-whatsapp-report] Contact ID não mapeado para ${gerente.nome} (${normalizedPhone})`);
-        results.push({
-          gerente: gerente.nome,
-          success: false,
-          error: `Contact ID não configurado para ${normalizedPhone}. Adicione o mapeamento no código.`
-        });
-        continue;
-      }
-      
-      console.log(`[send-whatsapp-report] Enviando para ${gerente.nome} usando contact_id fixo: ${contactId}`);
-      
-      const result = await sendWhatsAppTemplateByContactId(
+      let result = await sendWhatsAppTemplateByContactId(
         accessToken,
-        contactId,
+        admin.contactId,
         "relatorio_diario_v2",
         templateParams
       );
       
+      // Se falhou com erro de contato banido, tentar habilitar e reenviar
+      if (!result.success && result.error?.includes("banned")) {
+        console.log(`[send-whatsapp-report] Contato ${admin.nome} está banido, tentando habilitar...`);
+        const enabled = await enableContact(accessToken, admin.contactId);
+        
+        if (enabled) {
+          console.log(`[send-whatsapp-report] Contato habilitado, reenviando...`);
+          result = await sendWhatsAppTemplateByContactId(
+            accessToken,
+            admin.contactId,
+            "relatorio_diario_v2",
+            templateParams
+          );
+        }
+      }
+      
       results.push({
-        gerente: gerente.nome,
+        admin: admin.nome,
         success: result.success,
         error: result.error
       });
@@ -615,7 +620,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Enviado para ${successCount} gerente(s)`,
+        message: `Enviado para ${successCount} administrador(es)`,
         results,
         successCount,
         failCount
