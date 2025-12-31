@@ -394,7 +394,7 @@ export function WhatsAppCobranca() {
               value={[toleranciaMinutos]}
               onValueChange={(value) => setToleranciaMinutos(value[0])}
               min={0}
-              max={10}
+              max={30}
               step={1}
               className="w-full"
             />
