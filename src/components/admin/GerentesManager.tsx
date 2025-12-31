@@ -1,12 +1,22 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { GerenteForm, type GerenteFormValues, type Gerente } from "./GerenteForm";
 import { GerentesList } from "./GerentesList";
 import { useToast } from "@/hooks/use-toast";
@@ -20,9 +30,34 @@ type Loja = {
   nome: string;
 };
 
+// Mapa de telefone -> contact_id do SendPulse (espelhado da edge function)
+const KNOWN_CONTACTS: Record<string, string> = {
+  "+5582981627838": "69322fead2b7eee6000b2336", // Diogo
+  "+5587981757169": "69370bb93debac0d790a7a42", // Thiago
+  "+5587981244339": "695549a0143b1c873907e63a", // Lais
+  "+5587999443311": "695549a0143b1c873907e63b", // Evandro
+  "+5581984415469": "695549a0143b1c873907e63c", // Raiane
+  "+5581985538572": "695549a0143b1c873907e63d", // Murilo
+  "+5587991364316": "695549a0143b1c873907e63e", // Alice
+  "+5587981578652": "695549a0143b1c873907e63f", // Caio
+  "+5587996274416": "695549a0143b1c873907e640", // Tiago
+  "+5587988166174": "695549a0143b1c873907e641", // Cida
+  "+5587988084422": "695549a0143b1c873907e642", // Poliana
+  "+5587988326545": "695549a0143b1c873907e643", // Rosy
+  "+5581996855926": "695549a0143b1c873907e639", // Matheus
+};
+
+function normalizePhoneNumber(phone: string | null): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('55')) return `+${digits}`;
+  return `+55${digits}`;
+}
+
 export function GerentesManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGerente, setEditingGerente] = useState<Gerente | null>(null);
+  const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -240,10 +275,16 @@ export function GerentesManager() {
             Cadastre gerentes e vincule-os às lojas
           </p>
         </div>
-        <Button onClick={handleOpenDialog} disabled={lojas.length === 0}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Gerente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowTechnicalInfo(true)}>
+            <Info className="h-4 w-4 mr-2" />
+            Info Técnica
+          </Button>
+          <Button onClick={handleOpenDialog} disabled={lojas.length === 0}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Gerente
+          </Button>
+        </div>
       </div>
 
       {lojas.length === 0 && (
@@ -275,6 +316,50 @@ export function GerentesManager() {
             onCancel={handleCloseDialog}
             isSubmitting={createMutation.isPending || updateMutation.isPending}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Informações Técnicas */}
+      <Dialog open={showTechnicalInfo} onOpenChange={setShowTechnicalInfo}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Informações Técnicas dos Gerentes</DialogTitle>
+            <DialogDescription>
+              IDs e configurações internas para referência técnica
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[280px]">Profile ID (Supabase)</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Telefone Normalizado</TableHead>
+                  <TableHead>Contact ID (SendPulse)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {gerentes.map((gerente) => {
+                  const normalizedPhone = normalizePhoneNumber(gerente.telefone);
+                  const contactId = KNOWN_CONTACTS[normalizedPhone] || "Não configurado";
+                  return (
+                    <TableRow key={gerente.id}>
+                      <TableCell className="font-mono text-xs">{gerente.id}</TableCell>
+                      <TableCell>{gerente.nome}</TableCell>
+                      <TableCell className="font-mono text-sm">{normalizedPhone || "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {contactId !== "Não configurado" ? (
+                          <span className="text-green-600 dark:text-green-400">{contactId}</span>
+                        ) : (
+                          <span className="text-muted-foreground">{contactId}</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
