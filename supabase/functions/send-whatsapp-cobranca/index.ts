@@ -29,6 +29,17 @@ const TEMPLATES_POR_NIVEL: Record<number, string> = {
 const KNOWN_CONTACTS: Record<string, string> = {
   "+5582981627838": "69322fead2b7eee6000b2336", // Diogo
   "+5587981757169": "69370bb93debac0d790a7a42", // Thiago
+  "+5587981244339": "695549a0143b1c873907e63a", // Lais
+  "+5587999443311": "695549a0143b1c873907e63b", // Evandro
+  "+5581984415469": "695549a0143b1c873907e63c", // Raiane
+  "+5581985538572": "695549a0143b1c873907e63d", // Murilo
+  "+5587991364316": "695549a0143b1c873907e63e", // Alice
+  "+5587981578652": "695549a0143b1c873907e63f", // Caio
+  "+5587996274416": "695549a0143b1c873907e640", // Tiago
+  "+5587988166174": "695549a0143b1c873907e641", // Cida
+  "+5587988084422": "695549a0143b1c873907e642", // Poliana
+  "+5587988326545": "695549a0143b1c873907e643", // Rosy
+  "+5581996855926": "695549a0143b1c873907e639", // Matheus
 };
 
 function normalizePhoneNumber(phone: string): string {
