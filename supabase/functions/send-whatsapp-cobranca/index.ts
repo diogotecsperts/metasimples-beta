@@ -28,6 +28,7 @@ const TEMPLATES_POR_NIVEL: Record<number, string> = {
 // Mapa de contact_ids conhecidos para contatos banidos (fallback)
 const KNOWN_CONTACTS: Record<string, string> = {
   "+5582981627838": "69322fead2b7eee6000b2336", // Diogo
+  "+5587981757169": "69370bb93debac0d790a7a42", // Thiago
 };
 
 function normalizePhoneNumber(phone: string): string {
