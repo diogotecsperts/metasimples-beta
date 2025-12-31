@@ -7,7 +7,6 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
-  tendencia?: number | null;
   isEmAlerta?: boolean;
   ultimaAtualizacao?: string;
   ultimoHorario?: string | null;
@@ -164,35 +163,6 @@ function RankingCardDesktop({ posicao, item, isMensal = false }: RankingCardDesk
               {percentualFormatado}
             </span>
           </div>
-
-          {/* Tendência */}
-          {item.tendencia !== null && item.tendencia !== undefined && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                marginTop: 12,
-                paddingTop: 12,
-                borderTop: "1px solid rgba(0,0,0,0.05)",
-              }}
-            >
-              {item.tendencia > 0 ? (
-                <span style={{ fontSize: 14, fontWeight: 500, color: "#22c55e" }}>
-                  ▲ +{item.tendencia.toFixed(1)}% vs ontem
-                </span>
-              ) : item.tendencia < 0 ? (
-                <span style={{ fontSize: 14, fontWeight: 500, color: "#ef4444" }}>
-                  ▼ {item.tendencia.toFixed(1)}% vs ontem
-                </span>
-              ) : (
-                <span style={{ fontSize: 14, fontWeight: 500, color: "#6b7280" }}>
-                  = vs ontem
-                </span>
-              )}
-            </div>
-          )}
 
           {/* Última atualização */}
           {item.ultimaAtualizacao && (

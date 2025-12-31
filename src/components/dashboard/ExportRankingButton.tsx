@@ -21,7 +21,6 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
-  tendencia?: number | null;
   isEmAlerta?: boolean;
   ultimaAtualizacao?: string;
   ultimoHorario?: string | null;
