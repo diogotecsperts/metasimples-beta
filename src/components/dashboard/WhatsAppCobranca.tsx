@@ -248,6 +248,17 @@ export function WhatsAppCobranca() {
   const gerentesComTelefone = gerentes.filter(g => g.telefone && g.telefone.trim() !== '');
   const gerentesSemTelefone = gerentes.filter(g => !g.telefone || g.telefone.trim() === '');
 
+  const toggleTodosGerentes = () => {
+    const todosComTelefoneIds = gerentesComTelefone.map(g => g.id);
+    const todosMarcados = todosComTelefoneIds.length > 0 && todosComTelefoneIds.every(id => gerentesAtivos.includes(id));
+    
+    if (todosMarcados) {
+      setGerentesAtivos([]);
+    } else {
+      setGerentesAtivos(todosComTelefoneIds);
+    }
+  };
+
   // Mapa de gerentes para mostrar nos logs
   const gerentesMap = Object.fromEntries(gerentes.map(g => [g.id, g.nome]));
 
@@ -391,10 +402,26 @@ export function WhatsAppCobranca() {
       {/* Gerentes Monitorados */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Gerentes Monitorados</CardTitle>
-          <CardDescription>
-            Selecione quais gerentes receberão lembretes de preenchimento
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Gerentes Monitorados</CardTitle>
+              <CardDescription>
+                Selecione quais gerentes receberão lembretes de preenchimento
+              </CardDescription>
+            </div>
+            {gerentesComTelefone.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleTodosGerentes}
+                className="text-sm"
+              >
+                {gerentesComTelefone.every(g => gerentesAtivos.includes(g.id))
+                  ? "Desmarcar todos"
+                  : "Marcar todos"}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? (
