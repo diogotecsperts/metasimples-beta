@@ -112,14 +112,25 @@ async function sendWhatsAppTemplateByPhone(
       const errorData = JSON.parse(responseText);
       const errorMessage = errorData.message || errorData.errors?.phone?.[0] || errorData.errors?.contact_id?.[0] || errorData.errors?.contact?.[0] || JSON.stringify(errorData.errors) || responseText;
       
-      // Verificar se é "Contact does not exist"
-      if (responseText.includes("Contact does not exist") || responseText.includes("does not exist")) {
-        return { success: false, error: errorMessage, errorCode: "CONTACT_NOT_FOUND" };
+      // Verificar se é "Contact is banned" - múltiplas formas de detecção
+      const isBanned = 
+        responseText.toLowerCase().includes("banned") ||
+        (Array.isArray(errorData.errors?.contact) && errorData.errors.contact.some((e: string) => e.toLowerCase().includes("banned"))) ||
+        (Array.isArray(errorData.contact) && errorData.contact.some((e: string) => e.toLowerCase().includes("banned")));
+      
+      if (isBanned) {
+        console.log(`[send-whatsapp-cobranca] Contato banido detectado. responseText: ${responseText}`);
+        return { success: false, error: errorMessage, errorCode: "CONTACT_BANNED" };
       }
       
-      // Verificar se é "Contact is banned"
-      if (responseText.includes("Contact is banned") || responseText.includes("is banned")) {
-        return { success: false, error: errorMessage, errorCode: "CONTACT_BANNED" };
+      // Verificar se é "Contact does not exist"
+      const isNotFound = 
+        responseText.toLowerCase().includes("does not exist") ||
+        (Array.isArray(errorData.errors?.contact) && errorData.errors.contact.some((e: string) => e.toLowerCase().includes("does not exist"))) ||
+        (Array.isArray(errorData.errors?.contact_id) && errorData.errors.contact_id.some((e: string) => e.toLowerCase().includes("does not exist")));
+      
+      if (isNotFound) {
+        return { success: false, error: errorMessage, errorCode: "CONTACT_NOT_FOUND" };
       }
       
       return { success: false, error: `HTTP ${response.status}: ${errorMessage}` };
