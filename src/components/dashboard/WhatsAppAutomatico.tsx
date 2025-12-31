@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { MessageSquare, Send, Loader2, Phone, Wrench, Bell, User } from "lucide-react";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
-
 interface WhatsAppSettings {
   id: string;
   ativo: boolean;
@@ -19,36 +18,45 @@ interface WhatsAppSettings {
 }
 
 // Lista fixa dos 3 administradores que podem receber relatórios
-const ADMINISTRADORES_DESTINATARIOS = [
-  { 
-    id: "ca936b16-8a15-43f4-976d-6be91e294099", 
-    nome: "Diogo DEV", 
-    telefone: "+5582981627838",
-    contactId: "69322fead2b7eee6000b2336"
-  },
-  { 
-    id: "766164b8-23c5-490a-8409-412e8651da33", 
-    nome: "Thiago", 
-    telefone: "+5587981757169",
-    contactId: "69370bb93debac0d790a7a42"
-  },
-  { 
-    id: "687d830b-4bad-4e39-9273-fab71f0d4bd0", 
-    nome: "Dyogo", 
-    telefone: "+5581982882100",
-    contactId: "69556ee0143b1c873907e644"
-  },
-];
+const ADMINISTRADORES_DESTINATARIOS = [{
+  id: "ca936b16-8a15-43f4-976d-6be91e294099",
+  nome: "Diogo DEV",
+  telefone: "+5582981627838",
+  contactId: "69322fead2b7eee6000b2336"
+}, {
+  id: "766164b8-23c5-490a-8409-412e8651da33",
+  nome: "Thiago",
+  telefone: "+5587981757169",
+  contactId: "69370bb93debac0d790a7a42"
+}, {
+  id: "687d830b-4bad-4e39-9273-fab71f0d4bd0",
+  nome: "Dyogo",
+  telefone: "+5581982882100",
+  contactId: "69556ee0143b1c873907e644"
+}];
 
 // Horários de envio: 40 minutos após cada horário de meta
-const HORARIOS_DISPONIVEIS = [
-  { value: "10:40", label: "10:40", metaRef: "10:00" },
-  { value: "14:40", label: "14:40", metaRef: "14:00" },
-  { value: "16:40", label: "16:40", metaRef: "16:00" },
-  { value: "19:40", label: "19:40", metaRef: "19:00" },
-  { value: "23:40", label: "23:40", metaRef: "23:00" },
-];
-
+const HORARIOS_DISPONIVEIS = [{
+  value: "10:40",
+  label: "10:40",
+  metaRef: "10:00"
+}, {
+  value: "14:40",
+  label: "14:40",
+  metaRef: "14:00"
+}, {
+  value: "16:40",
+  label: "16:40",
+  metaRef: "16:00"
+}, {
+  value: "19:40",
+  label: "19:40",
+  metaRef: "19:00"
+}, {
+  value: "23:40",
+  label: "23:40",
+  metaRef: "23:00"
+}];
 export function WhatsAppAutomatico() {
   const queryClient = useQueryClient();
   const [ativo, setAtivo] = useState(false);
@@ -57,18 +65,19 @@ export function WhatsAppAutomatico() {
   const [isEnviandoTeste, setIsEnviandoTeste] = useState(false);
 
   // Buscar configurações existentes
-  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+  const {
+    data: settings,
+    isLoading: isLoadingSettings
+  } = useQuery({
     queryKey: ["whatsapp-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("whatsapp_report_settings")
-        .select("*")
-        .limit(1)
-        .maybeSingle();
-
+      const {
+        data,
+        error
+      } = await supabase.from("whatsapp_report_settings").select("*").limit(1).maybeSingle();
       if (error) throw error;
       return data as WhatsAppSettings | null;
-    },
+    }
   });
 
   // Atualizar estado local quando settings carregar
@@ -86,29 +95,29 @@ export function WhatsAppAutomatico() {
       const payload = {
         ativo,
         horarios_ativos: horariosAtivos,
-        gerentes_ativos: adminsAtivos,
+        gerentes_ativos: adminsAtivos
       };
-
       if (settings?.id) {
-        const { error } = await supabase
-          .from("whatsapp_report_settings")
-          .update(payload)
-          .eq("id", settings.id);
+        const {
+          error
+        } = await supabase.from("whatsapp_report_settings").update(payload).eq("id", settings.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("whatsapp_report_settings")
-          .insert(payload);
+        const {
+          error
+        } = await supabase.from("whatsapp_report_settings").insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-settings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["whatsapp-settings"]
+      });
       toast.success("Configurações salvas com sucesso!");
     },
     onError: (error: any) => {
       toast.error(`Erro ao salvar: ${error.message}`);
-    },
+    }
   });
 
   // Função para enviar teste
@@ -117,15 +126,17 @@ export function WhatsAppAutomatico() {
       toast.error("Selecione pelo menos um administrador para enviar o teste");
       return;
     }
-
     setIsEnviandoTeste(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-whatsapp-report", {
-        body: { isTest: true },
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("send-whatsapp-report", {
+        body: {
+          isTest: true
+        }
       });
-
       if (error) throw error;
-
       if (data.success) {
         toast.success(data.message || "Teste enviado com sucesso!");
         if (data.failCount > 0) {
@@ -141,33 +152,18 @@ export function WhatsAppAutomatico() {
       setIsEnviandoTeste(false);
     }
   };
-
   const toggleHorario = (horario: string) => {
-    setHorariosAtivos((prev) =>
-      prev.includes(horario)
-        ? prev.filter((h) => h !== horario)
-        : [...prev, horario]
-    );
+    setHorariosAtivos(prev => prev.includes(horario) ? prev.filter(h => h !== horario) : [...prev, horario]);
   };
-
   const toggleAdmin = (adminId: string) => {
-    setAdminsAtivos((prev) =>
-      prev.includes(adminId)
-        ? prev.filter((a) => a !== adminId)
-        : [...prev, adminId]
-    );
+    setAdminsAtivos(prev => prev.includes(adminId) ? prev.filter(a => a !== adminId) : [...prev, adminId]);
   };
-
   if (isLoadingSettings) {
-    return (
-      <div className="flex items-center justify-center p-8">
+    return <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <Tabs defaultValue="cobrancas" className="space-y-6">
+  return <Tabs defaultValue="cobrancas" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="cobrancas" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
@@ -193,9 +189,7 @@ export function WhatsAppAutomatico() {
                   <MessageSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    Relatórios WhatsApp
-                  </CardTitle>
+                  <CardTitle className="flex items-center gap-2">Relatórios dos administradores</CardTitle>
                   <CardDescription>
                     Envie ranking automático para administradores via WhatsApp
                   </CardDescription>
@@ -205,10 +199,7 @@ export function WhatsAppAutomatico() {
                 <span className="text-sm text-muted-foreground">
                   {ativo ? "Ativo" : "Inativo"}
                 </span>
-                <Switch
-                  checked={ativo}
-                  onCheckedChange={setAtivo}
-                />
+                <Switch checked={ativo} onCheckedChange={setAtivo} />
               </div>
             </div>
           </CardHeader>
@@ -224,28 +215,15 @@ export function WhatsAppAutomatico() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              {HORARIOS_DISPONIVEIS.map((horario) => (
-                <div
-                  key={horario.value}
-                  className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
-                    horariosAtivos.includes(horario.value)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted"
-                  }`}
-                  onClick={() => toggleHorario(horario.value)}
-                >
+              {HORARIOS_DISPONIVEIS.map(horario => <div key={horario.value} className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${horariosAtivos.includes(horario.value) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`} onClick={() => toggleHorario(horario.value)}>
                   <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={horariosAtivos.includes(horario.value)}
-                      className="pointer-events-none"
-                    />
+                    <Checkbox checked={horariosAtivos.includes(horario.value)} className="pointer-events-none" />
                     <span className="font-medium">{horario.label}</span>
                   </div>
                   <span className={`text-xs ${horariosAtivos.includes(horario.value) ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                     (meta {horario.metaRef})
                   </span>
-                </div>
-              ))}
+                </div>)}
             </div>
           </CardContent>
         </Card>
@@ -260,21 +238,9 @@ export function WhatsAppAutomatico() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              {ADMINISTRADORES_DESTINATARIOS.map((admin) => (
-                <div
-                  key={admin.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                    adminsAtivos.includes(admin.id)
-                      ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                      : "bg-background hover:bg-muted"
-                  }`}
-                  onClick={() => toggleAdmin(admin.id)}
-                >
+              {ADMINISTRADORES_DESTINATARIOS.map(admin => <div key={admin.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${adminsAtivos.includes(admin.id) ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800" : "bg-background hover:bg-muted"}`} onClick={() => toggleAdmin(admin.id)}>
                   <div className="flex items-center gap-3">
-                    <Checkbox
-                      checked={adminsAtivos.includes(admin.id)}
-                      className="pointer-events-none"
-                    />
+                    <Checkbox checked={adminsAtivos.includes(admin.id)} className="pointer-events-none" />
                     <div>
                       <p className="font-medium">{admin.nome}</p>
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -289,45 +255,26 @@ export function WhatsAppAutomatico() {
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                </div>)}
             </div>
           </CardContent>
         </Card>
 
         {/* Ações */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            onClick={() => salvarMutation.mutate()}
-            disabled={salvarMutation.isPending}
-            className="flex-1"
-          >
-            {salvarMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+          <Button onClick={() => salvarMutation.mutate()} disabled={salvarMutation.isPending} className="flex-1">
+            {salvarMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Salvar Configuração
           </Button>
-          <Button
-            variant="outline"
-            onClick={enviarTeste}
-            disabled={isEnviandoTeste || adminsAtivos.length === 0}
-            className="flex-1 gap-2"
-          >
-            {isEnviandoTeste ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+          <Button variant="outline" onClick={enviarTeste} disabled={isEnviandoTeste || adminsAtivos.length === 0} className="flex-1 gap-2">
+            {isEnviandoTeste ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Enviar Teste Agora
           </Button>
         </div>
 
-        {adminsAtivos.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center">
+        {adminsAtivos.length === 0 && <p className="text-sm text-muted-foreground text-center">
             Selecione pelo menos um administrador para habilitar o envio de teste.
-          </p>
-        )}
+          </p>}
       </TabsContent>
-    </Tabs>
-  );
+    </Tabs>;
 }
