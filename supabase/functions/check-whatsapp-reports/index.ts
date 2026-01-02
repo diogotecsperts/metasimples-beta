@@ -106,10 +106,11 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[check-whatsapp-reports] Erro inesperado:", error);
     return new Response(
-      JSON.stringify({ error: "Erro interno", details: error.message }),
+      JSON.stringify({ error: "Erro interno", details: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
