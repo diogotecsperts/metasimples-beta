@@ -28,7 +28,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-whatsapp-report]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-changelog-email]
 verify_jwt = true
@@ -43,4 +43,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.check-pending-lancamentos]
+verify_jwt = false
+
+[functions.check-whatsapp-reports]
 verify_jwt = false
