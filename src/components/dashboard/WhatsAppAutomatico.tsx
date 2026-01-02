@@ -7,14 +7,33 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Wrench, Bell, User } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History, CheckCircle2, XCircle } from "lucide-react";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
 interface WhatsAppSettings {
   id: string;
   ativo: boolean;
   horarios_ativos: string[];
   gerentes_ativos: string[]; // Agora são admin IDs
+}
+
+interface ReportLogEntry {
+  id: string;
+  admin_id: string;
+  admin_nome: string;
+  admin_telefone: string;
+  data: string;
+  horario_envio: string;
+  template_usado: string;
+  is_test: boolean;
+  status: string;
+  erro_detalhes: string | null;
+  enviado_em: string;
 }
 
 // Lista fixa dos 3 administradores que podem receber relatórios
@@ -57,12 +76,14 @@ const HORARIOS_DISPONIVEIS = [{
   label: "23:40",
   metaRef: "23:00"
 }];
+
 export function WhatsAppAutomatico() {
   const queryClient = useQueryClient();
   const [ativo, setAtivo] = useState(false);
   const [horariosAtivos, setHorariosAtivos] = useState<string[]>([]);
   const [adminsAtivos, setAdminsAtivos] = useState<string[]>([]);
   const [isEnviandoTeste, setIsEnviandoTeste] = useState(false);
+  const [filtroHistorico, setFiltroHistorico] = useState("7");
 
   // Buscar configurações existentes
   const {
@@ -77,6 +98,29 @@ export function WhatsAppAutomatico() {
       } = await supabase.from("whatsapp_report_settings").select("*").limit(1).maybeSingle();
       if (error) throw error;
       return data as WhatsAppSettings | null;
+    }
+  });
+
+  // Buscar histórico de envios
+  const {
+    data: historicoEnvios,
+    isLoading: isLoadingHistorico
+  } = useQuery({
+    queryKey: ["whatsapp-report-log", filtroHistorico],
+    queryFn: async () => {
+      const diasAtras = parseInt(filtroHistorico);
+      const dataLimite = new Date();
+      dataLimite.setDate(dataLimite.getDate() - diasAtras);
+      
+      const { data, error } = await supabase
+        .from("whatsapp_report_log")
+        .select("*")
+        .gte("enviado_em", dataLimite.toISOString())
+        .order("enviado_em", { ascending: false })
+        .limit(100);
+      
+      if (error) throw error;
+      return data as ReportLogEntry[];
     }
   });
 
@@ -115,7 +159,7 @@ export function WhatsAppAutomatico() {
       });
       toast.success("Configurações salvas com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(`Erro ao salvar: ${error.message}`);
     }
   });
@@ -142,27 +186,34 @@ export function WhatsAppAutomatico() {
         if (data.failCount > 0) {
           toast.warning(`${data.failCount} envio(s) falharam. Verifique os logs.`);
         }
+        // Atualizar histórico após envio
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-report-log"] });
       } else {
         toast.error(data.message || data.error || "Erro ao enviar teste");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Erro ao enviar teste:", error);
-      toast.error(`Erro ao enviar teste: ${error.message}`);
+      toast.error(`Erro ao enviar teste: ${errorMessage}`);
     } finally {
       setIsEnviandoTeste(false);
     }
   };
+  
   const toggleHorario = (horario: string) => {
     setHorariosAtivos(prev => prev.includes(horario) ? prev.filter(h => h !== horario) : [...prev, horario]);
   };
+  
   const toggleAdmin = (adminId: string) => {
     setAdminsAtivos(prev => prev.includes(adminId) ? prev.filter(a => a !== adminId) : [...prev, adminId]);
   };
+  
   if (isLoadingSettings) {
     return <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>;
   }
+  
   return <Tabs defaultValue="cobrancas" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="cobrancas" className="flex items-center gap-2">
@@ -275,6 +326,97 @@ export function WhatsAppAutomatico() {
         {adminsAtivos.length === 0 && <p className="text-sm text-muted-foreground text-center">
             Selecione pelo menos um administrador para habilitar o envio de teste.
           </p>}
+
+        {/* Histórico de Envios */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <History className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Histórico de Envios</CardTitle>
+                  <CardDescription>
+                    Registros de relatórios enviados aos administradores
+                  </CardDescription>
+                </div>
+              </div>
+              <Select value={filtroHistorico} onValueChange={setFiltroHistorico}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="14">Últimos 14 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingHistorico ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : historicoEnvios && historicoEnvios.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data/Hora</TableHead>
+                      <TableHead>Administrador</TableHead>
+                      <TableHead>Horário</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historicoEnvios.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{log.admin_nome}</p>
+                            <p className="text-xs text-muted-foreground">{log.admin_telefone}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{log.horario_envio}</TableCell>
+                        <TableCell>
+                          {log.is_test ? (
+                            <Badge variant="secondary">Teste</Badge>
+                          ) : (
+                            <Badge variant="outline">Automático</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {log.status === "enviado" ? (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Enviado</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-red-600" title={log.erro_detalhes || undefined}>
+                              <XCircle className="h-4 w-4" />
+                              <span>Falhou</span>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <History className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>Nenhum envio registrado no período</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>;
 }
