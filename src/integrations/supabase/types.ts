@@ -433,6 +433,48 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_report_log: {
+        Row: {
+          admin_id: string
+          admin_nome: string
+          admin_telefone: string
+          data: string
+          enviado_em: string
+          erro_detalhes: string | null
+          horario_envio: string
+          id: string
+          is_test: boolean
+          status: string
+          template_usado: string
+        }
+        Insert: {
+          admin_id: string
+          admin_nome: string
+          admin_telefone: string
+          data?: string
+          enviado_em?: string
+          erro_detalhes?: string | null
+          horario_envio: string
+          id?: string
+          is_test?: boolean
+          status?: string
+          template_usado?: string
+        }
+        Update: {
+          admin_id?: string
+          admin_nome?: string
+          admin_telefone?: string
+          data?: string
+          enviado_em?: string
+          erro_detalhes?: string | null
+          horario_envio?: string
+          id?: string
+          is_test?: boolean
+          status?: string
+          template_usado?: string
+        }
+        Relationships: []
+      }
       whatsapp_report_settings: {
         Row: {
           ativo: boolean

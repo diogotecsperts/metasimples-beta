@@ -605,6 +605,29 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
+      // Registrar no log de envios
+      const logEntry = {
+        admin_id: admin.id,
+        admin_nome: admin.nome,
+        admin_telefone: admin.telefone,
+        data: todayStr,
+        horario_envio: isTest ? "teste" : (horarioParam || "manual"),
+        template_usado: "relatorio_diario_v2",
+        is_test: isTest,
+        status: result.success ? "enviado" : "falhou",
+        erro_detalhes: result.error || null
+      };
+      
+      const { error: logError } = await supabase
+        .from("whatsapp_report_log")
+        .insert(logEntry);
+      
+      if (logError) {
+        console.error(`[send-whatsapp-report] Erro ao salvar log:`, logError);
+      } else {
+        console.log(`[send-whatsapp-report] Log registrado para ${admin.nome}`);
+      }
+      
       results.push({
         admin: admin.nome,
         success: result.success,
