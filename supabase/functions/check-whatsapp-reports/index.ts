@@ -59,7 +59,49 @@ Deno.serve(async (req) => {
     const horariosAtivos = settings.horarios_ativos || [];
     console.log(`[check-whatsapp-reports] Horários ativos: ${horariosAtivos.join(", ")}`);
 
-    if (!horariosAtivos.includes(horaAtual)) {
+    // Verificar se o horário atual está dentro de uma janela de ±2 minutos de algum horário configurado
+    const isHorarioMatch = (horaCheck: string): boolean => {
+      // Verificação exata primeiro
+      if (horariosAtivos.includes(horaCheck)) return true;
+      
+      // Verificar com tolerância de ±2 minutos
+      const [horaCheckH, horaCheckM] = horaCheck.split(":").map(Number);
+      const checkMinutes = horaCheckH * 60 + horaCheckM;
+      
+      for (const horarioAtivo of horariosAtivos) {
+        const [h, m] = horarioAtivo.split(":").map(Number);
+        const ativoMinutes = h * 60 + m;
+        const diff = Math.abs(checkMinutes - ativoMinutes);
+        
+        // Tolerância de 2 minutos
+        if (diff <= 2 || diff >= (24 * 60 - 2)) {
+          console.log(`[check-whatsapp-reports] Horário ${horaCheck} corresponde a ${horarioAtivo} (tolerância ±2min)`);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Encontrar o horário configurado mais próximo para logging
+    const getHorarioCorrespondente = (): string | null => {
+      if (horariosAtivos.includes(horaAtual)) return horaAtual;
+      
+      const [horaCheckH, horaCheckM] = horaAtual.split(":").map(Number);
+      const checkMinutes = horaCheckH * 60 + horaCheckM;
+      
+      for (const horarioAtivo of horariosAtivos) {
+        const [h, m] = horarioAtivo.split(":").map(Number);
+        const ativoMinutes = h * 60 + m;
+        const diff = Math.abs(checkMinutes - ativoMinutes);
+        
+        if (diff <= 2 || diff >= (24 * 60 - 2)) {
+          return horarioAtivo;
+        }
+      }
+      return null;
+    };
+
+    if (!isHorarioMatch(horaAtual)) {
       console.log(`[check-whatsapp-reports] Horário ${horaAtual} não está nos horários ativos`);
       return new Response(
         JSON.stringify({ message: `Horário ${horaAtual} não está configurado para envio` }),
@@ -67,8 +109,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    const horarioCorrespondente = getHorarioCorrespondente();
+
+    // Verificar se já foi enviado para este horário hoje (evitar duplicatas com a tolerância)
+    const dataHoje = nowBrasil.toISOString().split('T')[0];
+    const horarioParaVerificar = horarioCorrespondente || horaAtual;
+    
+    const { data: enviosExistentes, error: enviosError } = await supabase
+      .from("whatsapp_report_log")
+      .select("id")
+      .eq("data", dataHoje)
+      .eq("horario_envio", horarioParaVerificar)
+      .eq("is_test", false)
+      .limit(1);
+
+    if (enviosError) {
+      console.error("[check-whatsapp-reports] Erro ao verificar envios anteriores:", enviosError);
+    } else if (enviosExistentes && enviosExistentes.length > 0) {
+      console.log(`[check-whatsapp-reports] ⚠️ Relatório para ${horarioParaVerificar} já foi enviado hoje. Ignorando.`);
+      return new Response(
+        JSON.stringify({ message: `Relatório para ${horarioParaVerificar} já enviado hoje`, skipped: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Horário corresponde - chamar send-whatsapp-report
-    console.log(`[check-whatsapp-reports] ✅ Horário ${horaAtual} corresponde! Chamando send-whatsapp-report...`);
+    console.log(`[check-whatsapp-reports] ✅ Horário ${horaAtual} corresponde a ${horarioCorrespondente}! Chamando send-whatsapp-report...`);
 
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     
@@ -79,7 +145,7 @@ Deno.serve(async (req) => {
         "Authorization": `Bearer ${anonKey}`,
       },
       body: JSON.stringify({ 
-        horario: horaAtual, 
+        horario: horarioCorrespondente || horaAtual, 
         isTest: false,
         triggeredBy: "check-whatsapp-reports"
       }),
