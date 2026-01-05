@@ -7,22 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Bell, User, History, CheckCircle2, XCircle, Info, AlertTriangle, Clock, CheckCheck } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History } from "lucide-react";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
 
 interface WhatsAppSettings {
   id: string;
@@ -31,8 +20,7 @@ interface WhatsAppSettings {
   gerentes_ativos: string[]; // Agora são admin IDs
 }
 
-interface ReportLogEntry {
-  id: string;
+interface ReportLogEntry extends LogEntryBase {
   admin_id: string;
   admin_nome: string;
   admin_telefone: string;
@@ -40,17 +28,6 @@ interface ReportLogEntry {
   horario_envio: string;
   template_usado: string;
   is_test: boolean;
-  status: string;
-  erro_detalhes: string | null;
-  enviado_em: string;
-  // Campos de rastreabilidade
-  sendpulse_response: string | null;
-  sendpulse_message_id: string | null;
-  sendpulse_status: number | null;
-  // Campos de status de entrega
-  status_entrega: string | null;
-  webhook_recebido_em: string | null;
-  webhook_payload: string | null;
 }
 
 // Lista fixa dos 3 administradores que podem receber relatórios
@@ -109,10 +86,7 @@ export function WhatsAppAutomatico() {
   } = useQuery({
     queryKey: ["whatsapp-settings"],
     queryFn: async () => {
-      const {
-        data,
-        error
-      } = await supabase.from("whatsapp_report_settings").select("*").limit(1).maybeSingle();
+      const { data, error } = await supabase.from("whatsapp_report_settings").select("*").limit(1).maybeSingle();
       if (error) throw error;
       return data as WhatsAppSettings | null;
     }
@@ -159,21 +133,15 @@ export function WhatsAppAutomatico() {
         gerentes_ativos: adminsAtivos
       };
       if (settings?.id) {
-        const {
-          error
-        } = await supabase.from("whatsapp_report_settings").update(payload).eq("id", settings.id);
+        const { error } = await supabase.from("whatsapp_report_settings").update(payload).eq("id", settings.id);
         if (error) throw error;
       } else {
-        const {
-          error
-        } = await supabase.from("whatsapp_report_settings").insert(payload);
+        const { error } = await supabase.from("whatsapp_report_settings").insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["whatsapp-settings"]
-      });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-settings"] });
       toast.success("Configurações salvas com sucesso!");
     },
     onError: (error: Error) => {
@@ -189,13 +157,8 @@ export function WhatsAppAutomatico() {
     }
     setIsEnviandoTeste(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("send-whatsapp-report", {
-        body: {
-          isTest: true
-        }
+      const { data, error } = await supabase.functions.invoke("send-whatsapp-report", {
+        body: { isTest: true }
       });
       if (error) throw error;
       if (data.success) {
@@ -226,12 +189,15 @@ export function WhatsAppAutomatico() {
   };
   
   if (isLoadingSettings) {
-    return <div className="flex items-center justify-center p-8">
+    return (
+      <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>;
+      </div>
+    );
   }
   
-  return <Tabs defaultValue="cobrancas" className="space-y-6">
+  return (
+    <Tabs defaultValue="cobrancas" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="cobrancas" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
@@ -283,7 +249,12 @@ export function WhatsAppAutomatico() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              {HORARIOS_DISPONIVEIS.map(horario => <div key={horario.value} className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${horariosAtivos.includes(horario.value) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`} onClick={() => toggleHorario(horario.value)}>
+              {HORARIOS_DISPONIVEIS.map(horario => (
+                <div 
+                  key={horario.value} 
+                  className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${horariosAtivos.includes(horario.value) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`} 
+                  onClick={() => toggleHorario(horario.value)}
+                >
                   <div className="flex items-center gap-2">
                     <Checkbox checked={horariosAtivos.includes(horario.value)} className="pointer-events-none" />
                     <span className="font-medium">{horario.label}</span>
@@ -291,7 +262,8 @@ export function WhatsAppAutomatico() {
                   <span className={`text-xs ${horariosAtivos.includes(horario.value) ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                     (meta {horario.metaRef})
                   </span>
-                </div>)}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -306,7 +278,12 @@ export function WhatsAppAutomatico() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              {ADMINISTRADORES_DESTINATARIOS.map(admin => <div key={admin.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${adminsAtivos.includes(admin.id) ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800" : "bg-background hover:bg-muted"}`} onClick={() => toggleAdmin(admin.id)}>
+              {ADMINISTRADORES_DESTINATARIOS.map(admin => (
+                <div 
+                  key={admin.id} 
+                  className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${adminsAtivos.includes(admin.id) ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800" : "bg-background hover:bg-muted"}`} 
+                  onClick={() => toggleAdmin(admin.id)}
+                >
                   <div className="flex items-center gap-3">
                     <Checkbox checked={adminsAtivos.includes(admin.id)} className="pointer-events-none" />
                     <div>
@@ -323,7 +300,8 @@ export function WhatsAppAutomatico() {
                       </div>
                     </div>
                   </div>
-                </div>)}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -340,244 +318,49 @@ export function WhatsAppAutomatico() {
           </Button>
         </div>
 
-        {adminsAtivos.length === 0 && <p className="text-sm text-muted-foreground text-center">
+        {adminsAtivos.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center">
             Selecione pelo menos um administrador para habilitar o envio de teste.
-          </p>}
+          </p>
+        )}
 
-        {/* Histórico de Envios */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  <History className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Histórico de Envios</CardTitle>
-                  <CardDescription>
-                    Registros de relatórios enviados aos administradores
-                  </CardDescription>
-                </div>
-              </div>
-              <Select value={filtroHistorico} onValueChange={setFiltroHistorico}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Últimos 7 dias</SelectItem>
-                  <SelectItem value="14">Últimos 14 dias</SelectItem>
-                  <SelectItem value="30">Últimos 30 dias</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Histórico de Envios - Usando componente compartilhado */}
+        <WhatsAppHistoricoTable<ReportLogEntry>
+          logs={historicoEnvios || []}
+          isLoading={isLoadingHistorico}
+          filtroHistorico={filtroHistorico}
+          onFiltroChange={setFiltroHistorico}
+          titulo="Histórico de Envios"
+          descricao="Registros de relatórios enviados aos administradores"
+          headerIcon={<History className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+          headerBgClass="bg-blue-100 dark:bg-blue-900"
+          renderDestinatario={(log) => (
+            <div>
+              <p className="font-medium">{log.admin_nome}</p>
+              <p className="text-xs text-muted-foreground">{log.admin_telefone}</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            {isLoadingHistorico ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : historicoEnvios && historicoEnvios.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data/Hora</TableHead>
-                      <TableHead>Administrador</TableHead>
-                      <TableHead>Horário</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Status Entrega</TableHead>
-                      <TableHead>Rastreabilidade</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {historicoEnvios.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{log.admin_nome}</p>
-                            <p className="text-xs text-muted-foreground">{log.admin_telefone}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{log.horario_envio}</TableCell>
-                        <TableCell>
-                          {log.is_test ? (
-                            <Badge variant="secondary">Teste</Badge>
-                          ) : (
-                            <Badge variant="outline">Automático</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const statusEntrega = log.status_entrega || (log.status === "enviado" ? "aceito" : "falhou");
-                            
-                            switch (statusEntrega) {
-                              case "enviado":
-                                return (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 text-green-600 cursor-help">
-                                          <CheckCheck className="h-4 w-4" />
-                                          <span>Confirmado</span>
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Webhook confirmou entrega ao WhatsApp</p>
-                                        {log.webhook_recebido_em && (
-                                          <p className="text-xs text-muted-foreground">
-                                            {format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}
-                                          </p>
-                                        )}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                );
-                              case "aceito":
-                                return (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 text-yellow-600 cursor-help">
-                                          <Clock className="h-4 w-4" />
-                                          <span>Aceito</span>
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>SendPulse aceitou, aguardando confirmação do WhatsApp</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                );
-                              case "falhou":
-                              default:
-                                return (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 text-red-600 cursor-help">
-                                          <XCircle className="h-4 w-4" />
-                                          <span>Falhou</span>
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent className="max-w-xs">
-                                        <p>{log.erro_detalhes || "Erro desconhecido"}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                );
-                            }
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {log.sendpulse_message_id ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge variant="outline" className="cursor-help text-xs">
-                                      ID: {log.sendpulse_message_id.substring(0, 8)}...
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="font-mono text-xs">{log.sendpulse_message_id}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">Sem ID</Badge>
-                            )}
-                            
-                            {log.sendpulse_status && (
-                              <Badge 
-                                variant={log.sendpulse_status === 200 ? "default" : "destructive"} 
-                                className="text-xs"
-                              >
-                                HTTP {log.sendpulse_status}
-                              </Badge>
-                            )}
-                            
-                            {log.sendpulse_response && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-6 px-2">
-                                    <Info className="h-3 w-3" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-                                  <DialogHeader>
-                                    <DialogTitle>Resposta do SendPulse</DialogTitle>
-                                    <DialogDescription>
-                                      Envio para {log.admin_nome} em {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <p className="text-sm font-medium mb-1">Message ID:</p>
-                                      <code className="text-xs bg-muted p-2 rounded block">
-                                        {log.sendpulse_message_id || "N/A"}
-                                      </code>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium mb-1">HTTP Status:</p>
-                                      <Badge variant={log.sendpulse_status === 200 ? "default" : "destructive"}>
-                                        {log.sendpulse_status || "N/A"}
-                                      </Badge>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium mb-1">Resposta Completa:</p>
-                                      <pre className="text-xs bg-muted p-3 rounded overflow-x-auto whitespace-pre-wrap break-all">
-                                        {(() => {
-                                          try {
-                                            return JSON.stringify(JSON.parse(log.sendpulse_response || "{}"), null, 2);
-                                          } catch {
-                                            return log.sendpulse_response || "N/A";
-                                          }
-                                        })()}
-                                      </pre>
-                                    </div>
-                                    {log.erro_detalhes && (
-                                      <div>
-                                        <p className="text-sm font-medium mb-1 text-destructive">Erro:</p>
-                                        <code className="text-xs bg-destructive/10 text-destructive p-2 rounded block">
-                                          {log.erro_detalhes}
-                                        </code>
-                                      </div>
-                                    )}
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                            
-                            {!log.sendpulse_response && !log.sendpulse_message_id && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Envio anterior à rastreabilidade</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <History className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                <p>Nenhum envio registrado no período</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+          colunasExtrasHeader={
+            <>
+              <TableHead>Horário</TableHead>
+              <TableHead>Tipo</TableHead>
+            </>
+          }
+          renderColunasExtras={(log) => (
+            <>
+              <td className="p-4 align-middle">{log.horario_envio}</td>
+              <td className="p-4 align-middle">
+                {log.is_test ? (
+                  <Badge variant="secondary">Teste</Badge>
+                ) : (
+                  <Badge variant="outline">Automático</Badge>
+                )}
+              </td>
+            </>
+          )}
+          getDestinatarioNome={(log) => log.admin_nome}
+        />
       </TabsContent>
-    </Tabs>;
+    </Tabs>
+  );
 }
