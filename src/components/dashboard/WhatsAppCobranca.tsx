@@ -175,6 +175,29 @@ export function WhatsAppCobranca() {
     }
   }, [settings]);
 
+  // Realtime: escutar mudanças na tabela de logs para atualizar status automaticamente
+  useEffect(() => {
+    const channel = supabase
+      .channel('whatsapp-cobranca-log-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_cobranca_log'
+        },
+        (payload) => {
+          console.log('[Realtime] Cobrança log atualizado:', payload);
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   // Mutation para salvar configurações
   const salvarMutation = useMutation({
     mutationFn: async () => {

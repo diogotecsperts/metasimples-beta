@@ -124,6 +124,29 @@ export function WhatsAppAutomatico() {
     }
   }, [settings]);
 
+  // Realtime: escutar mudanças na tabela de logs para atualizar status automaticamente
+  useEffect(() => {
+    const channel = supabase
+      .channel('whatsapp-report-log-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_report_log'
+        },
+        (payload) => {
+          console.log('[Realtime] Report log atualizado:', payload);
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-report-log"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   // Mutation para salvar configurações
   const salvarMutation = useMutation({
     mutationFn: async () => {

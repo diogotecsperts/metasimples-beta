@@ -76,6 +76,26 @@ function normalizePhoneNumber(phone: string): string {
   return `+55${digits}`;
 }
 
+/**
+ * Compara dois números de telefone de forma flexível.
+ * O SendPulse pode enviar sem o "9" do celular (ex: 558281627838)
+ * enquanto o banco pode ter com o "9" (ex: 82981627838 → +5582981627838)
+ * 
+ * Solução: comparar os últimos 8 dígitos (número local sem DDD)
+ */
+function phonesMatch(phone1: string, phone2: string): boolean {
+  const digits1 = phone1.replace(/\D/g, '');
+  const digits2 = phone2.replace(/\D/g, '');
+  
+  // Pegar os últimos 8 dígitos de cada (número sem o 9 inicial)
+  const suffix1 = digits1.slice(-8);
+  const suffix2 = digits2.slice(-8);
+  
+  console.log(`[phonesMatch] Comparando: ${suffix1} vs ${suffix2} (de ${digits1} e ${digits2})`);
+  
+  return suffix1 === suffix2;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Log de entrada para debug
   const url = new URL(req.url);
@@ -161,10 +181,11 @@ const handler = async (req: Request): Promise<Response> => {
       if (reportError) {
         console.error(`[receive-whatsapp-webhook] Erro ao buscar report_logs:`, reportError);
       } else if (reportLogs) {
-        // Filtrar por telefone normalizado
+        // Filtrar usando comparação flexível de telefones
         const matchingLogs = reportLogs.filter(log => {
-          const logPhone = normalizePhoneNumber(log.admin_telefone || "");
-          return logPhone === normalizedPhone;
+          const match = phonesMatch(log.admin_telefone || "", phone);
+          console.log(`[receive-whatsapp-webhook] Comparando log ${log.id}: ${log.admin_telefone} vs ${phone} = ${match}`);
+          return match;
         });
 
         console.log(`[receive-whatsapp-webhook] report_logs com status 'aceito': ${reportLogs.length}, matching phone: ${matchingLogs.length}`);
@@ -197,10 +218,11 @@ const handler = async (req: Request): Promise<Response> => {
         .select("id, telefone")
         .not("telefone", "is", null);
 
-      // Encontrar gerentes com este telefone
+      // Encontrar gerentes usando comparação flexível de telefones
       const matchingProfiles = (profiles || []).filter(p => {
-        const profilePhone = normalizePhoneNumber(p.telefone || "");
-        return profilePhone === normalizedPhone;
+        const match = phonesMatch(p.telefone || "", phone);
+        console.log(`[receive-whatsapp-webhook] Comparando profile ${p.id}: ${p.telefone} vs ${phone} = ${match}`);
+        return match;
       });
 
       console.log(`[receive-whatsapp-webhook] profiles matching phone: ${matchingProfiles.length}`);
