@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2 } from "lucide-react";
 import React from "react";
+import { toast } from "sonner";
 
 // Interface genérica para logs - campos comuns a ambas as tabelas
 export interface LogEntryBase {
@@ -125,29 +126,25 @@ function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; des
   return (
     <div className="flex items-center gap-2">
       {log.sendpulse_message_id ? (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Badge variant="outline" className="cursor-pointer text-xs hover:bg-muted">
-              ID: {log.sendpulse_message_id.substring(0, 8)}...
-            </Badge>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>ID da Mensagem</DialogTitle>
-              <DialogDescription>
-                Identificador único do SendPulse
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <code className="text-sm bg-muted p-3 rounded block break-all font-mono">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className="cursor-pointer text-xs hover:bg-muted font-mono"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(log.sendpulse_message_id!);
+                  toast.success("ID copiado!");
+                }}
+              >
                 {log.sendpulse_message_id}
-              </code>
-              <Button onClick={handleCopyId} variant="outline" className="w-full">
-                Copiar ID
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Clique para copiar</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       ) : (
         <TooltipProvider>
           <Tooltip>
