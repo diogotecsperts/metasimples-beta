@@ -653,10 +653,12 @@ const handler = async (req: Request): Promise<Response> => {
         is_test: isTest,
         status: result.success ? "enviado" : "falhou",
         erro_detalhes: result.error || null,
-        // Novas colunas de rastreabilidade
+        // Colunas de rastreabilidade do SendPulse
         sendpulse_response: result.fullResponse || null,
         sendpulse_message_id: result.messageId || null,
-        sendpulse_status: result.sendpulseStatus || null
+        sendpulse_status: result.sendpulseStatus || null,
+        // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
+        status_entrega: result.success ? "aceito" : "falhou"
       };
       
       console.log(`[send-whatsapp-report] Salvando log com rastreabilidade:`, {

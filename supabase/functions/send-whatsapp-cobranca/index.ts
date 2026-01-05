@@ -586,10 +586,12 @@ const handler = async (req: Request): Promise<Response> => {
           template_usado: templateName,
           status: sendResult.success ? 'enviado' : 'erro',
           erro_detalhes: sendResult.error || null,
-          // Novas colunas de rastreabilidade
+          // Colunas de rastreabilidade do SendPulse
           sendpulse_response: sendResult.fullResponse || null,
           sendpulse_message_id: sendResult.messageId || null,
-          sendpulse_status: sendResult.sendpulseStatus || null
+          sendpulse_status: sendResult.sendpulseStatus || null,
+          // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
+          status_entrega: sendResult.success ? "aceito" : "falhou"
         });
       }
 
@@ -686,10 +688,12 @@ const handler = async (req: Request): Promise<Response> => {
       template_usado: templateName,
       status: result.success ? 'enviado' : 'erro',
       erro_detalhes: result.error || null,
-      // Novas colunas de rastreabilidade
+      // Colunas de rastreabilidade do SendPulse
       sendpulse_response: result.fullResponse || null,
       sendpulse_message_id: result.messageId || null,
-      sendpulse_status: result.sendpulseStatus || null
+      sendpulse_status: result.sendpulseStatus || null,
+      // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
+      status_entrega: result.success ? "aceito" : "falhou"
     });
 
     if (!result.success) {

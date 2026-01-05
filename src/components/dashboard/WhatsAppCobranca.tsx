@@ -8,9 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, CheckCircle2, XCircle, CheckCheck } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 interface Gerente {
   id: string;
   nome: string;
@@ -40,6 +41,10 @@ interface CobrancaLog {
   enviado_em: string;
   status: string;
   erro_detalhes: string | null;
+  // Campos de status de entrega
+  status_entrega: string | null;
+  webhook_recebido_em: string | null;
+  webhook_payload: string | null;
 }
 const HORARIOS_LANCAMENTO = [{
   value: "10:00",
@@ -482,22 +487,69 @@ export function WhatsAppCobranca() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {logs.map(log => <div key={log.id} className={`flex items-center justify-between p-3 rounded-lg border text-sm ${log.status === 'enviado' ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"}`}>
-                  <div className="flex items-center gap-3">
-                    {log.status === 'enviado' ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                    <div>
-                      <p className="font-medium">{gerentesMap[log.gerente_id] || "Gerente"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {log.horario_lancamento} • Nível {log.nivel_cobranca} • +{log.minutos_atraso}min
+              {logs.map(log => {
+                const statusEntrega = log.status_entrega || (log.status === 'enviado' ? 'aceito' : 'falhou');
+                
+                return (
+                  <div 
+                    key={log.id} 
+                    className={`flex items-center justify-between p-3 rounded-lg border text-sm ${
+                      statusEntrega === 'enviado' 
+                        ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800" 
+                        : statusEntrega === 'aceito'
+                        ? "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800"
+                        : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {statusEntrega === 'enviado' ? (
+                              <CheckCheck className="h-4 w-4 text-green-600 cursor-help" />
+                            ) : statusEntrega === 'aceito' ? (
+                              <Clock className="h-4 w-4 text-yellow-600 cursor-help" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-600 cursor-help" />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {statusEntrega === 'enviado' ? (
+                              <>
+                                <p>Confirmado via webhook</p>
+                                {log.webhook_recebido_em && (
+                                  <p className="text-xs">{format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}</p>
+                                )}
+                              </>
+                            ) : statusEntrega === 'aceito' ? (
+                              <p>Aceito pelo SendPulse, aguardando confirmação</p>
+                            ) : (
+                              <p>{log.erro_detalhes || "Erro no envio"}</p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <div>
+                        <p className="font-medium">{gerentesMap[log.gerente_id] || "Gerente"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {log.horario_lancamento} • Nível {log.nivel_cobranca} • +{log.minutos_atraso}min
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge 
+                        variant={statusEntrega === 'enviado' ? "default" : statusEntrega === 'aceito' ? "secondary" : "destructive"}
+                        className="text-xs"
+                      >
+                        {statusEntrega === 'enviado' ? 'Confirmado' : statusEntrega === 'aceito' ? 'Aceito' : 'Falhou'}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(log.enviado_em), "dd/MM HH:mm", { locale: ptBR })}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right text-xs text-muted-foreground">
-                    {format(new Date(log.enviado_em), "dd/MM HH:mm", {
-                locale: ptBR
+                );
               })}
-                  </div>
-                </div>)}
             </div>
           </CardContent>
         </Card>}

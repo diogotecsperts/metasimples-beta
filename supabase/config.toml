@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.check-whatsapp-reports]
 verify_jwt = false
+
+[functions.receive-whatsapp-webhook]
+verify_jwt = false

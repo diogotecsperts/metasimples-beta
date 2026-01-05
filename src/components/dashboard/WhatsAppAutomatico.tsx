@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Bell, User, History, CheckCircle2, XCircle, Info, AlertTriangle } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History, CheckCircle2, XCircle, Info, AlertTriangle, Clock, CheckCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
@@ -43,10 +43,14 @@ interface ReportLogEntry {
   status: string;
   erro_detalhes: string | null;
   enviado_em: string;
-  // Novos campos de rastreabilidade
+  // Campos de rastreabilidade
   sendpulse_response: string | null;
   sendpulse_message_id: string | null;
   sendpulse_status: number | null;
+  // Campos de status de entrega
+  status_entrega: string | null;
+  webhook_recebido_em: string | null;
+  webhook_payload: string | null;
 }
 
 // Lista fixa dos 3 administradores que podem receber relatórios
@@ -381,7 +385,7 @@ export function WhatsAppAutomatico() {
                       <TableHead>Administrador</TableHead>
                       <TableHead>Horário</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Status Entrega</TableHead>
                       <TableHead>Rastreabilidade</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -406,26 +410,66 @@ export function WhatsAppAutomatico() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {log.status === "enviado" ? (
-                            <div className="flex items-center gap-1 text-green-600">
-                              <CheckCircle2 className="h-4 w-4" />
-                              <span>Enviado</span>
-                            </div>
-                          ) : (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1 text-red-600 cursor-help">
-                                    <XCircle className="h-4 w-4" />
-                                    <span>Falhou</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p>{log.erro_detalhes || "Erro desconhecido"}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                          {(() => {
+                            const statusEntrega = log.status_entrega || (log.status === "enviado" ? "aceito" : "falhou");
+                            
+                            switch (statusEntrega) {
+                              case "enviado":
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-green-600 cursor-help">
+                                          <CheckCheck className="h-4 w-4" />
+                                          <span>Confirmado</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Webhook confirmou entrega ao WhatsApp</p>
+                                        {log.webhook_recebido_em && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                                          </p>
+                                        )}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              case "aceito":
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-yellow-600 cursor-help">
+                                          <Clock className="h-4 w-4" />
+                                          <span>Aceito</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>SendPulse aceitou, aguardando confirmação do WhatsApp</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              case "falhou":
+                              default:
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-red-600 cursor-help">
+                                          <XCircle className="h-4 w-4" />
+                                          <span>Falhou</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs">
+                                        <p>{log.erro_detalhes || "Erro desconhecido"}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                            }
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
