@@ -116,23 +116,49 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
 
 // Componente de rastreabilidade - compartilhado
 function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; destinatarioNome: string }) {
+  const handleCopyId = async () => {
+    if (log.sendpulse_message_id) {
+      await navigator.clipboard.writeText(log.sendpulse_message_id);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
       {log.sendpulse_message_id ? (
+        <Dialog>
+          <DialogTrigger asChild>
+            <Badge variant="outline" className="cursor-pointer text-xs hover:bg-muted">
+              ID: {log.sendpulse_message_id.substring(0, 8)}...
+            </Badge>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>ID da Mensagem</DialogTitle>
+              <DialogDescription>
+                Identificador único do SendPulse
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <code className="text-sm bg-muted p-3 rounded block break-all font-mono">
+                {log.sendpulse_message_id}
+              </code>
+              <Button onClick={handleCopyId} variant="outline" className="w-full">
+                Copiar ID
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="outline" className="cursor-help text-xs">
-                ID: {log.sendpulse_message_id.substring(0, 8)}...
-              </Badge>
+              <Badge variant="secondary" className="text-xs cursor-help">Sem ID</Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="font-mono text-xs">{log.sendpulse_message_id}</p>
+              <p>Envio anterior à rastreabilidade</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      ) : (
-        <Badge variant="secondary" className="text-xs">Sem ID</Badge>
       )}
       
       {log.sendpulse_status && (
@@ -161,7 +187,7 @@ function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; des
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium mb-1">Message ID:</p>
-                <code className="text-xs bg-muted p-2 rounded block">
+                <code className="text-xs bg-muted p-2 rounded block break-all">
                   {log.sendpulse_message_id || "N/A"}
                 </code>
               </div>
@@ -214,7 +240,7 @@ function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; des
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
             </TooltipTrigger>
             <TooltipContent>
               <p>Envio anterior à rastreabilidade</p>
