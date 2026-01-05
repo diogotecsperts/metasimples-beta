@@ -360,6 +360,7 @@ export type Database = {
       }
       whatsapp_cobranca_log: {
         Row: {
+          contact_id_usado: string | null
           data: string
           enviado_em: string
           erro_detalhes: string | null
@@ -367,6 +368,7 @@ export type Database = {
           horario_lancamento: string
           id: string
           loja_id: string
+          metodo_envio: string | null
           minutos_atraso: number
           nivel_cobranca: number
           sendpulse_message_id: string | null
@@ -374,11 +376,13 @@ export type Database = {
           sendpulse_status: number | null
           status: string
           status_entrega: string | null
+          telefone_usado: string | null
           template_usado: string
           webhook_payload: string | null
           webhook_recebido_em: string | null
         }
         Insert: {
+          contact_id_usado?: string | null
           data: string
           enviado_em?: string
           erro_detalhes?: string | null
@@ -386,6 +390,7 @@ export type Database = {
           horario_lancamento: string
           id?: string
           loja_id: string
+          metodo_envio?: string | null
           minutos_atraso: number
           nivel_cobranca: number
           sendpulse_message_id?: string | null
@@ -393,11 +398,13 @@ export type Database = {
           sendpulse_status?: number | null
           status?: string
           status_entrega?: string | null
+          telefone_usado?: string | null
           template_usado: string
           webhook_payload?: string | null
           webhook_recebido_em?: string | null
         }
         Update: {
+          contact_id_usado?: string | null
           data?: string
           enviado_em?: string
           erro_detalhes?: string | null
@@ -405,6 +412,7 @@ export type Database = {
           horario_lancamento?: string
           id?: string
           loja_id?: string
+          metodo_envio?: string | null
           minutos_atraso?: number
           nivel_cobranca?: number
           sendpulse_message_id?: string | null
@@ -412,6 +420,7 @@ export type Database = {
           sendpulse_status?: number | null
           status?: string
           status_entrega?: string | null
+          telefone_usado?: string | null
           template_usado?: string
           webhook_payload?: string | null
           webhook_recebido_em?: string | null
@@ -456,12 +465,14 @@ export type Database = {
           admin_id: string
           admin_nome: string
           admin_telefone: string
+          contact_id_usado: string | null
           data: string
           enviado_em: string
           erro_detalhes: string | null
           horario_envio: string
           id: string
           is_test: boolean
+          metodo_envio: string | null
           sendpulse_message_id: string | null
           sendpulse_response: string | null
           sendpulse_status: number | null
@@ -475,12 +486,14 @@ export type Database = {
           admin_id: string
           admin_nome: string
           admin_telefone: string
+          contact_id_usado?: string | null
           data?: string
           enviado_em?: string
           erro_detalhes?: string | null
           horario_envio: string
           id?: string
           is_test?: boolean
+          metodo_envio?: string | null
           sendpulse_message_id?: string | null
           sendpulse_response?: string | null
           sendpulse_status?: number | null
@@ -494,12 +507,14 @@ export type Database = {
           admin_id?: string
           admin_nome?: string
           admin_telefone?: string
+          contact_id_usado?: string | null
           data?: string
           enviado_em?: string
           erro_detalhes?: string | null
           horario_envio?: string
           id?: string
           is_test?: boolean
+          metodo_envio?: string | null
           sendpulse_message_id?: string | null
           sendpulse_response?: string | null
           sendpulse_status?: number | null
