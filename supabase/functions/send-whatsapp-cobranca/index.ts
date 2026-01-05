@@ -81,7 +81,7 @@ async function sendWhatsAppTemplateByPhone(
   phone: string,
   templateName: string,
   parameters: string[]
-): Promise<{ success: boolean; error?: string; errorCode?: string }> {
+): Promise<{ success: boolean; error?: string; errorCode?: string; messageId?: string; sendpulseStatus?: number; fullResponse?: string }> {
   console.log(`[send-whatsapp-cobranca] Enviando template ${templateName} para telefone ${phone}...`);
   
   const bodyParameters = parameters.map(text => ({ type: "text", text }));
@@ -118,10 +118,14 @@ async function sendWhatsAppTemplateByPhone(
   const responseText = await response.text();
   console.log(`[send-whatsapp-cobranca] Resposta sendTemplateByPhone:`, response.status, responseText);
 
+  let messageId: string | undefined;
+  const sendpulseStatus = response.status;
+
   if (!response.ok) {
     // Tentar extrair código de erro específico
     try {
       const errorData = JSON.parse(responseText);
+      messageId = errorData.data?.message_id || errorData.message_id;
       const errorMessage = errorData.message || errorData.errors?.phone?.[0] || errorData.errors?.contact_id?.[0] || errorData.errors?.contact?.[0] || JSON.stringify(errorData.errors) || responseText;
       
       // Verificar se é "Contact is banned" - múltiplas formas de detecção
@@ -132,7 +136,7 @@ async function sendWhatsAppTemplateByPhone(
       
       if (isBanned) {
         console.log(`[send-whatsapp-cobranca] Contato banido detectado. responseText: ${responseText}`);
-        return { success: false, error: errorMessage, errorCode: "CONTACT_BANNED" };
+        return { success: false, error: errorMessage, errorCode: "CONTACT_BANNED", messageId, sendpulseStatus, fullResponse: responseText };
       }
       
       // Verificar se é "Contact does not exist"
@@ -142,25 +146,43 @@ async function sendWhatsAppTemplateByPhone(
         (Array.isArray(errorData.errors?.contact_id) && errorData.errors.contact_id.some((e: string) => e.toLowerCase().includes("does not exist")));
       
       if (isNotFound) {
-        return { success: false, error: errorMessage, errorCode: "CONTACT_NOT_FOUND" };
+        return { success: false, error: errorMessage, errorCode: "CONTACT_NOT_FOUND", messageId, sendpulseStatus, fullResponse: responseText };
       }
       
-      return { success: false, error: `HTTP ${response.status}: ${errorMessage}` };
+      return { success: false, error: `HTTP ${response.status}: ${errorMessage}`, messageId, sendpulseStatus, fullResponse: responseText };
     } catch {
-      return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+      return { success: false, error: `HTTP ${response.status}: ${responseText}`, sendpulseStatus, fullResponse: responseText };
     }
   }
 
   try {
     const responseJson = JSON.parse(responseText);
+    messageId = responseJson.data?.message_id || responseJson.message_id || responseJson.data?.id;
+    
     if (responseJson.success === false) {
-      return { success: false, error: responseJson.message || JSON.stringify(responseJson.errors) || "SendPulse returned success: false" };
+      return { 
+        success: false, 
+        error: responseJson.message || JSON.stringify(responseJson.errors) || "SendPulse returned success: false",
+        messageId,
+        sendpulseStatus,
+        fullResponse: responseText
+      };
     }
+    
+    return { 
+      success: true,
+      messageId,
+      sendpulseStatus,
+      fullResponse: responseText
+    };
   } catch {
     // Response wasn't JSON, continue
+    return { 
+      success: true,
+      sendpulseStatus,
+      fullResponse: responseText
+    };
   }
-
-  return { success: true };
 }
 
 // NOVA FUNÇÃO: Criar contato no SendPulse
@@ -238,7 +260,7 @@ async function sendWhatsAppTemplate(
   contactId: string,
   templateName: string,
   parameters: string[]
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; messageId?: string; sendpulseStatus?: number; fullResponse?: string }> {
   console.log(`[send-whatsapp-cobranca] Enviando template ${templateName} para contact_id ${contactId}...`);
   
   const bodyParameters = parameters.map(text => ({ type: "text", text }));
@@ -274,19 +296,56 @@ async function sendWhatsAppTemplate(
   const responseText = await response.text();
   console.log(`[send-whatsapp-cobranca] Resposta sendTemplate:`, response.status, responseText);
 
-  if (!response.ok) {
-    return { success: false, error: `HTTP ${response.status}: ${responseText}` };
-  }
+  let messageId: string | undefined;
+  let sendpulseStatus: number | undefined = response.status;
 
-  return { success: true };
+  try {
+    const responseJson = JSON.parse(responseText);
+    messageId = responseJson.data?.message_id || responseJson.message_id || responseJson.data?.id;
+    
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: `HTTP ${response.status}: ${responseText}`,
+        messageId,
+        sendpulseStatus,
+        fullResponse: responseText
+      };
+    }
+    
+    return { 
+      success: true,
+      messageId,
+      sendpulseStatus,
+      fullResponse: responseText
+    };
+  } catch {
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: `HTTP ${response.status}: ${responseText}`,
+        sendpulseStatus,
+        fullResponse: responseText
+      };
+    }
+    return { 
+      success: true,
+      sendpulseStatus,
+      fullResponse: responseText
+    };
+  }
 }
 
-// Resultado do envio com motivo detalhado
+// Resultado do envio com motivo detalhado e rastreabilidade
 interface SendResult {
   gerente: string;
   success: boolean;
   error?: string;
   reason?: "sem_telefone" | "contato_nao_existe" | "contato_banido" | "erro_sendpulse" | "enviado";
+  // Dados de rastreabilidade do SendPulse
+  messageId?: string;
+  sendpulseStatus?: number;
+  fullResponse?: string;
 }
 
 // Função principal de envio para um gerente
@@ -311,7 +370,14 @@ async function enviarParaGerente(
   let result = await sendWhatsAppTemplateByPhone(accessToken, botId, normalizedPhone, templateName, parameters);
 
   if (result.success) {
-    return { gerente: gerente.nome, success: true, reason: "enviado" };
+    return { 
+      gerente: gerente.nome, 
+      success: true, 
+      reason: "enviado",
+      messageId: result.messageId,
+      sendpulseStatus: result.sendpulseStatus,
+      fullResponse: result.fullResponse
+    };
   }
 
   // 2. Se contato não existe, tentar criar e reenviar
@@ -330,7 +396,14 @@ async function enviarParaGerente(
       result = await sendWhatsAppTemplateByPhone(accessToken, botId, normalizedPhone, templateName, parameters);
       
       if (result.success) {
-        return { gerente: gerente.nome, success: true, reason: "enviado" };
+        return { 
+          gerente: gerente.nome, 
+          success: true, 
+          reason: "enviado",
+          messageId: result.messageId,
+          sendpulseStatus: result.sendpulseStatus,
+          fullResponse: result.fullResponse
+        };
       }
     }
     
@@ -339,7 +412,10 @@ async function enviarParaGerente(
       gerente: gerente.nome, 
       success: false, 
       error: `Contato não existe no SendPulse e não foi possível criar. O número ${normalizedPhone} precisa iniciar uma conversa com o bot primeiro.`,
-      reason: "contato_nao_existe"
+      reason: "contato_nao_existe",
+      messageId: result.messageId,
+      sendpulseStatus: result.sendpulseStatus,
+      fullResponse: result.fullResponse
     };
   }
 
@@ -361,7 +437,14 @@ async function enviarParaGerente(
       const retryResult = await sendWhatsAppTemplate(accessToken, knownContactId, templateName, parameters);
       
       if (retryResult.success) {
-        return { gerente: gerente.nome, success: true, reason: "enviado" };
+        return { 
+          gerente: gerente.nome, 
+          success: true, 
+          reason: "enviado",
+          messageId: retryResult.messageId,
+          sendpulseStatus: retryResult.sendpulseStatus,
+          fullResponse: retryResult.fullResponse
+        };
       }
       
       // Mesmo após enable, ainda falhou
@@ -369,7 +452,10 @@ async function enviarParaGerente(
         gerente: gerente.nome, 
         success: false, 
         error: `Contato banido. Tentamos habilitar mas ainda falhou: ${retryResult.error}`,
-        reason: "contato_banido"
+        reason: "contato_banido",
+        messageId: retryResult.messageId,
+        sendpulseStatus: retryResult.sendpulseStatus,
+        fullResponse: retryResult.fullResponse
       };
     } else {
       // Não temos contact_id conhecido - não podemos fazer nada
@@ -377,7 +463,10 @@ async function enviarParaGerente(
         gerente: gerente.nome, 
         success: false, 
         error: `Contato banido no SendPulse. Não temos contact_id para tentar habilitar. Peça ao gerente para iniciar uma conversa com o bot.`,
-        reason: "contato_banido"
+        reason: "contato_banido",
+        messageId: result.messageId,
+        sendpulseStatus: result.sendpulseStatus,
+        fullResponse: result.fullResponse
       };
     }
   }
@@ -387,7 +476,10 @@ async function enviarParaGerente(
     gerente: gerente.nome, 
     success: false, 
     error: result.error || "Erro desconhecido do SendPulse",
-    reason: "erro_sendpulse"
+    reason: "erro_sendpulse",
+    messageId: result.messageId,
+    sendpulseStatus: result.sendpulseStatus,
+    fullResponse: result.fullResponse
   };
 }
 
@@ -483,7 +575,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         results.push(sendResult);
 
-        // Registrar no log (como teste)
+        // Registrar no log (como teste) com rastreabilidade
         await supabase.from("whatsapp_cobranca_log").insert({
           gerente_id: gerente.id,
           loja_id: gerente.loja_id || '00000000-0000-0000-0000-000000000000',
@@ -493,7 +585,11 @@ const handler = async (req: Request): Promise<Response> => {
           nivel_cobranca: 0, // 0 indica teste
           template_usado: templateName,
           status: sendResult.success ? 'enviado' : 'erro',
-          erro_detalhes: sendResult.error || null
+          erro_detalhes: sendResult.error || null,
+          // Novas colunas de rastreabilidade
+          sendpulse_response: sendResult.fullResponse || null,
+          sendpulse_message_id: sendResult.messageId || null,
+          sendpulse_status: sendResult.sendpulseStatus || null
         });
       }
 
@@ -579,7 +675,7 @@ const handler = async (req: Request): Promise<Response> => {
       horarioLancamento || "10:00"
     );
 
-    // Registrar no log
+    // Registrar no log com rastreabilidade
     await supabase.from("whatsapp_cobranca_log").insert({
       gerente_id: gerente.id,
       loja_id: lojaId || gerente.loja_id || '00000000-0000-0000-0000-000000000000',
@@ -589,7 +685,11 @@ const handler = async (req: Request): Promise<Response> => {
       nivel_cobranca: nivelCobranca,
       template_usado: templateName,
       status: result.success ? 'enviado' : 'erro',
-      erro_detalhes: result.error || null
+      erro_detalhes: result.error || null,
+      // Novas colunas de rastreabilidade
+      sendpulse_response: result.fullResponse || null,
+      sendpulse_message_id: result.messageId || null,
+      sendpulse_status: result.sendpulseStatus || null
     });
 
     if (!result.success) {

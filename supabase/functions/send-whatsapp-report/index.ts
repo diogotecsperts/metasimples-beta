@@ -270,7 +270,7 @@ async function sendWhatsAppTemplateByContactId(
   contactId: string,
   templateName: string,
   parameters: string[]
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; messageId?: string; sendpulseStatus?: number; fullResponse?: string }> {
   console.log(`[send-whatsapp-report] Enviando template ${templateName} para contact_id ${contactId}...`);
   
   // Converter array em formato de parâmetros do SendPulse
@@ -308,21 +308,58 @@ async function sendWhatsAppTemplateByContactId(
   const responseText = await response.text();
   console.log(`[send-whatsapp-report] Resposta sendTemplate:`, response.status, responseText);
 
-  if (!response.ok) {
-    return { success: false, error: `HTTP ${response.status}: ${responseText}` };
-  }
+  // Sempre capturar a resposta completa
+  let messageId: string | undefined;
+  let sendpulseStatus: number | undefined;
 
-  // Parse response to check for success field
   try {
     const responseJson = JSON.parse(responseText);
-    if (responseJson.success === false) {
-      return { success: false, error: responseJson.message || JSON.stringify(responseJson.errors) || "SendPulse returned success: false" };
+    // Tentar extrair message_id da resposta (pode variar dependendo da estrutura)
+    messageId = responseJson.data?.message_id || responseJson.message_id || responseJson.data?.id;
+    sendpulseStatus = response.status;
+    
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: `HTTP ${response.status}: ${responseText}`,
+        messageId,
+        sendpulseStatus,
+        fullResponse: responseText
+      };
     }
-  } catch (e) {
-    // Response wasn't JSON, continue
-  }
 
-  return { success: true };
+    if (responseJson.success === false) {
+      return { 
+        success: false, 
+        error: responseJson.message || JSON.stringify(responseJson.errors) || "SendPulse returned success: false",
+        messageId,
+        sendpulseStatus,
+        fullResponse: responseText
+      };
+    }
+    
+    return { 
+      success: true,
+      messageId,
+      sendpulseStatus,
+      fullResponse: responseText
+    };
+  } catch (e) {
+    // Response não era JSON válido
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: `HTTP ${response.status}: ${responseText}`,
+        sendpulseStatus: response.status,
+        fullResponse: responseText
+      };
+    }
+    return { 
+      success: true,
+      sendpulseStatus: response.status,
+      fullResponse: responseText
+    };
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -605,7 +642,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Registrar no log de envios
+      // Registrar no log de envios com rastreabilidade completa
       const logEntry = {
         admin_id: admin.id,
         admin_nome: admin.nome,
@@ -615,8 +652,18 @@ const handler = async (req: Request): Promise<Response> => {
         template_usado: "relatorio_diario_v2",
         is_test: isTest,
         status: result.success ? "enviado" : "falhou",
-        erro_detalhes: result.error || null
+        erro_detalhes: result.error || null,
+        // Novas colunas de rastreabilidade
+        sendpulse_response: result.fullResponse || null,
+        sendpulse_message_id: result.messageId || null,
+        sendpulse_status: result.sendpulseStatus || null
       };
+      
+      console.log(`[send-whatsapp-report] Salvando log com rastreabilidade:`, {
+        messageId: result.messageId,
+        sendpulseStatus: result.sendpulseStatus,
+        fullResponseLength: result.fullResponse?.length
+      });
       
       const { error: logError } = await supabase
         .from("whatsapp_report_log")

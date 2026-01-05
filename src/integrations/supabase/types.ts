@@ -369,6 +369,9 @@ export type Database = {
           loja_id: string
           minutos_atraso: number
           nivel_cobranca: number
+          sendpulse_message_id: string | null
+          sendpulse_response: string | null
+          sendpulse_status: number | null
           status: string
           template_usado: string
         }
@@ -382,6 +385,9 @@ export type Database = {
           loja_id: string
           minutos_atraso: number
           nivel_cobranca: number
+          sendpulse_message_id?: string | null
+          sendpulse_response?: string | null
+          sendpulse_status?: number | null
           status?: string
           template_usado: string
         }
@@ -395,6 +401,9 @@ export type Database = {
           loja_id?: string
           minutos_atraso?: number
           nivel_cobranca?: number
+          sendpulse_message_id?: string | null
+          sendpulse_response?: string | null
+          sendpulse_status?: number | null
           status?: string
           template_usado?: string
         }
@@ -444,6 +453,9 @@ export type Database = {
           horario_envio: string
           id: string
           is_test: boolean
+          sendpulse_message_id: string | null
+          sendpulse_response: string | null
+          sendpulse_status: number | null
           status: string
           template_usado: string
         }
@@ -457,6 +469,9 @@ export type Database = {
           horario_envio: string
           id?: string
           is_test?: boolean
+          sendpulse_message_id?: string | null
+          sendpulse_response?: string | null
+          sendpulse_status?: number | null
           status?: string
           template_usado?: string
         }
@@ -470,6 +485,9 @@ export type Database = {
           horario_envio?: string
           id?: string
           is_test?: boolean
+          sendpulse_message_id?: string | null
+          sendpulse_response?: string | null
+          sendpulse_status?: number | null
           status?: string
           template_usado?: string
         }

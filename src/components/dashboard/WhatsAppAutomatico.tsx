@@ -10,7 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Bell, User, History, CheckCircle2, XCircle } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History, CheckCircle2, XCircle, Info, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,6 +43,10 @@ interface ReportLogEntry {
   status: string;
   erro_detalhes: string | null;
   enviado_em: string;
+  // Novos campos de rastreabilidade
+  sendpulse_response: string | null;
+  sendpulse_message_id: string | null;
+  sendpulse_status: number | null;
 }
 
 // Lista fixa dos 3 administradores que podem receber relatórios
@@ -369,6 +382,7 @@ export function WhatsAppAutomatico() {
                       <TableHead>Horário</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Rastreabilidade</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -398,11 +412,114 @@ export function WhatsAppAutomatico() {
                               <span>Enviado</span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1 text-red-600" title={log.erro_detalhes || undefined}>
-                              <XCircle className="h-4 w-4" />
-                              <span>Falhou</span>
-                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1 text-red-600 cursor-help">
+                                    <XCircle className="h-4 w-4" />
+                                    <span>Falhou</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p>{log.erro_detalhes || "Erro desconhecido"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {log.sendpulse_message_id ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="cursor-help text-xs">
+                                      ID: {log.sendpulse_message_id.substring(0, 8)}...
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="font-mono text-xs">{log.sendpulse_message_id}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Sem ID</Badge>
+                            )}
+                            
+                            {log.sendpulse_status && (
+                              <Badge 
+                                variant={log.sendpulse_status === 200 ? "default" : "destructive"} 
+                                className="text-xs"
+                              >
+                                HTTP {log.sendpulse_status}
+                              </Badge>
+                            )}
+                            
+                            {log.sendpulse_response && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 px-2">
+                                    <Info className="h-3 w-3" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Resposta do SendPulse</DialogTitle>
+                                    <DialogDescription>
+                                      Envio para {log.admin_nome} em {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <p className="text-sm font-medium mb-1">Message ID:</p>
+                                      <code className="text-xs bg-muted p-2 rounded block">
+                                        {log.sendpulse_message_id || "N/A"}
+                                      </code>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium mb-1">HTTP Status:</p>
+                                      <Badge variant={log.sendpulse_status === 200 ? "default" : "destructive"}>
+                                        {log.sendpulse_status || "N/A"}
+                                      </Badge>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium mb-1">Resposta Completa:</p>
+                                      <pre className="text-xs bg-muted p-3 rounded overflow-x-auto whitespace-pre-wrap break-all">
+                                        {(() => {
+                                          try {
+                                            return JSON.stringify(JSON.parse(log.sendpulse_response || "{}"), null, 2);
+                                          } catch {
+                                            return log.sendpulse_response || "N/A";
+                                          }
+                                        })()}
+                                      </pre>
+                                    </div>
+                                    {log.erro_detalhes && (
+                                      <div>
+                                        <p className="text-sm font-medium mb-1 text-destructive">Erro:</p>
+                                        <code className="text-xs bg-destructive/10 text-destructive p-2 rounded block">
+                                          {log.erro_detalhes}
+                                        </code>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+                            
+                            {!log.sendpulse_response && !log.sendpulse_message_id && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Envio anterior à rastreabilidade</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
