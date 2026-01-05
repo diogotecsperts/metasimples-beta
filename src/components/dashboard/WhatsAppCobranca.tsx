@@ -120,15 +120,6 @@ export function WhatsAppCobranca() {
     }
   });
 
-  // Enriquecer logs com telefone do gerente a partir da lista já carregada
-  const logs: CobrancaLog[] = logsRaw.map(log => {
-    const gerente = gerentes.find(g => g.id === log.gerente_id);
-    return {
-      ...log,
-      gerente_telefone: gerente?.telefone || undefined
-    };
-  });
-
   // Buscar lojas para exibir nomes
   const {
     data: lojas = []
@@ -175,7 +166,15 @@ export function WhatsAppCobranca() {
     }
   });
 
-  // Atualizar estado local quando settings carregar
+  // Enriquecer logs com telefone do gerente a partir da lista já carregada
+  const logs: CobrancaLog[] = logsRaw.map(log => {
+    const gerente = gerentes.find(g => g.id === log.gerente_id);
+    return {
+      ...log,
+      gerente_telefone: gerente?.telefone || undefined
+    };
+  });
+
   useEffect(() => {
     if (settings) {
       setAtivo(settings.ativo);
