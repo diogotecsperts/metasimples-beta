@@ -7,11 +7,21 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, CheckCircle2, XCircle, CheckCheck } from "lucide-react";
+import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, XCircle, CheckCheck, History, Info } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 interface Gerente {
   id: string;
   nome: string;
@@ -41,6 +51,10 @@ interface CobrancaLog {
   enviado_em: string;
   status: string;
   erro_detalhes: string | null;
+  // Campos de rastreabilidade do SendPulse
+  sendpulse_response: string | null;
+  sendpulse_message_id: string | null;
+  sendpulse_status: number | null;
   // Campos de status de entrega
   status_entrega: string | null;
   webhook_recebido_em: string | null;
@@ -86,6 +100,7 @@ export function WhatsAppCobranca() {
   const [horariosMonitorados, setHorariosMonitorados] = useState<string[]>(["10:00", "14:00", "16:00", "19:00"]);
   const [gerentesAtivos, setGerentesAtivos] = useState<string[]>([]);
   const [isEnviandoTeste, setIsEnviandoTeste] = useState(false);
+  const [filtroHistorico, setFiltroHistorico] = useState("7");
 
   // Buscar configurações existentes
   const {
@@ -103,21 +118,36 @@ export function WhatsAppCobranca() {
     }
   });
 
-  // Buscar logs recentes
+  // Buscar logs recentes com filtro de período
   const {
     data: logs = [],
     isLoading: isLoadingLogs
   } = useQuery({
-    queryKey: ["whatsapp-cobranca-logs"],
+    queryKey: ["whatsapp-cobranca-logs", filtroHistorico],
     queryFn: async () => {
-      const {
-        data,
-        error
-      } = await supabase.from("whatsapp_cobranca_log").select("*").order("enviado_em", {
-        ascending: false
-      }).limit(20);
+      const diasAtras = new Date();
+      diasAtras.setDate(diasAtras.getDate() - parseInt(filtroHistorico));
+      
+      const { data, error } = await supabase
+        .from("whatsapp_cobranca_log")
+        .select("*")
+        .gte("enviado_em", diasAtras.toISOString())
+        .order("enviado_em", { ascending: false });
       if (error) throw error;
       return data as CobrancaLog[];
+    }
+  });
+
+  // Buscar lojas para exibir nomes
+  const {
+    data: lojas = [],
+    isLoading: isLoadingLojas
+  } = useQuery({
+    queryKey: ["lojas-cobranca"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("lojas").select("id, nome");
+      if (error) throw error;
+      return data;
     }
   });
 
@@ -302,6 +332,8 @@ export function WhatsAppCobranca() {
 
   // Mapa de gerentes para mostrar nos logs
   const gerentesMap = Object.fromEntries(gerentes.map(g => [g.id, g.nome]));
+  const lojasMap = Object.fromEntries(lojas.map(l => [l.id, l.nome]));
+  
   if (isLoadingSettings || isLoadingGerentes) {
     return <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -477,81 +509,248 @@ export function WhatsAppCobranca() {
           Selecione pelo menos um gerente para habilitar o envio de teste.
         </p>}
 
-      {/* Logs Recentes */}
-      {logs.length > 0 && <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Cobranças Recentes</CardTitle>
-            <CardDescription>
-              Últimas 20 cobranças enviadas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {logs.map(log => {
-                const statusEntrega = log.status_entrega || (log.status === 'enviado' ? 'aceito' : 'falhou');
-                
-                return (
-                  <div 
-                    key={log.id} 
-                    className={`flex items-center justify-between p-3 rounded-lg border text-sm ${
-                      statusEntrega === 'enviado' 
-                        ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800" 
-                        : statusEntrega === 'aceito'
-                        ? "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800"
-                        : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            {statusEntrega === 'enviado' ? (
-                              <CheckCheck className="h-4 w-4 text-green-600 cursor-help" />
-                            ) : statusEntrega === 'aceito' ? (
-                              <Clock className="h-4 w-4 text-yellow-600 cursor-help" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-red-600 cursor-help" />
-                            )}
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {statusEntrega === 'enviado' ? (
-                              <>
-                                <p>Confirmado via webhook</p>
-                                {log.webhook_recebido_em && (
-                                  <p className="text-xs">{format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}</p>
-                                )}
-                              </>
-                            ) : statusEntrega === 'aceito' ? (
-                              <p>Aceito pelo SendPulse, aguardando confirmação</p>
-                            ) : (
-                              <p>{log.erro_detalhes || "Erro no envio"}</p>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <div>
-                        <p className="font-medium">{gerentesMap[log.gerente_id] || "Gerente"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {log.horario_lancamento} • Nível {log.nivel_cobranca} • +{log.minutos_atraso}min
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge 
-                        variant={statusEntrega === 'enviado' ? "default" : statusEntrega === 'aceito' ? "secondary" : "destructive"}
-                        className="text-xs"
-                      >
-                        {statusEntrega === 'enviado' ? 'Confirmado' : statusEntrega === 'aceito' ? 'Aceito' : 'Falhou'}
-                      </Badge>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(log.enviado_em), "dd/MM HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+      {/* Histórico de Cobranças - Tabela Completa */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg">
+                <History className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Histórico de Cobranças</CardTitle>
+                <CardDescription>
+                  Registros de cobranças enviadas aos gerentes
+                </CardDescription>
+              </div>
             </div>
-          </CardContent>
-        </Card>}
+            <Select value={filtroHistorico} onValueChange={setFiltroHistorico}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                <SelectItem value="14">Últimos 14 dias</SelectItem>
+                <SelectItem value="30">Últimos 30 dias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingLogs ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : logs && logs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Gerente</TableHead>
+                    <TableHead>Horário</TableHead>
+                    <TableHead>Nível</TableHead>
+                    <TableHead>Status Entrega</TableHead>
+                    <TableHead>Rastreabilidade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => {
+                    const statusEntrega = log.status_entrega || (log.status === 'enviado' ? 'aceito' : 'falhou');
+                    const gerenteNome = gerentesMap[log.gerente_id] || "Gerente";
+                    const lojaNome = lojasMap[log.loja_id] || "";
+                    
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{gerenteNome}</p>
+                            {lojaNome && <p className="text-xs text-muted-foreground">{lojaNome}</p>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p>{log.horario_lancamento}</p>
+                            <p className="text-xs text-muted-foreground">+{log.minutos_atraso}min</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {log.nivel_cobranca === 0 ? (
+                            <Badge variant="secondary">Teste</Badge>
+                          ) : (
+                            <Badge variant="outline">Nível {log.nivel_cobranca}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            switch (statusEntrega) {
+                              case "enviado":
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-green-600 cursor-help">
+                                          <CheckCheck className="h-4 w-4" />
+                                          <span>Confirmado</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Webhook confirmou entrega ao WhatsApp</p>
+                                        {log.webhook_recebido_em && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                                          </p>
+                                        )}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              case "aceito":
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-yellow-600 cursor-help">
+                                          <Clock className="h-4 w-4" />
+                                          <span>Aceito</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>SendPulse aceitou, aguardando confirmação do WhatsApp</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              case "falhou":
+                              default:
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-red-600 cursor-help">
+                                          <XCircle className="h-4 w-4" />
+                                          <span>Falhou</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs">
+                                        <p>{log.erro_detalhes || "Erro desconhecido"}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                            }
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {log.sendpulse_message_id ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="cursor-help text-xs">
+                                      ID: {log.sendpulse_message_id.substring(0, 8)}...
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="font-mono text-xs">{log.sendpulse_message_id}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Sem ID</Badge>
+                            )}
+                            
+                            {log.sendpulse_status && (
+                              <Badge 
+                                variant={log.sendpulse_status === 200 ? "default" : "destructive"} 
+                                className="text-xs"
+                              >
+                                HTTP {log.sendpulse_status}
+                              </Badge>
+                            )}
+                            
+                            {log.sendpulse_response && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 px-2">
+                                    <Info className="h-3 w-3" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Resposta do SendPulse</DialogTitle>
+                                    <DialogDescription>
+                                      Envio para {gerenteNome} em {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <p className="text-sm font-medium mb-1">Message ID:</p>
+                                      <code className="text-xs bg-muted p-2 rounded block">
+                                        {log.sendpulse_message_id || "N/A"}
+                                      </code>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium mb-1">HTTP Status:</p>
+                                      <Badge variant={log.sendpulse_status === 200 ? "default" : "destructive"}>
+                                        {log.sendpulse_status || "N/A"}
+                                      </Badge>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium mb-1">Resposta Completa:</p>
+                                      <pre className="text-xs bg-muted p-3 rounded overflow-x-auto whitespace-pre-wrap break-all">
+                                        {(() => {
+                                          try {
+                                            return JSON.stringify(JSON.parse(log.sendpulse_response || "{}"), null, 2);
+                                          } catch {
+                                            return log.sendpulse_response || "N/A";
+                                          }
+                                        })()}
+                                      </pre>
+                                    </div>
+                                    {log.erro_detalhes && (
+                                      <div>
+                                        <p className="text-sm font-medium mb-1 text-destructive">Erro:</p>
+                                        <code className="text-xs bg-destructive/10 text-destructive p-2 rounded block">
+                                          {log.erro_detalhes}
+                                        </code>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+                            
+                            {!log.sendpulse_response && !log.sendpulse_message_id && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Envio anterior à rastreabilidade</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <History className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <p>Nenhuma cobrança registrada no período</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>;
 }
