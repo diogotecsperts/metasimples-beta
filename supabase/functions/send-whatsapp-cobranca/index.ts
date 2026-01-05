@@ -346,6 +346,10 @@ interface SendResult {
   messageId?: string;
   sendpulseStatus?: number;
   fullResponse?: string;
+  // Novo: dados para registrar método de envio
+  metodoEnvio?: "phone" | "contact_id";
+  contactIdUsado?: string;
+  telefoneUsado?: string;
 }
 
 // Função principal de envio para um gerente
@@ -376,7 +380,9 @@ async function enviarParaGerente(
       reason: "enviado",
       messageId: result.messageId,
       sendpulseStatus: result.sendpulseStatus,
-      fullResponse: result.fullResponse
+      fullResponse: result.fullResponse,
+      metodoEnvio: "phone",
+      telefoneUsado: normalizedPhone
     };
   }
 
@@ -401,6 +407,8 @@ async function enviarParaGerente(
           success: true, 
           reason: "enviado",
           messageId: result.messageId,
+          metodoEnvio: "phone",
+          telefoneUsado: normalizedPhone,
           sendpulseStatus: result.sendpulseStatus,
           fullResponse: result.fullResponse
         };
@@ -443,7 +451,9 @@ async function enviarParaGerente(
           reason: "enviado",
           messageId: retryResult.messageId,
           sendpulseStatus: retryResult.sendpulseStatus,
-          fullResponse: retryResult.fullResponse
+          fullResponse: retryResult.fullResponse,
+          metodoEnvio: "contact_id",
+          contactIdUsado: knownContactId
         };
       }
       
@@ -591,7 +601,11 @@ const handler = async (req: Request): Promise<Response> => {
           sendpulse_message_id: sendResult.messageId || null,
           sendpulse_status: sendResult.sendpulseStatus || null,
           // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
-          status_entrega: sendResult.success ? "aceito" : "falhou"
+          status_entrega: sendResult.success ? "aceito" : "falhou",
+          // Novo: registrar método de envio
+          metodo_envio: sendResult.metodoEnvio || "phone",
+          contact_id_usado: sendResult.contactIdUsado || null,
+          telefone_usado: sendResult.telefoneUsado || null
         });
       }
 
@@ -693,7 +707,11 @@ const handler = async (req: Request): Promise<Response> => {
       sendpulse_message_id: result.messageId || null,
       sendpulse_status: result.sendpulseStatus || null,
       // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
-      status_entrega: result.success ? "aceito" : "falhou"
+      status_entrega: result.success ? "aceito" : "falhou",
+      // Novo: registrar método de envio
+      metodo_envio: result.metodoEnvio || "phone",
+      contact_id_usado: result.contactIdUsado || null,
+      telefone_usado: result.telefoneUsado || null
     });
 
     if (!result.success) {

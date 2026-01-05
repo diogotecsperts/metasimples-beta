@@ -30,6 +30,12 @@ export interface LogEntryBase {
   sendpulse_message_id: string | null;
   sendpulse_status: number | null;
   erro_detalhes: string | null;
+  // Novos campos para método de envio
+  metodo_envio?: string | null;
+  contact_id_usado?: string | null;
+  telefone_usado?: string | null;
+  // Campos que podem existir dependendo da tabela
+  admin_telefone?: string;
 }
 
 interface WhatsAppHistoricoTableProps<T extends LogEntryBase> {
@@ -115,48 +121,77 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
   }
 }
 
-// Componente de rastreabilidade - compartilhado
-function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; destinatarioNome: string }) {
-  const handleCopyId = async () => {
-    if (log.sendpulse_message_id) {
-      await navigator.clipboard.writeText(log.sendpulse_message_id);
+// Componente de via de envio - mostra se foi por telefone ou contact_id
+function ViaEnvioCell({ log }: { log: LogEntryBase }) {
+  const isContactId = log.metodo_envio === 'contact_id';
+  
+  // Determinar o valor a exibir
+  let valorExibido = '';
+  if (isContactId && log.contact_id_usado) {
+    valorExibido = log.contact_id_usado;
+  } else if (log.telefone_usado) {
+    valorExibido = log.telefone_usado;
+  } else if (log.admin_telefone) {
+    // Fallback para logs antigos de whatsapp_report_log
+    valorExibido = log.admin_telefone;
+  } else {
+    // Tentar extrair do sendpulse_response para logs muito antigos
+    if (log.sendpulse_response) {
+      try {
+        const response = JSON.parse(log.sendpulse_response);
+        if (response.data?.contact_id) {
+          valorExibido = response.data.contact_id;
+        }
+      } catch {
+        // Ignorar erro de parse
+      }
     }
-  };
+  }
+
+  if (!valorExibido) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="secondary" className="text-xs cursor-help">—</Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Dados de envio não disponíveis</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge 
+            variant={isContactId ? "secondary" : "outline"}
+            className="cursor-pointer text-xs hover:bg-muted font-mono max-w-[180px] truncate"
+            onClick={async () => {
+              await navigator.clipboard.writeText(valorExibido);
+              toast.success("Copiado!");
+            }}
+          >
+            {isContactId ? "🆔 " : "📱 "}
+            {valorExibido}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{isContactId ? "Enviado via Contact ID (fallback)" : "Enviado via Telefone"}</p>
+          <p className="text-xs text-muted-foreground">Clique para copiar</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// Componente de rastreabilidade - mantém o botão "i" para detalhes
+function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; destinatarioNome: string }) {
+  return (
     <div className="flex items-center gap-2">
-      {log.sendpulse_message_id ? (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className="cursor-pointer text-xs hover:bg-muted font-mono"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(log.sendpulse_message_id!);
-                  toast.success("ID copiado!");
-                }}
-              >
-                {log.sendpulse_message_id}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Clique para copiar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge variant="secondary" className="text-xs cursor-help">Sem ID</Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Envio anterior à rastreabilidade</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
       
       {log.sendpulse_status && (
         <Badge 
@@ -302,7 +337,8 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                   <TableHead>Destinatário</TableHead>
                   {colunasExtrasHeader}
                   <TableHead>Status Entrega</TableHead>
-                  <TableHead>Rastreabilidade</TableHead>
+                  <TableHead>Via Envio</TableHead>
+                  <TableHead>Detalhes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -317,6 +353,9 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                     {renderColunasExtras && renderColunasExtras(log)}
                     <TableCell>
                       <StatusEntregaCell log={log} />
+                    </TableCell>
+                    <TableCell>
+                      <ViaEnvioCell log={log} />
                     </TableCell>
                     <TableCell>
                       <RastreabilidadeCell 

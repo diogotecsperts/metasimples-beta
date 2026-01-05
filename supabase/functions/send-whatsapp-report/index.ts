@@ -658,7 +658,10 @@ const handler = async (req: Request): Promise<Response> => {
         sendpulse_message_id: result.messageId || null,
         sendpulse_status: result.sendpulseStatus || null,
         // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
-        status_entrega: result.success ? "aceito" : "falhou"
+        status_entrega: result.success ? "aceito" : "falhou",
+        // Novo: registrar método de envio (sempre contact_id neste endpoint)
+        metodo_envio: "contact_id",
+        contact_id_usado: admin.contactId
       };
       
       console.log(`[send-whatsapp-report] Salvando log com rastreabilidade:`, {
