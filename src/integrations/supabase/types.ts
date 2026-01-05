@@ -373,7 +373,10 @@ export type Database = {
           sendpulse_response: string | null
           sendpulse_status: number | null
           status: string
+          status_entrega: string | null
           template_usado: string
+          webhook_payload: string | null
+          webhook_recebido_em: string | null
         }
         Insert: {
           data: string
@@ -389,7 +392,10 @@ export type Database = {
           sendpulse_response?: string | null
           sendpulse_status?: number | null
           status?: string
+          status_entrega?: string | null
           template_usado: string
+          webhook_payload?: string | null
+          webhook_recebido_em?: string | null
         }
         Update: {
           data?: string
@@ -405,7 +411,10 @@ export type Database = {
           sendpulse_response?: string | null
           sendpulse_status?: number | null
           status?: string
+          status_entrega?: string | null
           template_usado?: string
+          webhook_payload?: string | null
+          webhook_recebido_em?: string | null
         }
         Relationships: []
       }
@@ -457,7 +466,10 @@ export type Database = {
           sendpulse_response: string | null
           sendpulse_status: number | null
           status: string
+          status_entrega: string | null
           template_usado: string
+          webhook_payload: string | null
+          webhook_recebido_em: string | null
         }
         Insert: {
           admin_id: string
@@ -473,7 +485,10 @@ export type Database = {
           sendpulse_response?: string | null
           sendpulse_status?: number | null
           status?: string
+          status_entrega?: string | null
           template_usado?: string
+          webhook_payload?: string | null
+          webhook_recebido_em?: string | null
         }
         Update: {
           admin_id?: string
@@ -489,7 +504,10 @@ export type Database = {
           sendpulse_response?: string | null
           sendpulse_status?: number | null
           status?: string
+          status_entrega?: string | null
           template_usado?: string
+          webhook_payload?: string | null
+          webhook_recebido_em?: string | null
         }
         Relationships: []
       }
