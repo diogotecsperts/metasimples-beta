@@ -39,6 +39,8 @@ interface CobrancaLog extends LogEntryBase {
   minutos_atraso: number;
   nivel_cobranca: number;
   template_usado: string;
+  // Preenchido via JOIN com profiles
+  gerente_telefone?: string;
 }
 
 const HORARIOS_LANCAMENTO = [{
@@ -100,7 +102,7 @@ export function WhatsAppCobranca() {
 
   // Buscar logs recentes com filtro de período
   const {
-    data: logs = [],
+    data: logsRaw = [],
     isLoading: isLoadingLogs
   } = useQuery({
     queryKey: ["whatsapp-cobranca-logs", filtroHistorico],
@@ -116,6 +118,15 @@ export function WhatsAppCobranca() {
       if (error) throw error;
       return data as CobrancaLog[];
     }
+  });
+
+  // Enriquecer logs com telefone do gerente a partir da lista já carregada
+  const logs: CobrancaLog[] = logsRaw.map(log => {
+    const gerente = gerentes.find(g => g.id === log.gerente_id);
+    return {
+      ...log,
+      gerente_telefone: gerente?.telefone || undefined
+    };
   });
 
   // Buscar lojas para exibir nomes
