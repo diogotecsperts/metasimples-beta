@@ -36,6 +36,8 @@ export interface LogEntryBase {
   telefone_usado?: string | null;
   // Campos que podem existir dependendo da tabela
   admin_telefone?: string;
+  // Campo preenchido via JOIN (logs de cobrança)
+  gerente_telefone?: string;
 }
 
 interface WhatsAppHistoricoTableProps<T extends LogEntryBase> {
@@ -125,35 +127,32 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
 function ViaEnvioCell({ log }: { log: LogEntryBase }) {
   const isContactId = log.metodo_envio === 'contact_id';
   
-  // Determinar o valor a exibir
+  // Determinar o valor a exibir com prioridade clara
   let valorExibido = '';
+  let tipoExibido: 'phone' | 'contact_id' = 'phone';
+  
   if (isContactId && log.contact_id_usado) {
+    // Foi explicitamente enviado via contact_id
     valorExibido = log.contact_id_usado;
+    tipoExibido = 'contact_id';
   } else if (log.telefone_usado) {
+    // Telefone foi registrado no envio
     valorExibido = log.telefone_usado;
   } else if (log.admin_telefone) {
-    // Fallback para logs antigos de whatsapp_report_log
+    // Fallback: logs de relatório têm admin_telefone
     valorExibido = log.admin_telefone;
-  } else {
-    // Tentar extrair do sendpulse_response para logs muito antigos
-    if (log.sendpulse_response) {
-      try {
-        const response = JSON.parse(log.sendpulse_response);
-        if (response.data?.contact_id) {
-          valorExibido = response.data.contact_id;
-        }
-      } catch {
-        // Ignorar erro de parse
-      }
-    }
+  } else if (log.gerente_telefone) {
+    // Fallback: logs de cobrança com JOIN do gerente
+    valorExibido = log.gerente_telefone;
   }
+  // NÃO extraímos contact_id da resposta SendPulse para evitar confusão
 
   if (!valorExibido) {
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant="secondary" className="text-xs cursor-help">—</Badge>
+            <Badge variant="secondary" className="text-xs cursor-help px-2.5">—</Badge>
           </TooltipTrigger>
           <TooltipContent>
             <p>Dados de envio não disponíveis</p>
@@ -163,24 +162,26 @@ function ViaEnvioCell({ log }: { log: LogEntryBase }) {
     );
   }
 
+  const isContactIdDisplay = tipoExibido === 'contact_id';
+
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <Badge 
-            variant={isContactId ? "secondary" : "outline"}
-            className="cursor-pointer text-xs hover:bg-muted font-mono max-w-[180px] truncate"
+            variant={isContactIdDisplay ? "secondary" : "outline"}
+            className="cursor-pointer text-xs hover:bg-muted font-mono px-2.5"
             onClick={async () => {
               await navigator.clipboard.writeText(valorExibido);
               toast.success("Copiado!");
             }}
           >
-            {isContactId ? "🆔 " : "📱 "}
+            {isContactIdDisplay ? "🆔 " : "📱 "}
             {valorExibido}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{isContactId ? "Enviado via Contact ID (fallback)" : "Enviado via Telefone"}</p>
+          <p>{isContactIdDisplay ? "Enviado via Contact ID (fallback)" : "Enviado via Telefone"}</p>
           <p className="text-xs text-muted-foreground">Clique para copiar</p>
         </TooltipContent>
       </Tooltip>
