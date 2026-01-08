@@ -478,6 +478,7 @@ export type Database = {
           sendpulse_status: number | null
           status: string
           status_entrega: string | null
+          telefone_usado: string | null
           template_usado: string
           webhook_payload: string | null
           webhook_recebido_em: string | null
@@ -499,6 +500,7 @@ export type Database = {
           sendpulse_status?: number | null
           status?: string
           status_entrega?: string | null
+          telefone_usado?: string | null
           template_usado?: string
           webhook_payload?: string | null
           webhook_recebido_em?: string | null
@@ -520,6 +522,7 @@ export type Database = {
           sendpulse_status?: number | null
           status?: string
           status_entrega?: string | null
+          telefone_usado?: string | null
           template_usado?: string
           webhook_payload?: string | null
           webhook_recebido_em?: string | null
