@@ -181,7 +181,7 @@ export function WhatsAppAutomatico() {
     setIsEnviandoTeste(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-whatsapp-report", {
-        body: { isTest: true }
+        body: { isTest: true, adminsParaTeste: adminsAtivos }
       });
       if (error) throw error;
       if (data.success) {
