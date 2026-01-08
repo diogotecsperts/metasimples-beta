@@ -362,6 +362,73 @@ async function sendWhatsAppTemplateByContactId(
   }
 }
 
+// Envia template usando telefone (método prioritário)
+async function sendWhatsAppTemplateByPhone(
+  accessToken: string,
+  botId: string,
+  phone: string,
+  templateName: string,
+  parameters: string[]
+): Promise<{ success: boolean; error?: string; messageId?: string; sendpulseStatus?: number; fullResponse?: string; isBanned?: boolean }> {
+  console.log(`[send-whatsapp-report] Enviando template ${templateName} para telefone ${phone}...`);
+  
+  const bodyParameters = parameters.map(text => ({ type: "text", text }));
+  
+  const requestBody = {
+    bot_id: botId,
+    phone: phone,
+    template: {
+      name: templateName,
+      language: { policy: "deterministic", code: "pt_BR" },
+      components: [{ type: "body", parameters: bodyParameters }]
+    }
+  };
+
+  console.log(`[send-whatsapp-report] Request body (phone):`, JSON.stringify(requestBody, null, 2));
+
+  const response = await fetch("https://api.sendpulse.com/whatsapp/contacts/sendTemplateByPhone", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  const responseText = await response.text();
+  console.log(`[send-whatsapp-report] Resposta sendTemplateByPhone:`, response.status, responseText);
+
+  try {
+    const responseJson = JSON.parse(responseText);
+    const isBanned = responseText.toLowerCase().includes('banned') || 
+                     responseJson.message?.toLowerCase().includes('banned');
+    
+    if (!response.ok || responseJson.success === false) {
+      return { 
+        success: false, 
+        error: responseJson.message || `HTTP ${response.status}`,
+        isBanned,
+        sendpulseStatus: response.status,
+        fullResponse: responseText
+      };
+    }
+    
+    return { 
+      success: true,
+      messageId: responseJson.data?.message_id || responseJson.message_id,
+      sendpulseStatus: response.status,
+      fullResponse: responseText
+    };
+  } catch (e) {
+    return { 
+      success: !response.ok ? false : true, 
+      error: !response.ok ? responseText : undefined,
+      sendpulseStatus: response.status,
+      fullResponse: responseText
+    };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -618,39 +685,78 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send to each admin
+    // Send to each admin - TELEFONE PRIMEIRO, CONTACT_ID COMO FALLBACK
     const results: { admin: string; success: boolean; error?: string }[] = [];
     
     for (const admin of adminsParaEnviar) {
-      console.log(`[send-whatsapp-report] Processando ${admin.nome} (${admin.telefone})...`);
+      console.log(`[send-whatsapp-report] Processando ${admin.nome}...`);
       
-      // Tentar enviar usando contact_id diretamente
-      console.log(`[send-whatsapp-report] Enviando para ${admin.nome} usando contact_id: ${admin.contactId}`);
-      
-      let result = await sendWhatsAppTemplateByContactId(
-        accessToken,
-        admin.contactId,
-        "relatorio_diario_v2",
-        templateParams
-      );
-      
-      // Se falhou com erro de contato banido, tentar habilitar e reenviar
-      if (!result.success && result.error?.includes("banned")) {
-        console.log(`[send-whatsapp-report] Contato ${admin.nome} está banido, tentando habilitar...`);
-        const enabled = await enableContact(accessToken, admin.contactId);
+      let enviado = false;
+      let metodoUsado = 'phone';
+      let telefoneUsado: string | null = null;
+      let contactIdUsado: string | null = null;
+      let result: { success: boolean; error?: string; messageId?: string; sendpulseStatus?: number; fullResponse?: string; isBanned?: boolean } = { success: false };
+
+      // PASSO 1: Tentar enviar por TELEFONE primeiro
+      if (admin.telefone) {
+        console.log(`[send-whatsapp-report] Tentando ${admin.nome} via telefone: ${admin.telefone}`);
         
-        if (enabled) {
-          console.log(`[send-whatsapp-report] Contato habilitado, reenviando...`);
-          result = await sendWhatsAppTemplateByContactId(
-            accessToken,
-            admin.contactId,
-            "relatorio_diario_v2",
-            templateParams
-          );
+        result = await sendWhatsAppTemplateByPhone(
+          accessToken,
+          sendpulseBotId,
+          admin.telefone,
+          "relatorio_diario_v2",
+          templateParams
+        );
+        
+        if (result.success) {
+          enviado = true;
+          metodoUsado = 'phone';
+          telefoneUsado = admin.telefone;
+          console.log(`[send-whatsapp-report] ✓ Sucesso via telefone para ${admin.nome}`);
+        } else {
+          console.log(`[send-whatsapp-report] ✗ Falha via telefone: ${result.error}`);
         }
       }
-      
-      // Registrar no log de envios com rastreabilidade completa
+
+      // PASSO 2: Se falhou por telefone, tentar por CONTACT_ID como fallback
+      if (!enviado && admin.contactId) {
+        console.log(`[send-whatsapp-report] Fallback: ${admin.nome} via contact_id: ${admin.contactId}`);
+        
+        result = await sendWhatsAppTemplateByContactId(
+          accessToken,
+          admin.contactId,
+          "relatorio_diario_v2",
+          templateParams
+        );
+        
+        // Se falhou com erro de contato banido, tentar habilitar e reenviar
+        if (!result.success && result.error?.toLowerCase().includes("banned")) {
+          console.log(`[send-whatsapp-report] Contato banido, tentando habilitar...`);
+          const enabled = await enableContact(accessToken, admin.contactId);
+          
+          if (enabled) {
+            console.log(`[send-whatsapp-report] Contato habilitado, reenviando...`);
+            result = await sendWhatsAppTemplateByContactId(
+              accessToken,
+              admin.contactId,
+              "relatorio_diario_v2",
+              templateParams
+            );
+          }
+        }
+        
+        if (result.success) {
+          enviado = true;
+          metodoUsado = 'contact_id';
+          contactIdUsado = admin.contactId;
+          console.log(`[send-whatsapp-report] ✓ Sucesso via contact_id para ${admin.nome}`);
+        } else {
+          console.log(`[send-whatsapp-report] ✗ Falha via contact_id: ${result.error}`);
+        }
+      }
+
+      // Registrar no log com método usado
       const logEntry = {
         admin_id: admin.id,
         admin_nome: admin.nome,
@@ -661,31 +767,23 @@ const handler = async (req: Request): Promise<Response> => {
         is_test: isTest,
         status: result.success ? "enviado" : "falhou",
         erro_detalhes: result.error || null,
-        // Colunas de rastreabilidade do SendPulse
         sendpulse_response: result.fullResponse || null,
         sendpulse_message_id: result.messageId || null,
         sendpulse_status: result.sendpulseStatus || null,
-        // Status de entrega: 'aceito' pelo SendPulse, aguardando webhook para confirmar 'enviado'
         status_entrega: result.success ? "aceito" : "falhou",
-        // Novo: registrar método de envio (sempre contact_id neste endpoint)
-        metodo_envio: "contact_id",
-        contact_id_usado: admin.contactId
+        metodo_envio: metodoUsado,
+        telefone_usado: telefoneUsado,
+        contact_id_usado: contactIdUsado || (metodoUsado === 'contact_id' ? admin.contactId : null)
       };
-      
-      console.log(`[send-whatsapp-report] Salvando log com rastreabilidade:`, {
-        messageId: result.messageId,
-        sendpulseStatus: result.sendpulseStatus,
-        fullResponseLength: result.fullResponse?.length
-      });
-      
+
+      console.log(`[send-whatsapp-report] Salvando log: método=${metodoUsado}, telefone=${telefoneUsado}, contactId=${contactIdUsado}`);
+
       const { error: logError } = await supabase
         .from("whatsapp_report_log")
         .insert(logEntry);
       
       if (logError) {
         console.error(`[send-whatsapp-report] Erro ao salvar log:`, logError);
-      } else {
-        console.log(`[send-whatsapp-report] Log registrado para ${admin.nome}`);
       }
       
       results.push({
