@@ -386,7 +386,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { horario: horarioParam, isTest = false } = await req.json();
+    const { horario: horarioParam, isTest = false, adminsParaTeste } = await req.json();
     
     // Get current time in Brazil timezone
     const now = new Date();
@@ -595,12 +595,20 @@ const handler = async (req: Request): Promise<Response> => {
       { id: "687d830b-4bad-4e39-9273-fab71f0d4bd0", nome: "Dyogo", telefone: "+5581982882100", contactId: "69556ee0143b1c873907e644" },
     ];
 
-    // Filtrar apenas os admins selecionados nas configurações
-    const adminsParaEnviar = ADMIN_CONTACTS.filter(admin => 
+    // Filtrar admins: se for teste com lista específica, usar essa lista; senão, usar config do banco
+    let adminsParaEnviar = ADMIN_CONTACTS.filter(admin => 
       settings.gerentes_ativos.includes(admin.id)
     );
 
-    console.log(`[send-whatsapp-report] ${adminsParaEnviar.length} administradores configurados para receber relatório`);
+    // Se for modo teste E recebeu lista específica de admins, usar essa lista
+    if (isTest && adminsParaTeste && Array.isArray(adminsParaTeste) && adminsParaTeste.length > 0) {
+      console.log(`[send-whatsapp-report] Modo teste com ${adminsParaTeste.length} admins específicos: ${adminsParaTeste.join(', ')}`);
+      adminsParaEnviar = ADMIN_CONTACTS.filter(admin => 
+        adminsParaTeste.includes(admin.id)
+      );
+    }
+
+    console.log(`[send-whatsapp-report] ${adminsParaEnviar.length} administradores para receber relatório`);
 
     if (adminsParaEnviar.length === 0) {
       console.log("[send-whatsapp-report] Nenhum administrador selecionado");
