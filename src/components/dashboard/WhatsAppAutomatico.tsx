@@ -345,7 +345,7 @@ export function WhatsAppAutomatico() {
   return (
     <Tabs defaultValue="cobrancas" className="space-y-6">
       <TooltipProvider>
-        <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <TabsTrigger value="cobrancas" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:bg-zinc-800">
