@@ -9,9 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Bell, User, History, Settings } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History, Settings, ChevronsUpDown, TrendingUp } from "lucide-react";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
 import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
+import { WhatsAppEstatisticas } from "./WhatsAppEstatisticas";
+import { cn } from "@/lib/utils";
 
 interface WhatsAppSettings {
   id: string;
@@ -330,9 +332,16 @@ export function WhatsAppAutomatico() {
     );
   }
   
+  const [listaAdminsExpandida, setListaAdminsExpandida] = useState(false);
+  const adminsVisiveis = listaAdminsExpandida || ADMINISTRADORES_DESTINATARIOS.length <= 3 
+    ? ADMINISTRADORES_DESTINATARIOS 
+    : ADMINISTRADORES_DESTINATARIOS.slice(0, 3);
+  const adminsOcultos = ADMINISTRADORES_DESTINATARIOS.length - 3;
+  const podeMinimigarAdmins = ADMINISTRADORES_DESTINATARIOS.length > 3;
+  
   return (
     <Tabs defaultValue="cobrancas" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="cobrancas" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
           Cobranças
@@ -341,10 +350,18 @@ export function WhatsAppAutomatico() {
           <MessageSquare className="h-4 w-4" />
           Relatórios
         </TabsTrigger>
+        <TabsTrigger value="estatisticas" className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Estatísticas
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="cobrancas">
         <WhatsAppCobranca />
+      </TabsContent>
+      
+      <TabsContent value="estatisticas">
+        <WhatsAppEstatisticas />
       </TabsContent>
 
       <TabsContent value="relatorios" className="space-y-6">
@@ -405,14 +422,27 @@ export function WhatsAppAutomatico() {
         {/* Administradores Destinatários */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Administradores Destinatários</CardTitle>
-            <CardDescription>
-              Selecione quais administradores receberão os relatórios via WhatsApp
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Administradores Destinatários</CardTitle>
+                <CardDescription>
+                  Selecione quais administradores receberão os relatórios via WhatsApp
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!podeMinimigarAdmins}
+                className={cn("h-8 w-8 p-0", !podeMinimigarAdmins && "opacity-40 cursor-not-allowed")}
+                onClick={() => setListaAdminsExpandida(!listaAdminsExpandida)}
+              >
+                <ChevronsUpDown className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              {ADMINISTRADORES_DESTINATARIOS.map(admin => (
+              {adminsVisiveis.map(admin => (
                 <div 
                   key={admin.id} 
                   className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${adminsAtivos.includes(admin.id) ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800" : "bg-background hover:bg-muted"}`} 
@@ -436,6 +466,14 @@ export function WhatsAppAutomatico() {
                   </div>
                 </div>
               ))}
+              {!listaAdminsExpandida && adminsOcultos > 0 && (
+                <button 
+                  onClick={() => setListaAdminsExpandida(true)}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground py-2"
+                >
+                  e mais {adminsOcultos} administrador(es)...
+                </button>
+              )}
             </div>
           </CardContent>
         </Card>

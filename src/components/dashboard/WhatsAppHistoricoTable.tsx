@@ -3,6 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -14,10 +15,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus, ThumbsUp } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus, ThumbsUp, Search, Download, FileSpreadsheet, FileText } from "lucide-react";
 import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
 
 // Helper para formatar datas de forma segura (evita crash por "Invalid time value")
 function safeFormatDate(dateString: string | null | undefined, formatStr: string, fallback = "—"): string {
@@ -565,6 +573,122 @@ function getStatusNormalizado(log: LogEntryBase): 'confirmado' | 'aceito' | 'fal
   return "falhou";
 }
 
+// Helper para obter tipo de confirmação
+function getTipoConfirmacao(log: LogEntryBase): string {
+  const status = getStatusNormalizado(log);
+  if (log.confirmacao_manual) return "Manual";
+  if (status === "confirmado") return "Automática";
+  return "Pendente";
+}
+
+// Funções de exportação
+function exportToCSV<T extends LogEntryBase>(
+  logs: T[], 
+  getDestinatarioNome: (log: T) => string,
+  titulo: string
+) {
+  const headers = ["Data/Hora", "Destinatário", "Status Entrega", "Tipo Confirmação", "Via Envio", "Webhook Recebido"];
+  
+  const rows = logs.map(log => {
+    const statusNorm = getStatusNormalizado(log);
+    const statusLabel = statusNorm === "confirmado" ? "Confirmado" : statusNorm === "aceito" ? "Aceito" : "Falhou";
+    const via = log.metodo_envio === "contact_id" ? "Contact ID" : "Telefone";
+    const webhook = log.webhook_recebido_em ? "Sim" : "Não";
+    
+    return [
+      safeFormatDate(log.enviado_em, "dd/MM/yyyy HH:mm"),
+      getDestinatarioNome(log),
+      statusLabel,
+      getTipoConfirmacao(log),
+      via,
+      webhook
+    ];
+  });
+
+  const csvContent = [
+    headers.join(";"),
+    ...rows.map(row => row.join(";"))
+  ].join("\n");
+
+  const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${titulo.toLowerCase().replace(/\s/g, "_")}_${format(new Date(), "yyyy-MM-dd_HHmm")}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  toast.success("CSV exportado com sucesso!");
+}
+
+function exportToPDF<T extends LogEntryBase>(
+  logs: T[], 
+  getDestinatarioNome: (log: T) => string,
+  titulo: string
+) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Título
+  doc.setFontSize(16);
+  doc.text(titulo, pageWidth / 2, 15, { align: "center" });
+  
+  doc.setFontSize(10);
+  doc.text(`Exportado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageWidth / 2, 22, { align: "center" });
+  doc.text(`Total: ${logs.length} registros`, pageWidth / 2, 28, { align: "center" });
+  
+  // Conteúdo
+  let y = 40;
+  const lineHeight = 7;
+  const colWidths = [35, 45, 30, 30, 30, 25];
+  const headers = ["Data/Hora", "Destinatário", "Status", "Confirmação", "Via", "Webhook"];
+  
+  // Header da tabela
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  let x = 10;
+  headers.forEach((header, i) => {
+    doc.text(header, x, y);
+    x += colWidths[i];
+  });
+  doc.setFont("helvetica", "normal");
+  y += lineHeight;
+  
+  // Linha separadora
+  doc.line(10, y - 3, pageWidth - 10, y - 3);
+  
+  logs.forEach(log => {
+    if (y > 280) {
+      doc.addPage();
+      y = 20;
+    }
+    
+    const statusNorm = getStatusNormalizado(log);
+    const statusLabel = statusNorm === "confirmado" ? "Confirmado" : statusNorm === "aceito" ? "Aceito" : "Falhou";
+    const via = log.metodo_envio === "contact_id" ? "Contact ID" : "Telefone";
+    const webhook = log.webhook_recebido_em ? "Sim" : "Não";
+    const nome = getDestinatarioNome(log);
+    
+    const row = [
+      safeFormatDate(log.enviado_em, "dd/MM HH:mm"),
+      nome.length > 20 ? nome.substring(0, 18) + "..." : nome,
+      statusLabel,
+      getTipoConfirmacao(log),
+      via,
+      webhook
+    ];
+    
+    x = 10;
+    row.forEach((cell, i) => {
+      doc.text(cell, x, y);
+      x += colWidths[i];
+    });
+    y += lineHeight;
+  });
+  
+  doc.save(`${titulo.toLowerCase().replace(/\s/g, "_")}_${format(new Date(), "yyyy-MM-dd_HHmm")}.pdf`);
+  toast.success("PDF exportado com sucesso!");
+}
+
 export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   logs,
   isLoading,
@@ -587,6 +711,13 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [filtroConfirmacao, setFiltroConfirmacao] = useState<string>("todas");
   const [filtroVia, setFiltroVia] = useState<string>("todas");
+  const [buscaDestinatario, setBuscaDestinatario] = useState<string>("");
+
+  // Lista de destinatários únicos para autocomplete
+  const destinatariosUnicos = useMemo(() => {
+    const nomes = logs.map(log => getDestinatarioNome(log));
+    return [...new Set(nomes)].filter(Boolean).sort();
+  }, [logs, getDestinatarioNome]);
 
   // Contadores
   const contadores = useMemo(() => {
@@ -601,6 +732,12 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   const logsFiltrados = useMemo(() => {
     return logs.filter(log => {
       const statusNorm = getStatusNormalizado(log);
+      
+      // Filtro de busca por destinatário
+      if (buscaDestinatario) {
+        const nome = getDestinatarioNome(log).toLowerCase();
+        if (!nome.includes(buscaDestinatario.toLowerCase())) return false;
+      }
       
       // Filtro de status (via contador ou dropdown)
       if (filtroStatus === "confirmado" && statusNorm !== "confirmado") return false;
@@ -619,7 +756,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
       
       return true;
     });
-  }, [logs, filtroStatus, filtroConfirmacao, filtroVia]);
+  }, [logs, filtroStatus, filtroConfirmacao, filtroVia, buscaDestinatario, getDestinatarioNome]);
 
   // Handler para atualizar filtro via contadores
   const handleCounterClick = (filtro: string) => {
@@ -635,9 +772,10 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
     setFiltroStatus("todos");
     setFiltroConfirmacao("todas");
     setFiltroVia("todas");
+    setBuscaDestinatario("");
   };
 
-  const temFiltrosAtivos = filtroStatus !== "todos" || filtroConfirmacao !== "todas" || filtroVia !== "todas";
+  const temFiltrosAtivos = filtroStatus !== "todos" || filtroConfirmacao !== "todas" || filtroVia !== "todas" || buscaDestinatario !== "";
 
   return (
     <Card>
@@ -652,16 +790,39 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
               <CardDescription>{descricao}</CardDescription>
             </div>
           </div>
-          <Select value={filtroHistorico} onValueChange={onFiltroChange}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Últimos 7 dias</SelectItem>
-              <SelectItem value="14">Últimos 14 dias</SelectItem>
-              <SelectItem value="30">Últimos 30 dias</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {/* Botão de exportação */}
+            {logs.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => exportToCSV(logsFiltrados, getDestinatarioNome, titulo)}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Exportar CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportToPDF(logsFiltrados, getDestinatarioNome, titulo)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Select value={filtroHistorico} onValueChange={onFiltroChange}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                <SelectItem value="14">Últimos 14 dias</SelectItem>
+                <SelectItem value="30">Últimos 30 dias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -677,12 +838,30 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
         {/* Filtros adicionais */}
         {logs.length > 0 && (
           <div className="flex flex-wrap gap-2 items-center mb-4">
+            {/* Campo de busca por destinatário */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar destinatário..."
+                value={buscaDestinatario}
+                onChange={(e) => setBuscaDestinatario(e.target.value)}
+                list="destinatarios-list"
+                className="w-[180px] h-8 text-sm pl-8"
+              />
+              <datalist id="destinatarios-list">
+                {destinatariosUnicos.map(nome => (
+                  <option key={nome} value={nome} />
+                ))}
+              </datalist>
+            </div>
+
             <Select value={filtroConfirmacao} onValueChange={setFiltroConfirmacao}>
-              <SelectTrigger className="w-[160px] h-8 text-sm">
-                <SelectValue placeholder="Confirmação" />
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue placeholder="Tipo de confirmação" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todas">Todas confirmações</SelectItem>
+                <SelectItem value="todas">Tipo de confirmação</SelectItem>
                 <SelectItem value="automatica">✓ Automática</SelectItem>
                 <SelectItem value="manual">👍 Manual</SelectItem>
                 <SelectItem value="pendente">⏱ Sem confirmação</SelectItem>
@@ -690,11 +869,11 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
             </Select>
             
             <Select value={filtroVia} onValueChange={setFiltroVia}>
-              <SelectTrigger className="w-[140px] h-8 text-sm">
-                <SelectValue placeholder="Via" />
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue placeholder="Via de envio" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todas">Todas vias</SelectItem>
+                <SelectItem value="todas">Via de envio</SelectItem>
                 <SelectItem value="phone">📱 Telefone</SelectItem>
                 <SelectItem value="contact_id">🆔 Contact ID</SelectItem>
               </SelectContent>
