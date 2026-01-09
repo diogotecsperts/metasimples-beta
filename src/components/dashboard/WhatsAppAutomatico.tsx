@@ -87,6 +87,8 @@ export function WhatsAppAutomatico() {
   const [verificandoStatusId, setVerificandoStatusId] = useState<string | null>(null);
   // Estado para confirmação manual
   const [confirmandoManualId, setConfirmandoManualId] = useState<string | null>(null);
+  // Estado para expandir/minimizar lista de admins
+  const [listaAdminsExpandida, setListaAdminsExpandida] = useState(false);
 
   // Buscar configurações existentes
   const {
@@ -332,8 +334,7 @@ export function WhatsAppAutomatico() {
     );
   }
   
-  const [listaAdminsExpandida, setListaAdminsExpandida] = useState(false);
-  const adminsVisiveis = listaAdminsExpandida || ADMINISTRADORES_DESTINATARIOS.length <= 3 
+  const adminsVisiveis = listaAdminsExpandida || ADMINISTRADORES_DESTINATARIOS.length <= 3
     ? ADMINISTRADORES_DESTINATARIOS 
     : ADMINISTRADORES_DESTINATARIOS.slice(0, 3);
   const adminsOcultos = ADMINISTRADORES_DESTINATARIOS.length - 3;
