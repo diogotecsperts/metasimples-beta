@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, History, Settings, User } from "lucide-react";
+import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, History, Settings, User, ChevronsUpDown } from "lucide-react";
 import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
+import { cn } from "@/lib/utils";
 
 interface Gerente {
   id: string;
@@ -76,6 +77,130 @@ const INTERVALOS_DISPONIVEIS = [{
   value: "30",
   label: "30 min"
 }];
+
+// Componente separado para lista de gerentes com toggle
+function GerentesMonitoradosCard({
+  gerentesComTelefone,
+  gerentesSemTelefone,
+  gerentesAtivos,
+  toggleGerente,
+  toggleTodosGerentes,
+}: {
+  gerentesComTelefone: Gerente[];
+  gerentesSemTelefone: Gerente[];
+  gerentesAtivos: string[];
+  toggleGerente: (id: string) => void;
+  toggleTodosGerentes: () => void;
+}) {
+  const [listaExpandida, setListaExpandida] = useState(false);
+  const podeMinimigar = gerentesComTelefone.length > 3;
+  const gerentesVisiveis = listaExpandida || !podeMinimigar 
+    ? gerentesComTelefone 
+    : gerentesComTelefone.slice(0, 3);
+  const gerentesOcultos = gerentesComTelefone.length - 3;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">Gerentes Monitorados</CardTitle>
+            <CardDescription>
+              Selecione quais gerentes receberão lembretes de preenchimento
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {gerentesComTelefone.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={toggleTodosGerentes} className="text-sm">
+                {gerentesComTelefone.every(g => gerentesAtivos.includes(g.id)) ? "Desmarcar todos" : "Marcar todos"}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!podeMinimigar}
+              className={cn("h-8 w-8 p-0", !podeMinimigar && "opacity-40 cursor-not-allowed")}
+              onClick={() => setListaExpandida(!listaExpandida)}
+            >
+              <ChevronsUpDown className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? (
+          <p className="text-muted-foreground text-center py-4">
+            Nenhum gerente cadastrado no sistema.
+          </p>
+        ) : (
+          <>
+            {gerentesComTelefone.length > 0 && (
+              <div className="space-y-2">
+                {gerentesVisiveis.map(gerente => (
+                  <div 
+                    key={gerente.id} 
+                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${gerentesAtivos.includes(gerente.id) ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800" : "bg-background hover:bg-muted"}`} 
+                    onClick={() => toggleGerente(gerente.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Checkbox checked={gerentesAtivos.includes(gerente.id)} className="pointer-events-none" />
+                      <div>
+                        <p className="font-medium">{gerente.nome}</p>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {gerente.telefone}
+                          </span>
+                          {gerente.loja && (
+                            <span className="flex items-center gap-1">
+                              <Store className="h-3 w-3" />
+                              {gerente.loja.nome}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {!listaExpandida && gerentesOcultos > 0 && (
+                  <button 
+                    onClick={() => setListaExpandida(true)}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground py-2"
+                  >
+                    e mais {gerentesOcultos} gerente(s)...
+                  </button>
+                )}
+              </div>
+            )}
+
+            {gerentesSemTelefone.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Gerentes sem telefone cadastrado:
+                </p>
+                <div className="space-y-2">
+                  {gerentesSemTelefone.map(gerente => (
+                    <div key={gerente.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 opacity-60">
+                      <div className="flex items-center gap-3">
+                        <Checkbox disabled checked={false} />
+                        <div>
+                          <p className="font-medium">{gerente.nome}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Telefone não cadastrado
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function WhatsAppCobranca() {
   const queryClient = useQueryClient();
@@ -553,86 +678,13 @@ export function WhatsAppCobranca() {
       </Card>
 
       {/* Gerentes Monitorados */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Gerentes Monitorados</CardTitle>
-              <CardDescription>
-                Selecione quais gerentes receberão lembretes de preenchimento
-              </CardDescription>
-            </div>
-            {gerentesComTelefone.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={toggleTodosGerentes} className="text-sm">
-                {gerentesComTelefone.every(g => gerentesAtivos.includes(g.id)) ? "Desmarcar todos" : "Marcar todos"}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {gerentesComTelefone.length === 0 && gerentesSemTelefone.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              Nenhum gerente cadastrado no sistema.
-            </p>
-          ) : (
-            <>
-              {gerentesComTelefone.length > 0 && (
-                <div className="space-y-2">
-                  {gerentesComTelefone.map(gerente => (
-                    <div 
-                      key={gerente.id} 
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${gerentesAtivos.includes(gerente.id) ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800" : "bg-background hover:bg-muted"}`} 
-                      onClick={() => toggleGerente(gerente.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox checked={gerentesAtivos.includes(gerente.id)} className="pointer-events-none" />
-                        <div>
-                          <p className="font-medium">{gerente.nome}</p>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {gerente.telefone}
-                            </span>
-                            {gerente.loja && (
-                              <span className="flex items-center gap-1">
-                                <Store className="h-3 w-3" />
-                                {gerente.loja.nome}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {gerentesSemTelefone.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Gerentes sem telefone cadastrado:
-                  </p>
-                  <div className="space-y-2">
-                    {gerentesSemTelefone.map(gerente => (
-                      <div key={gerente.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 opacity-60">
-                        <div className="flex items-center gap-3">
-                          <Checkbox disabled checked={false} />
-                          <div>
-                            <p className="font-medium">{gerente.nome}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Telefone não cadastrado
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <GerentesMonitoradosCard 
+        gerentesComTelefone={gerentesComTelefone}
+        gerentesSemTelefone={gerentesSemTelefone}
+        gerentesAtivos={gerentesAtivos}
+        toggleGerente={toggleGerente}
+        toggleTodosGerentes={toggleTodosGerentes}
+      />
 
       {/* Ações */}
       <div className="flex flex-col sm:flex-row gap-3">
