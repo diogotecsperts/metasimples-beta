@@ -320,6 +320,7 @@ export function WhatsAppEstatisticas() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="1">Ontem</SelectItem>
                   <SelectItem value="7">Últimos 7 dias</SelectItem>
                   <SelectItem value="14">Últimos 14 dias</SelectItem>
                   <SelectItem value="30">Últimos 30 dias</SelectItem>
