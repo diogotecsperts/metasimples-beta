@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus } from "lucide-react";
+import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus, ThumbsUp } from "lucide-react";
 import React from "react";
 import { toast } from "sonner";
 
@@ -121,9 +121,7 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
                 <span>Confirmado</span>
               </div>
               {temConfirmacaoManual && (
-                <Badge variant="outline" className="text-xs py-0 h-5 border-blue-300 text-blue-600">
-                  +Manual
-                </Badge>
+                <ThumbsUp className="h-3.5 w-3.5 text-blue-500" />
               )}
             </div>
           </TooltipTrigger>
@@ -136,7 +134,7 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
             )}
             {temConfirmacaoManual && log.confirmado_manual_em && (
               <p className="text-xs text-blue-600 mt-1">
-                ✓ Também confirmado manualmente em {safeFormatDate(log.confirmado_manual_em, "dd/MM HH:mm:ss")}
+                👍 Também confirmado manualmente em {safeFormatDate(log.confirmado_manual_em, "dd/MM HH:mm:ss")}
               </p>
             )}
           </TooltipContent>
@@ -156,25 +154,25 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 text-blue-600 cursor-help">
+              <div className="flex items-center gap-1.5 cursor-help">
+                {/* Relógio laranja permanece para indicar que era "Aceito" originalmente */}
+                <Clock className="h-4 w-4 text-orange-500" />
+                <div className="flex items-center gap-1 text-blue-600">
                   <CheckCheck className="h-4 w-4" />
                   <span>Confirmado</span>
                 </div>
-                <Badge variant="outline" className="text-xs py-0 h-5 border-blue-300 text-blue-600">
-                  Manual
-                </Badge>
+                <ThumbsUp className="h-3.5 w-3.5 text-blue-500" />
               </div>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
-              <p className="font-medium">✓ Confirmado manualmente por você</p>
+              <p className="font-medium">👍 Confirmado manualmente por você</p>
               {log.confirmado_manual_em && (
                 <p className="text-xs text-muted-foreground">
                   Em {safeFormatDate(log.confirmado_manual_em, "dd/MM HH:mm:ss")}
                 </p>
               )}
               <p className="text-xs text-amber-600 mt-1">
-                ⚠ Webhook ainda não retornou confirmação automática
+                ⏱ Webhook ainda não retornou (era "Aceito")
               </p>
             </TooltipContent>
           </Tooltip>
