@@ -15,8 +15,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus, ThumbsUp } from "lucide-react";
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // Helper para formatar datas de forma segura (evita crash por "Invalid time value")
 function safeFormatDate(dateString: string | null | undefined, formatStr: string, fallback = "—"): string {
@@ -489,6 +490,81 @@ function ConfirmacaoManualCell({
   );
 }
 
+// Componente de contadores clicáveis
+function StatusCounters({ 
+  contadores, 
+  filtroAtivo, 
+  onFiltroChange 
+}: { 
+  contadores: { confirmados: number; aceitos: number; falhou: number; manuais: number };
+  filtroAtivo: string;
+  onFiltroChange: (filtro: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-4">
+      <button
+        onClick={() => onFiltroChange(filtroAtivo === "confirmado" ? "todos" : "confirmado")}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
+          filtroAtivo === "confirmado" 
+            ? "bg-green-100 text-green-800 ring-2 ring-green-500 dark:bg-green-900 dark:text-green-200" 
+            : "bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"
+        )}
+      >
+        <CheckCheck className="h-3.5 w-3.5" />
+        Confirmado: {contadores.confirmados}
+      </button>
+      
+      <button
+        onClick={() => onFiltroChange(filtroAtivo === "aceito" ? "todos" : "aceito")}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
+          filtroAtivo === "aceito" 
+            ? "bg-orange-100 text-orange-800 ring-2 ring-orange-500 dark:bg-orange-900 dark:text-orange-200" 
+            : "bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-300 dark:hover:bg-orange-900"
+        )}
+      >
+        <Clock className="h-3.5 w-3.5" />
+        Aceito: {contadores.aceitos}
+      </button>
+      
+      <button
+        onClick={() => onFiltroChange(filtroAtivo === "falhou" ? "todos" : "falhou")}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
+          filtroAtivo === "falhou" 
+            ? "bg-red-100 text-red-800 ring-2 ring-red-500 dark:bg-red-900 dark:text-red-200" 
+            : "bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+        )}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        Falhou: {contadores.falhou}
+      </button>
+      
+      <button
+        onClick={() => onFiltroChange(filtroAtivo === "manual" ? "todos" : "manual")}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
+          filtroAtivo === "manual" 
+            ? "bg-blue-100 text-blue-800 ring-2 ring-blue-500 dark:bg-blue-900 dark:text-blue-200" 
+            : "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+        )}
+      >
+        <ThumbsUp className="h-3.5 w-3.5" />
+        Manual: {contadores.manuais}
+      </button>
+    </div>
+  );
+}
+
+// Helper para obter status normalizado
+function getStatusNormalizado(log: LogEntryBase): 'confirmado' | 'aceito' | 'falhou' {
+  const status = log.status_entrega || (log.status === "enviado" ? "aceito" : "falhou");
+  if (status === "enviado") return "confirmado";
+  if (status === "aceito") return "aceito";
+  return "falhou";
+}
+
 export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   logs,
   isLoading,
@@ -507,6 +583,62 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   onToggleConfirmacao,
   confirmandoManualId
 }: WhatsAppHistoricoTableProps<T>) {
+  // Estados internos de filtro
+  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [filtroConfirmacao, setFiltroConfirmacao] = useState<string>("todas");
+  const [filtroVia, setFiltroVia] = useState<string>("todas");
+
+  // Contadores
+  const contadores = useMemo(() => {
+    const confirmados = logs.filter(l => getStatusNormalizado(l) === "confirmado").length;
+    const aceitos = logs.filter(l => getStatusNormalizado(l) === "aceito" && !l.confirmacao_manual).length;
+    const falhou = logs.filter(l => getStatusNormalizado(l) === "falhou").length;
+    const manuais = logs.filter(l => l.confirmacao_manual).length;
+    return { confirmados, aceitos, falhou, manuais };
+  }, [logs]);
+
+  // Logs filtrados
+  const logsFiltrados = useMemo(() => {
+    return logs.filter(log => {
+      const statusNorm = getStatusNormalizado(log);
+      
+      // Filtro de status (via contador ou dropdown)
+      if (filtroStatus === "confirmado" && statusNorm !== "confirmado") return false;
+      if (filtroStatus === "aceito" && (statusNorm !== "aceito" || log.confirmacao_manual)) return false;
+      if (filtroStatus === "falhou" && statusNorm !== "falhou") return false;
+      if (filtroStatus === "manual" && !log.confirmacao_manual) return false;
+      
+      // Filtro de confirmação (dropdown)
+      if (filtroConfirmacao === "automatica" && (statusNorm !== "confirmado" || log.confirmacao_manual)) return false;
+      if (filtroConfirmacao === "manual" && !log.confirmacao_manual) return false;
+      if (filtroConfirmacao === "pendente" && (statusNorm === "confirmado" || log.confirmacao_manual)) return false;
+      
+      // Filtro de via
+      if (filtroVia === "phone" && log.metodo_envio !== "phone" && log.metodo_envio !== null) return false;
+      if (filtroVia === "contact_id" && log.metodo_envio !== "contact_id") return false;
+      
+      return true;
+    });
+  }, [logs, filtroStatus, filtroConfirmacao, filtroVia]);
+
+  // Handler para atualizar filtro via contadores
+  const handleCounterClick = (filtro: string) => {
+    setFiltroStatus(filtro);
+    // Resetar outros filtros quando usar contador
+    if (filtro !== "todos") {
+      setFiltroConfirmacao("todas");
+    }
+  };
+
+  // Limpar todos os filtros
+  const limparFiltros = () => {
+    setFiltroStatus("todos");
+    setFiltroConfirmacao("todas");
+    setFiltroVia("todas");
+  };
+
+  const temFiltrosAtivos = filtroStatus !== "todos" || filtroConfirmacao !== "todas" || filtroVia !== "todas";
+
   return (
     <Card>
       <CardHeader>
@@ -533,11 +665,65 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
         </div>
       </CardHeader>
       <CardContent>
+        {/* Contadores clicáveis */}
+        {logs.length > 0 && (
+          <StatusCounters 
+            contadores={contadores} 
+            filtroAtivo={filtroStatus} 
+            onFiltroChange={handleCounterClick}
+          />
+        )}
+
+        {/* Filtros adicionais */}
+        {logs.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center mb-4">
+            <Select value={filtroConfirmacao} onValueChange={setFiltroConfirmacao}>
+              <SelectTrigger className="w-[160px] h-8 text-sm">
+                <SelectValue placeholder="Confirmação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas confirmações</SelectItem>
+                <SelectItem value="automatica">✓ Automática</SelectItem>
+                <SelectItem value="manual">👍 Manual</SelectItem>
+                <SelectItem value="pendente">⏱ Sem confirmação</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filtroVia} onValueChange={setFiltroVia}>
+              <SelectTrigger className="w-[140px] h-8 text-sm">
+                <SelectValue placeholder="Via" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas vias</SelectItem>
+                <SelectItem value="phone">📱 Telefone</SelectItem>
+                <SelectItem value="contact_id">🆔 Contact ID</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {temFiltrosAtivos && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 text-sm text-muted-foreground"
+                onClick={limparFiltros}
+              >
+                Limpar filtros
+              </Button>
+            )}
+
+            {temFiltrosAtivos && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                Mostrando {logsFiltrados.length} de {logs.length}
+              </span>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : logs && logs.length > 0 ? (
+        ) : logsFiltrados && logsFiltrados.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -552,7 +738,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => (
+                {logsFiltrados.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="whitespace-nowrap">
                       {safeFormatDate(log.enviado_em, "dd/MM/yyyy HH:mm")}
@@ -588,6 +774,14 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                 ))}
               </TableBody>
             </Table>
+          </div>
+        ) : logs.length > 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+            <p>Nenhum envio corresponde aos filtros aplicados</p>
+            <Button variant="link" onClick={limparFiltros} className="mt-2">
+              Limpar filtros
+            </Button>
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
