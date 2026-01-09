@@ -370,26 +370,27 @@ export function WhatsAppCobranca() {
     }
   };
 
-  // Função para confirmar manualmente uma mensagem
-  const confirmarManualmente = async (log: CobrancaLog) => {
+  // Função para toggle de confirmação manual (marcar/desmarcar)
+  const toggleConfirmacaoManual = async (log: CobrancaLog) => {
+    const novoValor = !log.confirmacao_manual;
     setConfirmandoManualId(log.id);
     
     try {
       const { error } = await supabase
         .from("whatsapp_cobranca_log")
         .update({
-          confirmacao_manual: true,
-          confirmado_manual_em: new Date().toISOString()
+          confirmacao_manual: novoValor,
+          confirmado_manual_em: novoValor ? new Date().toISOString() : null
         })
         .eq("id", log.id);
       
       if (error) throw error;
       
-      toast.success("Mensagem marcada como confirmada!");
+      toast.success(novoValor ? "Confirmado manualmente" : "Confirmação removida");
       queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(`Erro ao confirmar: ${errorMessage}`);
+      toast.error(`Erro: ${errorMessage}`);
     } finally {
       setConfirmandoManualId(null);
     }
@@ -741,7 +742,7 @@ export function WhatsAppCobranca() {
         getDestinatarioNome={(log) => gerentesMap[log.gerente_id] || "Gerente"}
         onVerificarStatus={verificarStatusMensagem}
         verificandoStatusId={verificandoStatusId}
-        onConfirmarManual={confirmarManualmente}
+        onToggleConfirmacao={toggleConfirmacaoManual}
         confirmandoManualId={confirmandoManualId}
       />
     </div>

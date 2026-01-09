@@ -14,8 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw } from "lucide-react";
-import React, { useState } from "react";
+import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus } from "lucide-react";
+import React from "react";
 import { toast } from "sonner";
 
 // Interface genérica para logs - campos comuns a ambas as tabelas
@@ -66,8 +66,8 @@ interface WhatsAppHistoricoTableProps<T extends LogEntryBase> {
   onVerificarStatus?: (log: T) => void;
   // Estado de verificação em andamento
   verificandoStatusId?: string | null;
-  // Callback para confirmar manualmente
-  onConfirmarManual?: (log: T) => void;
+  // Callback para toggle de confirmação manual (marcar/desmarcar)
+  onToggleConfirmacao?: (log: T) => void;
   // Estado de confirmação manual em andamento
   confirmandoManualId?: string | null;
 }
@@ -86,16 +86,8 @@ function calcularTempoEspera(enviadoEm: string): { texto: string; minutos: numbe
   return { texto: `há ${diffMinutos}m`, minutos: diffMinutos };
 }
 
-// Componente de status de entrega - compartilhado
-function StatusEntregaCell({ 
-  log, 
-  onConfirmarManual,
-  isConfirmando 
-}: { 
-  log: LogEntryBase;
-  onConfirmarManual?: () => void;
-  isConfirmando?: boolean;
-}) {
+// Componente de status de entrega - compartilhado (apenas visual, sem botão de confirmação)
+function StatusEntregaCell({ log }: { log: LogEntryBase }) {
   const statusEntrega = log.status_entrega || (log.status === "enviado" ? "aceito" : "falhou");
   const temConfirmacaoManual = log.confirmacao_manual === true;
   
@@ -173,61 +165,28 @@ function StatusEntregaCell({
     }
     
     return (
-      <div className="flex items-center gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className={`flex items-center gap-1 cursor-help ${isAguardandoMuito ? 'text-orange-600' : 'text-yellow-600'}`}>
-                <Clock className="h-4 w-4" />
-                <span>Aceito</span>
-                {isAguardandoMuito && (
-                  <AlertTriangle className="h-3 w-3" />
-                )}
-                <span className="text-xs opacity-70">({tempoEspera})</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p className="font-medium">Aguardando confirmação do WhatsApp</p>
-              <p className="text-xs text-muted-foreground">Enviado {tempoEspera}</p>
-              <p className="text-xs mt-1">
-                O webhook de confirmação ainda não retornou.
-                {isAguardandoMuito && " Isso pode indicar problema de entrega ou número inválido."}
-              </p>
-              {onConfirmarManual && (
-                <p className="text-xs text-blue-600 mt-1">
-                  💡 Você pode confirmar manualmente se verificou a entrega
-                </p>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={`flex items-center gap-1 cursor-help ${isAguardandoMuito ? 'text-orange-600' : 'text-yellow-600'}`}>
+              <Clock className="h-4 w-4" />
+              <span>Aceito</span>
+              {isAguardandoMuito && (
+                <AlertTriangle className="h-3 w-3" />
               )}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        
-        {/* Botão para confirmar manualmente */}
-        {onConfirmarManual && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  onClick={onConfirmarManual}
-                  disabled={isConfirmando}
-                >
-                  {isConfirmando ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <CheckCheck className="h-3 w-3" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Marcar como confirmado manualmente</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+              <span className="text-xs opacity-70">({tempoEspera})</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p className="font-medium">Aguardando confirmação do WhatsApp</p>
+            <p className="text-xs text-muted-foreground">Enviado {tempoEspera}</p>
+            <p className="text-xs mt-1">
+              O webhook de confirmação ainda não retornou.
+              {isAguardandoMuito && " Isso pode indicar problema de entrega ou número inválido."}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
   
@@ -450,6 +409,70 @@ function RastreabilidadeCell({
   );
 }
 
+// Componente para confirmação manual - coluna separada no final da tabela
+function ConfirmacaoManualCell({ 
+  log, 
+  onToggleConfirmacao,
+  isProcessando 
+}: { 
+  log: LogEntryBase;
+  onToggleConfirmacao: () => void;
+  isProcessando?: boolean;
+}) {
+  const confirmado = log.confirmacao_manual === true;
+  
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      {/* Selo visual dos dois vistos - só aparece se confirmado */}
+      {confirmado && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="text-blue-500">
+                <CheckCheck className="h-4 w-4" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium">Confirmado manualmente</p>
+              {log.confirmado_manual_em && (
+                <p className="text-xs text-muted-foreground">
+                  Em {format(new Date(log.confirmado_manual_em), "dd/MM HH:mm", { locale: ptBR })}
+                </p>
+              )}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      
+      {/* Botão para marcar/desmarcar */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-6 w-6 p-0 ${confirmado ? 'text-blue-500 hover:text-red-500' : 'text-muted-foreground hover:text-blue-500'}`}
+              onClick={onToggleConfirmacao}
+              disabled={isProcessando}
+            >
+              {isProcessando ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : confirmado ? (
+                <CircleMinus className="h-3.5 w-3.5" />
+              ) : (
+                <CirclePlus className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{confirmado ? "Desmarcar confirmação manual" : "Marcar como confirmado"}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}
+
 export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   logs,
   isLoading,
@@ -465,7 +488,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   getDestinatarioNome = () => "Destinatário",
   onVerificarStatus,
   verificandoStatusId,
-  onConfirmarManual,
+  onToggleConfirmacao,
   confirmandoManualId
 }: WhatsAppHistoricoTableProps<T>) {
   return (
@@ -502,13 +525,14 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+              <TableRow>
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Destinatário</TableHead>
                   {colunasExtrasHeader}
                   <TableHead>Status Entrega</TableHead>
                   <TableHead>Via Envio</TableHead>
                   <TableHead>Detalhes</TableHead>
+                  {onToggleConfirmacao && <TableHead className="w-[70px] text-right">Manual</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -522,11 +546,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                     </TableCell>
                     {renderColunasExtras && renderColunasExtras(log)}
                     <TableCell>
-                      <StatusEntregaCell 
-                        log={log} 
-                        onConfirmarManual={onConfirmarManual ? () => onConfirmarManual(log) : undefined}
-                        isConfirmando={confirmandoManualId === log.id}
-                      />
+                      <StatusEntregaCell log={log} />
                     </TableCell>
                     <TableCell>
                       <ViaEnvioCell log={log} />
@@ -539,6 +559,15 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                         isVerificando={verificandoStatusId === log.id}
                       />
                     </TableCell>
+                    {onToggleConfirmacao && (
+                      <TableCell className="text-right">
+                        <ConfirmacaoManualCell 
+                          log={log}
+                          onToggleConfirmacao={() => onToggleConfirmacao(log)}
+                          isProcessando={confirmandoManualId === log.id}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
