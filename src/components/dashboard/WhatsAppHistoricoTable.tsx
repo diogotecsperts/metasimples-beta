@@ -899,7 +899,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                 Mostrando {logsExibidos.length} de {logsFiltrados.length}
               </span>
               <Select value={registrosPorPagina.toString()} onValueChange={(v) => setRegistrosPorPagina(Number(v))}>
-                <SelectTrigger className="w-[110px] h-8 text-sm">
+                <SelectTrigger className="w-[130px] h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
