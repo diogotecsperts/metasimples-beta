@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,18 @@ import {
 import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw, CirclePlus, CircleMinus } from "lucide-react";
 import React from "react";
 import { toast } from "sonner";
+
+// Helper para formatar datas de forma segura (evita crash por "Invalid time value")
+function safeFormatDate(dateString: string | null | undefined, formatStr: string, fallback = "—"): string {
+  if (!dateString) return fallback;
+  try {
+    const date = new Date(dateString);
+    if (!isValid(date)) return fallback;
+    return format(date, formatStr, { locale: ptBR });
+  } catch {
+    return fallback;
+  }
+}
 
 // Interface genérica para logs - campos comuns a ambas as tabelas
 export interface LogEntryBase {
@@ -72,18 +84,24 @@ interface WhatsAppHistoricoTableProps<T extends LogEntryBase> {
   confirmandoManualId?: string | null;
 }
 
-// Calcula há quanto tempo o status está "Aceito"
+// Calcula há quanto tempo o status está "Aceito" (com proteção contra datas inválidas)
 function calcularTempoEspera(enviadoEm: string): { texto: string; minutos: number } {
-  const enviado = new Date(enviadoEm);
-  const agora = new Date();
-  const diffMs = agora.getTime() - enviado.getTime();
-  const diffMinutos = Math.floor(diffMs / 60000);
-  const diffHoras = Math.floor(diffMinutos / 60);
-  
-  if (diffHoras > 0) {
-    return { texto: `há ${diffHoras}h ${diffMinutos % 60}m`, minutos: diffMinutos };
+  try {
+    const enviado = new Date(enviadoEm);
+    if (!isValid(enviado)) return { texto: "—", minutos: 0 };
+    
+    const agora = new Date();
+    const diffMs = agora.getTime() - enviado.getTime();
+    const diffMinutos = Math.floor(diffMs / 60000);
+    const diffHoras = Math.floor(diffMinutos / 60);
+    
+    if (diffHoras > 0) {
+      return { texto: `há ${diffHoras}h ${diffMinutos % 60}m`, minutos: diffMinutos };
+    }
+    return { texto: `há ${diffMinutos}m`, minutos: diffMinutos };
+  } catch {
+    return { texto: "—", minutos: 0 };
   }
-  return { texto: `há ${diffMinutos}m`, minutos: diffMinutos };
 }
 
 // Componente de status de entrega - compartilhado (apenas visual, sem botão de confirmação)
@@ -113,12 +131,12 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
             <p className="font-medium">✓ Webhook confirmou entrega ao WhatsApp</p>
             {log.webhook_recebido_em && (
               <p className="text-xs text-muted-foreground">
-                Confirmado em {format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                Confirmado em {safeFormatDate(log.webhook_recebido_em, "dd/MM HH:mm:ss")}
               </p>
             )}
             {temConfirmacaoManual && log.confirmado_manual_em && (
               <p className="text-xs text-blue-600 mt-1">
-                ✓ Também confirmado manualmente em {format(new Date(log.confirmado_manual_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                ✓ Também confirmado manualmente em {safeFormatDate(log.confirmado_manual_em, "dd/MM HH:mm:ss")}
               </p>
             )}
           </TooltipContent>
@@ -152,7 +170,7 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
               <p className="font-medium">✓ Confirmado manualmente por você</p>
               {log.confirmado_manual_em && (
                 <p className="text-xs text-muted-foreground">
-                  Em {format(new Date(log.confirmado_manual_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                  Em {safeFormatDate(log.confirmado_manual_em, "dd/MM HH:mm:ss")}
                 </p>
               )}
               <p className="text-xs text-amber-600 mt-1">
@@ -338,7 +356,7 @@ function RastreabilidadeCell({
             <DialogHeader>
               <DialogTitle>Resposta do SendPulse</DialogTitle>
               <DialogDescription>
-                Envio para {destinatarioNome} em {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                Envio para {destinatarioNome} em {safeFormatDate(log.enviado_em, "dd/MM/yyyy HH:mm")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -436,7 +454,7 @@ function ConfirmacaoManualCell({
               <p className="font-medium">Confirmado manualmente</p>
               {log.confirmado_manual_em && (
                 <p className="text-xs text-muted-foreground">
-                  Em {format(new Date(log.confirmado_manual_em), "dd/MM HH:mm", { locale: ptBR })}
+                  Em {safeFormatDate(log.confirmado_manual_em, "dd/MM HH:mm")}
                 </p>
               )}
             </TooltipContent>
@@ -539,7 +557,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                 {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="whitespace-nowrap">
-                      {format(new Date(log.enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      {safeFormatDate(log.enviado_em, "dd/MM/yyyy HH:mm")}
                     </TableCell>
                     <TableCell>
                       {renderDestinatario(log)}

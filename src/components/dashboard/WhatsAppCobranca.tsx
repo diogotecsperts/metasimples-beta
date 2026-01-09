@@ -121,7 +121,8 @@ export function WhatsAppCobranca() {
         .from("whatsapp_cobranca_log")
         .select("*")
         .gte("enviado_em", diasAtras.toISOString())
-        .order("enviado_em", { ascending: false });
+        .order("enviado_em", { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data as CobrancaLog[];
     }
