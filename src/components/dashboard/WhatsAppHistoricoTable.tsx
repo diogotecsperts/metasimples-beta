@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2 } from "lucide-react";
-import React from "react";
+import { History, Clock, CheckCheck, XCircle, AlertTriangle, Info, Loader2, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 
 // Interface genérica para logs - campos comuns a ambas as tabelas
@@ -59,6 +59,24 @@ interface WhatsAppHistoricoTableProps<T extends LogEntryBase> {
   headerBgClass?: string;
   // Nome para exibir no dialog de resposta
   getDestinatarioNome?: (log: T) => string;
+  // Callback para verificar status de mensagem
+  onVerificarStatus?: (log: T) => void;
+  // Estado de verificação em andamento
+  verificandoStatusId?: string | null;
+}
+
+// Calcula há quanto tempo o status está "Aceito"
+function calcularTempoEspera(enviadoEm: string): { texto: string; minutos: number } {
+  const enviado = new Date(enviadoEm);
+  const agora = new Date();
+  const diffMs = agora.getTime() - enviado.getTime();
+  const diffMinutos = Math.floor(diffMs / 60000);
+  const diffHoras = Math.floor(diffMinutos / 60);
+  
+  if (diffHoras > 0) {
+    return { texto: `há ${diffHoras}h ${diffMinutos % 60}m`, minutos: diffMinutos };
+  }
+  return { texto: `há ${diffMinutos}m`, minutos: diffMinutos };
 }
 
 // Componente de status de entrega - compartilhado
@@ -87,22 +105,35 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
           </Tooltip>
         </TooltipProvider>
       );
-    case "aceito":
+    case "aceito": {
+      const { texto: tempoEspera, minutos } = calcularTempoEspera(log.enviado_em);
+      const isAguardandoMuito = minutos >= 5;
+      
       return (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 text-yellow-600 cursor-help">
+              <div className={`flex items-center gap-1 cursor-help ${isAguardandoMuito ? 'text-orange-600' : 'text-yellow-600'}`}>
                 <Clock className="h-4 w-4" />
                 <span>Aceito</span>
+                {isAguardandoMuito && (
+                  <AlertTriangle className="h-3 w-3" />
+                )}
+                <span className="text-xs opacity-70">({tempoEspera})</span>
               </div>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>SendPulse aceitou, aguardando confirmação do WhatsApp</p>
+            <TooltipContent className="max-w-xs">
+              <p className="font-medium">Aguardando confirmação do WhatsApp</p>
+              <p className="text-xs text-muted-foreground">Enviado {tempoEspera}</p>
+              <p className="text-xs mt-1">
+                O webhook de confirmação ainda não retornou.
+                {isAguardandoMuito && " Isso pode indicar problema de entrega ou número inválido."}
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       );
+    }
     case "falhou":
     default:
       return (
@@ -190,7 +221,20 @@ function ViaEnvioCell({ log }: { log: LogEntryBase }) {
 }
 
 // Componente de rastreabilidade - mantém o botão "i" para detalhes
-function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; destinatarioNome: string }) {
+function RastreabilidadeCell({ 
+  log, 
+  destinatarioNome,
+  onVerificarStatus,
+  isVerificando
+}: { 
+  log: LogEntryBase; 
+  destinatarioNome: string;
+  onVerificarStatus?: () => void;
+  isVerificando?: boolean;
+}) {
+  const statusEntrega = log.status_entrega || (log.status === "enviado" ? "aceito" : "falhou");
+  const podeVerificar = statusEntrega === 'aceito' && log.sendpulse_message_id && onVerificarStatus;
+  
   return (
     <div className="flex items-center gap-2">
       
@@ -201,6 +245,32 @@ function RastreabilidadeCell({ log, destinatarioNome }: { log: LogEntryBase; des
         >
           HTTP {log.sendpulse_status}
         </Badge>
+      )}
+      
+      {/* Botão Verificar Status - aparece para logs "Aceito" com message_id */}
+      {podeVerificar && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-2"
+                onClick={onVerificarStatus}
+                disabled={isVerificando}
+              >
+                {isVerificando ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Verificar status real na API</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
       
       {log.sendpulse_response && (
@@ -297,7 +367,9 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   descricao = "Registros de mensagens enviadas",
   headerIcon,
   headerBgClass = "bg-blue-100 dark:bg-blue-900",
-  getDestinatarioNome = () => "Destinatário"
+  getDestinatarioNome = () => "Destinatário",
+  onVerificarStatus,
+  verificandoStatusId
 }: WhatsAppHistoricoTableProps<T>) {
   return (
     <Card>
@@ -361,7 +433,9 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                     <TableCell>
                       <RastreabilidadeCell 
                         log={log} 
-                        destinatarioNome={getDestinatarioNome(log)} 
+                        destinatarioNome={getDestinatarioNome(log)}
+                        onVerificarStatus={onVerificarStatus ? () => onVerificarStatus(log) : undefined}
+                        isVerificando={verificandoStatusId === log.id}
                       />
                     </TableCell>
                   </TableRow>
