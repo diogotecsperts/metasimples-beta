@@ -847,7 +847,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                 value={buscaDestinatario}
                 onChange={(e) => setBuscaDestinatario(e.target.value)}
                 list="destinatarios-list"
-                className="w-[180px] h-8 text-sm pl-8"
+                className="w-[200px] h-8 text-sm pl-8"
               />
               <datalist id="destinatarios-list">
                 {destinatariosUnicos.map(nome => (
@@ -857,7 +857,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
             </div>
 
             <Select value={filtroConfirmacao} onValueChange={setFiltroConfirmacao}>
-              <SelectTrigger className="w-[180px] h-8 text-sm">
+              <SelectTrigger className="w-[200px] h-8 text-sm">
                 <SelectValue placeholder="Tipo de confirmação" />
               </SelectTrigger>
               <SelectContent>
@@ -869,7 +869,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
             </Select>
             
             <Select value={filtroVia} onValueChange={setFiltroVia}>
-              <SelectTrigger className="w-[180px] h-8 text-sm">
+              <SelectTrigger className="w-[200px] h-8 text-sm">
                 <SelectValue placeholder="Via de envio" />
               </SelectTrigger>
               <SelectContent>
