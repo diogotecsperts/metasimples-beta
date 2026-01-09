@@ -157,7 +157,11 @@ async function sendWhatsAppTemplateByPhone(
 
   try {
     const responseJson = JSON.parse(responseText);
-    messageId = responseJson.data?.message_id || responseJson.message_id || responseJson.data?.id;
+    // Extrair message_id corretamente: pode estar em diferentes caminhos
+    messageId = responseJson.data?.data?.message_id || // WhatsApp message_id (sendTemplateByPhone)
+                responseJson.data?.message_id ||       // Fallback 1
+                responseJson.message_id ||              // Fallback 2
+                responseJson.data?.id;                  // ID interno SendPulse
     
     if (responseJson.success === false) {
       return { 
@@ -359,7 +363,8 @@ async function enviarParaGerente(
   gerente: Gerente,
   lojaNome: string,
   templateName: string,
-  horario: string
+  horario: string,
+  metodoForcar?: 'phone' | 'contact_id'
 ): Promise<SendResult> {
   if (!gerente.telefone) {
     return { gerente: gerente.nome, success: false, error: "Sem telefone cadastrado", reason: "sem_telefone" };
@@ -368,8 +373,80 @@ async function enviarParaGerente(
   const normalizedPhone = normalizePhoneNumber(gerente.telefone);
   const parameters = [gerente.nome, horario, lojaNome];
 
-  console.log(`[send-whatsapp-cobranca] Tentando enviar para ${gerente.nome} (${normalizedPhone}) com params:`, parameters);
+  console.log(`[send-whatsapp-cobranca] Tentando enviar para ${gerente.nome} (${normalizedPhone}) com params:`, parameters, `metodoForcar:`, metodoForcar || 'auto');
 
+  // === MODO FORÇADO: TELEFONE APENAS ===
+  if (metodoForcar === 'phone') {
+    console.log(`[send-whatsapp-cobranca] [FORÇADO] Enviando ${gerente.nome} via telefone apenas`);
+    const result = await sendWhatsAppTemplateByPhone(accessToken, botId, normalizedPhone, templateName, parameters);
+    
+    if (result.success) {
+      return { 
+        gerente: gerente.nome, 
+        success: true, 
+        reason: "enviado",
+        messageId: result.messageId,
+        sendpulseStatus: result.sendpulseStatus,
+        fullResponse: result.fullResponse,
+        metodoEnvio: "phone",
+        telefoneUsado: normalizedPhone
+      };
+    }
+    
+    // Falhou via telefone forçado
+    return { 
+      gerente: gerente.nome, 
+      success: false, 
+      error: result.error || "Erro ao enviar via telefone",
+      reason: "erro_sendpulse",
+      messageId: result.messageId,
+      sendpulseStatus: result.sendpulseStatus,
+      fullResponse: result.fullResponse
+    };
+  }
+
+  // === MODO FORÇADO: CONTACT_ID APENAS ===
+  if (metodoForcar === 'contact_id') {
+    console.log(`[send-whatsapp-cobranca] [FORÇADO] Enviando ${gerente.nome} via contact_id apenas`);
+    const knownContactId = KNOWN_CONTACTS[normalizedPhone];
+    
+    if (!knownContactId) {
+      return { 
+        gerente: gerente.nome, 
+        success: false, 
+        error: `Contact ID não encontrado para ${normalizedPhone}`,
+        reason: "contato_nao_existe"
+      };
+    }
+    
+    const result = await sendWhatsAppTemplate(accessToken, knownContactId, templateName, parameters);
+    
+    if (result.success) {
+      return { 
+        gerente: gerente.nome, 
+        success: true, 
+        reason: "enviado",
+        messageId: result.messageId,
+        sendpulseStatus: result.sendpulseStatus,
+        fullResponse: result.fullResponse,
+        metodoEnvio: "contact_id",
+        contactIdUsado: knownContactId
+      };
+    }
+    
+    // Falhou via contact_id forçado
+    return { 
+      gerente: gerente.nome, 
+      success: false, 
+      error: result.error || "Erro ao enviar via contact_id",
+      reason: "erro_sendpulse",
+      messageId: result.messageId,
+      sendpulseStatus: result.sendpulseStatus,
+      fullResponse: result.fullResponse
+    };
+  }
+
+  // === MODO AUTOMÁTICO: TELEFONE PRIMEIRO, CONTACT_ID FALLBACK ===
   // 1. Tentar enviar por telefone (método principal)
   let result = await sendWhatsAppTemplateByPhone(accessToken, botId, normalizedPhone, templateName, parameters);
 
@@ -523,7 +600,8 @@ const handler = async (req: Request): Promise<Response> => {
       horarioLancamento, 
       nivelCobranca = 1, 
       minutosAtraso = 5,
-      isTest = false 
+      isTest = false,
+      metodoForcar // 'phone' | 'contact_id' | undefined
     } = body;
 
     console.log(`[send-whatsapp-cobranca] Recebido:`, JSON.stringify(body, null, 2));
@@ -580,7 +658,8 @@ const handler = async (req: Request): Promise<Response> => {
           gerente as Gerente,
           lojaNome,
           templateName,
-          horaAtual
+          horaAtual,
+          metodoForcar // Passar metodoForcar para a função
         );
         
         results.push(sendResult);

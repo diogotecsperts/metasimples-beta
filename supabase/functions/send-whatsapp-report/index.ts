@@ -415,7 +415,11 @@ async function sendWhatsAppTemplateByPhone(
     
     return { 
       success: true,
-      messageId: responseJson.data?.message_id || responseJson.message_id,
+      // Extrair message_id corretamente: pode estar em diferentes caminhos
+      messageId: responseJson.data?.data?.message_id || // WhatsApp message_id (sendTemplateByPhone)
+                 responseJson.data?.message_id ||       // Fallback 1
+                 responseJson.message_id ||              // Fallback 2
+                 responseJson.data?.id,                  // ID interno SendPulse
       sendpulseStatus: response.status,
       fullResponse: responseText
     };

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, History } from "lucide-react";
+import { Bell, Send, Loader2, Phone, Store, Clock, AlertTriangle, History, Settings, User } from "lucide-react";
 import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
 
 interface Gerente {
@@ -86,6 +86,13 @@ export function WhatsAppCobranca() {
   const [gerentesAtivos, setGerentesAtivos] = useState<string[]>([]);
   const [isEnviandoTeste, setIsEnviandoTeste] = useState(false);
   const [filtroHistorico, setFiltroHistorico] = useState("7");
+  // Estados para envio manual
+  const [isEnviandoManual, setIsEnviandoManual] = useState(false);
+  const [metodoManualAtivo, setMetodoManualAtivo] = useState<'phone' | 'contact_id' | null>(null);
+  // Estado para verificação de status
+  const [verificandoStatusId, setVerificandoStatusId] = useState<string | null>(null);
+  // Estado para confirmação manual
+  const [confirmandoManualId, setConfirmandoManualId] = useState<string | null>(null);
 
   // Buscar configurações existentes
   const {
@@ -282,6 +289,109 @@ export function WhatsAppCobranca() {
       toast.error(`Erro ao enviar teste: ${errorMessage}`);
     } finally {
       setIsEnviandoTeste(false);
+    }
+  };
+
+  // Função para envio manual forçando método específico
+  const enviarTesteManual = async (metodo: 'phone' | 'contact_id') => {
+    if (gerentesAtivos.length === 0) {
+      toast.error("Selecione pelo menos um gerente");
+      return;
+    }
+    
+    setIsEnviandoManual(true);
+    setMetodoManualAtivo(metodo);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("send-whatsapp-cobranca", {
+        body: { 
+          isTest: true, 
+          gerenteIds: gerentesAtivos,
+          metodoForcar: metodo
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast.success(`Teste enviado via ${metodo === 'phone' ? 'telefone' : 'contact ID'}!`);
+        if (data.failCount > 0) {
+          toast.warning(`${data.failCount} envio(s) falharam.`);
+        }
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
+      } else {
+        toast.error(data.message || "Erro no envio");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro: ${errorMessage}`);
+    } finally {
+      setIsEnviandoManual(false);
+      setMetodoManualAtivo(null);
+    }
+  };
+
+  // Função para verificar status de mensagem via API
+  const verificarStatusMensagem = async (log: CobrancaLog) => {
+    if (!log.sendpulse_message_id) {
+      toast.error("Message ID não disponível");
+      return;
+    }
+    
+    setVerificandoStatusId(log.id);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("check-message-status", {
+        body: { 
+          messageId: log.sendpulse_message_id, 
+          contactId: log.contact_id_usado,
+          logId: log.id,
+          logTable: 'cobranca'
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.found) {
+        if (data.delivered) {
+          toast.success(`Status: ${data.status} - Entrega confirmada!`);
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
+        } else {
+          toast.info(`Status: ${data.status}`);
+        }
+      } else {
+        toast.warning(data.message || "Mensagem não encontrada no histórico do SendPulse");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao verificar: ${errorMessage}`);
+    } finally {
+      setVerificandoStatusId(null);
+    }
+  };
+
+  // Função para confirmar manualmente uma mensagem
+  const confirmarManualmente = async (log: CobrancaLog) => {
+    setConfirmandoManualId(log.id);
+    
+    try {
+      const { error } = await supabase
+        .from("whatsapp_cobranca_log")
+        .update({
+          confirmacao_manual: true,
+          confirmado_manual_em: new Date().toISOString()
+        })
+        .eq("id", log.id);
+      
+      if (error) throw error;
+      
+      toast.success("Mensagem marcada como confirmada!");
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-cobranca-logs"] });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao confirmar: ${errorMessage}`);
+    } finally {
+      setConfirmandoManualId(null);
     }
   };
 
@@ -540,6 +650,51 @@ export function WhatsAppCobranca() {
         </p>
       )}
 
+      {/* Seção de Envio Manual para Depuração */}
+      <Card className="border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Envio Manual (Depuração)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Força o envio por método específico, ignorando a lógica automática de fallback
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => enviarTesteManual('phone')}
+              disabled={isEnviandoManual || gerentesAtivos.length === 0}
+              className="flex-1 gap-2"
+            >
+              {metodoManualAtivo === 'phone' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Phone className="h-4 w-4" />
+              )}
+              Forçar via Telefone
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => enviarTesteManual('contact_id')}
+              disabled={isEnviandoManual || gerentesAtivos.length === 0}
+              className="flex-1 gap-2"
+            >
+              {metodoManualAtivo === 'contact_id' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <User className="h-4 w-4" />
+              )}
+              Forçar via Contact ID
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Histórico de Cobranças - Usando componente compartilhado */}
       <WhatsAppHistoricoTable<CobrancaLog>
         logs={logs}
@@ -584,6 +739,10 @@ export function WhatsAppCobranca() {
           </>
         )}
         getDestinatarioNome={(log) => gerentesMap[log.gerente_id] || "Gerente"}
+        onVerificarStatus={verificarStatusMensagem}
+        verificandoStatusId={verificandoStatusId}
+        onConfirmarManual={confirmarManualmente}
+        confirmandoManualId={confirmandoManualId}
       />
     </div>
   );

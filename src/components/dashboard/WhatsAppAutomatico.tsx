@@ -83,6 +83,8 @@ export function WhatsAppAutomatico() {
   const [metodoManualAtivo, setMetodoManualAtivo] = useState<'phone' | 'contact_id' | null>(null);
   // Estado para verificação de status
   const [verificandoStatusId, setVerificandoStatusId] = useState<string | null>(null);
+  // Estado para confirmação manual
+  const [confirmandoManualId, setConfirmandoManualId] = useState<string | null>(null);
 
   // Buscar configurações existentes
   const {
@@ -283,6 +285,31 @@ export function WhatsAppAutomatico() {
       toast.error(`Erro ao verificar: ${errorMessage}`);
     } finally {
       setVerificandoStatusId(null);
+    }
+  };
+
+  // Função para confirmar manualmente uma mensagem
+  const confirmarManualmente = async (log: ReportLogEntry) => {
+    setConfirmandoManualId(log.id);
+    
+    try {
+      const { error } = await supabase
+        .from("whatsapp_report_log")
+        .update({
+          confirmacao_manual: true,
+          confirmado_manual_em: new Date().toISOString()
+        })
+        .eq("id", log.id);
+      
+      if (error) throw error;
+      
+      toast.success("Mensagem marcada como confirmada!");
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-report-log"] });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao confirmar: ${errorMessage}`);
+    } finally {
+      setConfirmandoManualId(null);
     }
   };
   
@@ -512,6 +539,8 @@ export function WhatsAppAutomatico() {
           getDestinatarioNome={(log) => log.admin_nome}
           onVerificarStatus={verificarStatusMensagem}
           verificandoStatusId={verificandoStatusId}
+          onConfirmarManual={confirmarManualmente}
+          confirmandoManualId={confirmandoManualId}
         />
       </TabsContent>
     </Tabs>

@@ -360,6 +360,8 @@ export type Database = {
       }
       whatsapp_cobranca_log: {
         Row: {
+          confirmacao_manual: boolean | null
+          confirmado_manual_em: string | null
           contact_id_usado: string | null
           data: string
           enviado_em: string
@@ -382,6 +384,8 @@ export type Database = {
           webhook_recebido_em: string | null
         }
         Insert: {
+          confirmacao_manual?: boolean | null
+          confirmado_manual_em?: string | null
           contact_id_usado?: string | null
           data: string
           enviado_em?: string
@@ -404,6 +408,8 @@ export type Database = {
           webhook_recebido_em?: string | null
         }
         Update: {
+          confirmacao_manual?: boolean | null
+          confirmado_manual_em?: string | null
           contact_id_usado?: string | null
           data?: string
           enviado_em?: string
@@ -465,6 +471,8 @@ export type Database = {
           admin_id: string
           admin_nome: string
           admin_telefone: string
+          confirmacao_manual: boolean | null
+          confirmado_manual_em: string | null
           contact_id_usado: string | null
           data: string
           enviado_em: string
@@ -487,6 +495,8 @@ export type Database = {
           admin_id: string
           admin_nome: string
           admin_telefone: string
+          confirmacao_manual?: boolean | null
+          confirmado_manual_em?: string | null
           contact_id_usado?: string | null
           data?: string
           enviado_em?: string
@@ -509,6 +519,8 @@ export type Database = {
           admin_id?: string
           admin_nome?: string
           admin_telefone?: string
+          confirmacao_manual?: boolean | null
+          confirmado_manual_em?: string | null
           contact_id_usado?: string | null
           data?: string
           enviado_em?: string
