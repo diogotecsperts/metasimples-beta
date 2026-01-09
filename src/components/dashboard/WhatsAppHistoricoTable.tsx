@@ -34,6 +34,9 @@ export interface LogEntryBase {
   metodo_envio?: string | null;
   contact_id_usado?: string | null;
   telefone_usado?: string | null;
+  // Campos de confirmação manual
+  confirmacao_manual?: boolean;
+  confirmado_manual_em?: string | null;
   // Campos que podem existir dependendo da tabela
   admin_telefone?: string;
   // Campo preenchido via JOIN (logs de cobrança)
@@ -63,6 +66,10 @@ interface WhatsAppHistoricoTableProps<T extends LogEntryBase> {
   onVerificarStatus?: (log: T) => void;
   // Estado de verificação em andamento
   verificandoStatusId?: string | null;
+  // Callback para confirmar manualmente
+  onConfirmarManual?: (log: T) => void;
+  // Estado de confirmação manual em andamento
+  confirmandoManualId?: string | null;
 }
 
 // Calcula há quanto tempo o status está "Aceito"
@@ -80,36 +87,93 @@ function calcularTempoEspera(enviadoEm: string): { texto: string; minutos: numbe
 }
 
 // Componente de status de entrega - compartilhado
-function StatusEntregaCell({ log }: { log: LogEntryBase }) {
+function StatusEntregaCell({ 
+  log, 
+  onConfirmarManual,
+  isConfirmando 
+}: { 
+  log: LogEntryBase;
+  onConfirmarManual?: () => void;
+  isConfirmando?: boolean;
+}) {
   const statusEntrega = log.status_entrega || (log.status === "enviado" ? "aceito" : "falhou");
+  const temConfirmacaoManual = log.confirmacao_manual === true;
   
-  switch (statusEntrega) {
-    case "enviado":
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
+  // Status confirmado pelo webhook
+  if (statusEntrega === "enviado") {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5">
               <div className="flex items-center gap-1 text-green-600 cursor-help">
                 <CheckCheck className="h-4 w-4" />
                 <span>Confirmado</span>
               </div>
+              {temConfirmacaoManual && (
+                <Badge variant="outline" className="text-xs py-0 h-5 border-blue-300 text-blue-600">
+                  +Manual
+                </Badge>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-medium">✓ Webhook confirmou entrega ao WhatsApp</p>
+            {log.webhook_recebido_em && (
+              <p className="text-xs text-muted-foreground">
+                Confirmado em {format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+              </p>
+            )}
+            {temConfirmacaoManual && log.confirmado_manual_em && (
+              <p className="text-xs text-blue-600 mt-1">
+                ✓ Também confirmado manualmente em {format(new Date(log.confirmado_manual_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+              </p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  // Status aceito (aguardando webhook)
+  if (statusEntrega === "aceito") {
+    const { texto: tempoEspera, minutos } = calcularTempoEspera(log.enviado_em);
+    const isAguardandoMuito = minutos >= 5;
+    
+    // Se tem confirmação manual, mostrar de forma diferente
+    if (temConfirmacaoManual) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 text-blue-600 cursor-help">
+                  <CheckCheck className="h-4 w-4" />
+                  <span>Confirmado</span>
+                </div>
+                <Badge variant="outline" className="text-xs py-0 h-5 border-blue-300 text-blue-600">
+                  Manual
+                </Badge>
+              </div>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Webhook confirmou entrega ao WhatsApp</p>
-              {log.webhook_recebido_em && (
+            <TooltipContent className="max-w-xs">
+              <p className="font-medium">✓ Confirmado manualmente por você</p>
+              {log.confirmado_manual_em && (
                 <p className="text-xs text-muted-foreground">
-                  {format(new Date(log.webhook_recebido_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                  Em {format(new Date(log.confirmado_manual_em), "dd/MM HH:mm:ss", { locale: ptBR })}
                 </p>
               )}
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠ Webhook ainda não retornou confirmação automática
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       );
-    case "aceito": {
-      const { texto: tempoEspera, minutos } = calcularTempoEspera(log.enviado_em);
-      const isAguardandoMuito = minutos >= 5;
-      
-      return (
+    }
+    
+    return (
+      <div className="flex items-center gap-2">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -129,29 +193,60 @@ function StatusEntregaCell({ log }: { log: LogEntryBase }) {
                 O webhook de confirmação ainda não retornou.
                 {isAguardandoMuito && " Isso pode indicar problema de entrega ou número inválido."}
               </p>
+              {onConfirmarManual && (
+                <p className="text-xs text-blue-600 mt-1">
+                  💡 Você pode confirmar manualmente se verificou a entrega
+                </p>
+              )}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      );
-    }
-    case "falhou":
-    default:
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 text-red-600 cursor-help">
-                <XCircle className="h-4 w-4" />
-                <span>Falhou</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p>{log.erro_detalhes || "Erro desconhecido"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
+        
+        {/* Botão para confirmar manualmente */}
+        {onConfirmarManual && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={onConfirmarManual}
+                  disabled={isConfirmando}
+                >
+                  {isConfirmando ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <CheckCheck className="h-3 w-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Marcar como confirmado manualmente</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    );
   }
+  
+  // Status falhou
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1 text-red-600 cursor-help">
+            <XCircle className="h-4 w-4" />
+            <span>Falhou</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p>{log.erro_detalhes || "Erro desconhecido"}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 // Componente de via de envio - mostra se foi por telefone ou contact_id
@@ -369,7 +464,9 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   headerBgClass = "bg-blue-100 dark:bg-blue-900",
   getDestinatarioNome = () => "Destinatário",
   onVerificarStatus,
-  verificandoStatusId
+  verificandoStatusId,
+  onConfirmarManual,
+  confirmandoManualId
 }: WhatsAppHistoricoTableProps<T>) {
   return (
     <Card>
@@ -425,7 +522,11 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                     </TableCell>
                     {renderColunasExtras && renderColunasExtras(log)}
                     <TableCell>
-                      <StatusEntregaCell log={log} />
+                      <StatusEntregaCell 
+                        log={log} 
+                        onConfirmarManual={onConfirmarManual ? () => onConfirmarManual(log) : undefined}
+                        isConfirmando={confirmandoManualId === log.id}
+                      />
                     </TableCell>
                     <TableCell>
                       <ViaEnvioCell log={log} />
