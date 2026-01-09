@@ -707,11 +707,12 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   onToggleConfirmacao,
   confirmandoManualId
 }: WhatsAppHistoricoTableProps<T>) {
-  // Estados internos de filtro
+// Estados internos de filtro
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [filtroConfirmacao, setFiltroConfirmacao] = useState<string>("todas");
   const [filtroVia, setFiltroVia] = useState<string>("todas");
   const [buscaDestinatario, setBuscaDestinatario] = useState<string>("");
+  const [registrosPorPagina, setRegistrosPorPagina] = useState<number>(10);
 
   // Lista de destinatários únicos para autocomplete
   const destinatariosUnicos = useMemo(() => {
@@ -776,6 +777,9 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
   };
 
   const temFiltrosAtivos = filtroStatus !== "todos" || filtroConfirmacao !== "todas" || filtroVia !== "todas" || buscaDestinatario !== "";
+
+  // Logs paginados
+  const logsExibidos = logsFiltrados.slice(0, registrosPorPagina);
 
   return (
     <Card>
@@ -890,11 +894,22 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
               </Button>
             )}
 
-            {temFiltrosAtivos && (
-              <span className="text-xs text-muted-foreground ml-auto">
-                Mostrando {logsFiltrados.length} de {logs.length}
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-muted-foreground">
+                Mostrando {logsExibidos.length} de {logsFiltrados.length}
               </span>
-            )}
+              <Select value={registrosPorPagina.toString()} onValueChange={(v) => setRegistrosPorPagina(Number(v))}>
+                <SelectTrigger className="w-[110px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 registros</SelectItem>
+                  <SelectItem value="25">25 registros</SelectItem>
+                  <SelectItem value="50">50 registros</SelectItem>
+                  <SelectItem value="100">100 registros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 
@@ -917,7 +932,7 @@ export function WhatsAppHistoricoTable<T extends LogEntryBase>({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logsFiltrados.map((log) => (
+                {logsExibidos.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="whitespace-nowrap">
                       {safeFormatDate(log.enviado_em, "dd/MM/yyyy HH:mm")}

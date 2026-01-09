@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
 import { MessageSquare, Send, Loader2, Phone, Bell, User, History, Settings, ChevronsUpDown, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
 import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
 import { WhatsAppEstatisticas } from "./WhatsAppEstatisticas";
@@ -343,20 +344,43 @@ export function WhatsAppAutomatico() {
   
   return (
     <Tabs defaultValue="cobrancas" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="cobrancas" className="flex items-center gap-2">
-          <Bell className="h-4 w-4" />
-          Cobranças
-        </TabsTrigger>
-        <TabsTrigger value="relatorios" className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4" />
-          Relatórios
-        </TabsTrigger>
-        <TabsTrigger value="estatisticas" className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" />
-          Estatísticas
-        </TabsTrigger>
-      </TabsList>
+      <TooltipProvider>
+        <TabsList className="grid w-full grid-cols-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="cobrancas" className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Cobranças
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Lembretes automáticos para gerentes que não preencheram a meta diária</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="relatorios" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Relatórios
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Envio do ranking de vendas via WhatsApp para administradores</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="estatisticas" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Estatísticas
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Métricas e análises de desempenho dos envios de WhatsApp</p>
+            </TooltipContent>
+          </Tooltip>
+        </TabsList>
+      </TooltipProvider>
 
       <TabsContent value="cobrancas">
         <WhatsAppCobranca />
