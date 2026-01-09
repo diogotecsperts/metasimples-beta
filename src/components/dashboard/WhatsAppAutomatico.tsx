@@ -348,7 +348,7 @@ export function WhatsAppAutomatico() {
         <TabsList className="grid w-full grid-cols-3">
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="cobrancas" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:bg-zinc-800">
+              <TabsTrigger value="cobrancas" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
                 <Bell className="h-4 w-4" />
                 Cobranças
               </TabsTrigger>
@@ -359,7 +359,7 @@ export function WhatsAppAutomatico() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="relatorios" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:bg-zinc-800">
+              <TabsTrigger value="relatorios" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
                 <MessageSquare className="h-4 w-4" />
                 Relatórios
               </TabsTrigger>
@@ -370,7 +370,7 @@ export function WhatsAppAutomatico() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="estatisticas" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:bg-zinc-800">
+              <TabsTrigger value="estatisticas" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
                 <TrendingUp className="h-4 w-4" />
                 Estatísticas
               </TabsTrigger>
