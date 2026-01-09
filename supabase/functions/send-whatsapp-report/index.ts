@@ -453,7 +453,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { horario: horarioParam, isTest = false, adminsParaTeste } = await req.json();
+    const { horario: horarioParam, isTest = false, adminsParaTeste, metodoForcar } = await req.json();
     
     // Get current time in Brazil timezone
     const now = new Date();
@@ -463,7 +463,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     const horario = isTest ? `${horaAtual} (Teste)` : horarioParam;
     
-    console.log(`[send-whatsapp-report] Iniciando para horário: ${horario}, teste: ${isTest}`);
+    console.log(`[send-whatsapp-report] Iniciando para horário: ${horario}, teste: ${isTest}, metodoForcar: ${metodoForcar || 'auto'}`);
 
     // Fetch WhatsApp report settings
     const { data: settings, error: settingsError } = await supabase
@@ -685,11 +685,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send to each admin - TELEFONE PRIMEIRO, CONTACT_ID COMO FALLBACK
+    // Send to each admin
+    // metodoForcar: 'phone' | 'contact_id' | undefined
+    // Se metodoForcar está definido, usar APENAS esse método (para depuração)
+    // Senão, usar lógica automática: telefone primeiro, contact_id como fallback
     const results: { admin: string; success: boolean; error?: string }[] = [];
     
     for (const admin of adminsParaEnviar) {
-      console.log(`[send-whatsapp-report] Processando ${admin.nome}...`);
+      console.log(`[send-whatsapp-report] Processando ${admin.nome}... (método: ${metodoForcar || 'auto'})`);
       
       let enviado = false;
       let metodoUsado = 'phone';
@@ -697,62 +700,112 @@ const handler = async (req: Request): Promise<Response> => {
       let contactIdUsado: string | null = null;
       let result: { success: boolean; error?: string; messageId?: string; sendpulseStatus?: number; fullResponse?: string; isBanned?: boolean } = { success: false };
 
-      // PASSO 1: Tentar enviar por TELEFONE primeiro
-      if (admin.telefone) {
-        console.log(`[send-whatsapp-report] Tentando ${admin.nome} via telefone: ${admin.telefone}`);
-        
-        result = await sendWhatsAppTemplateByPhone(
-          accessToken,
-          sendpulseBotId,
-          admin.telefone,
-          "relatorio_diario_v2",
-          templateParams
-        );
-        
-        if (result.success) {
-          enviado = true;
-          metodoUsado = 'phone';
-          telefoneUsado = admin.telefone;
-          console.log(`[send-whatsapp-report] ✓ Sucesso via telefone para ${admin.nome}`);
+      // === MODO FORÇADO: TELEFONE APENAS ===
+      if (metodoForcar === 'phone') {
+        console.log(`[send-whatsapp-report] [FORÇADO] Enviando ${admin.nome} via telefone apenas`);
+        if (admin.telefone) {
+          result = await sendWhatsAppTemplateByPhone(
+            accessToken,
+            sendpulseBotId,
+            admin.telefone,
+            "relatorio_diario_v2",
+            templateParams
+          );
+          if (result.success) {
+            enviado = true;
+            metodoUsado = 'phone';
+            telefoneUsado = admin.telefone;
+            console.log(`[send-whatsapp-report] ✓ Sucesso via telefone para ${admin.nome}`);
+          } else {
+            console.log(`[send-whatsapp-report] ✗ Falha via telefone: ${result.error}`);
+          }
         } else {
-          console.log(`[send-whatsapp-report] ✗ Falha via telefone: ${result.error}`);
+          result = { success: false, error: 'Admin não tem telefone cadastrado' };
+          console.log(`[send-whatsapp-report] ✗ ${admin.nome} não tem telefone cadastrado`);
         }
       }
-
-      // PASSO 2: Se falhou por telefone, tentar por CONTACT_ID como fallback
-      if (!enviado && admin.contactId) {
-        console.log(`[send-whatsapp-report] Fallback: ${admin.nome} via contact_id: ${admin.contactId}`);
-        
-        result = await sendWhatsAppTemplateByContactId(
-          accessToken,
-          admin.contactId,
-          "relatorio_diario_v2",
-          templateParams
-        );
-        
-        // Se falhou com erro de contato banido, tentar habilitar e reenviar
-        if (!result.success && result.error?.toLowerCase().includes("banned")) {
-          console.log(`[send-whatsapp-report] Contato banido, tentando habilitar...`);
-          const enabled = await enableContact(accessToken, admin.contactId);
+      // === MODO FORÇADO: CONTACT_ID APENAS ===
+      else if (metodoForcar === 'contact_id') {
+        console.log(`[send-whatsapp-report] [FORÇADO] Enviando ${admin.nome} via contact_id apenas`);
+        if (admin.contactId) {
+          result = await sendWhatsAppTemplateByContactId(
+            accessToken,
+            admin.contactId,
+            "relatorio_diario_v2",
+            templateParams
+          );
+          if (result.success) {
+            enviado = true;
+            metodoUsado = 'contact_id';
+            contactIdUsado = admin.contactId;
+            console.log(`[send-whatsapp-report] ✓ Sucesso via contact_id para ${admin.nome}`);
+          } else {
+            console.log(`[send-whatsapp-report] ✗ Falha via contact_id: ${result.error}`);
+          }
+        } else {
+          result = { success: false, error: 'Admin não tem contactId cadastrado' };
+          console.log(`[send-whatsapp-report] ✗ ${admin.nome} não tem contactId cadastrado`);
+        }
+      }
+      // === MODO AUTOMÁTICO: TELEFONE PRIMEIRO, CONTACT_ID FALLBACK ===
+      else {
+        // PASSO 1: Tentar enviar por TELEFONE primeiro
+        if (admin.telefone) {
+          console.log(`[send-whatsapp-report] Tentando ${admin.nome} via telefone: ${admin.telefone}`);
           
-          if (enabled) {
-            console.log(`[send-whatsapp-report] Contato habilitado, reenviando...`);
-            result = await sendWhatsAppTemplateByContactId(
-              accessToken,
-              admin.contactId,
-              "relatorio_diario_v2",
-              templateParams
-            );
+          result = await sendWhatsAppTemplateByPhone(
+            accessToken,
+            sendpulseBotId,
+            admin.telefone,
+            "relatorio_diario_v2",
+            templateParams
+          );
+          
+          if (result.success) {
+            enviado = true;
+            metodoUsado = 'phone';
+            telefoneUsado = admin.telefone;
+            console.log(`[send-whatsapp-report] ✓ Sucesso via telefone para ${admin.nome}`);
+          } else {
+            console.log(`[send-whatsapp-report] ✗ Falha via telefone: ${result.error}`);
           }
         }
-        
-        if (result.success) {
-          enviado = true;
-          metodoUsado = 'contact_id';
-          contactIdUsado = admin.contactId;
-          console.log(`[send-whatsapp-report] ✓ Sucesso via contact_id para ${admin.nome}`);
-        } else {
-          console.log(`[send-whatsapp-report] ✗ Falha via contact_id: ${result.error}`);
+
+        // PASSO 2: Se falhou por telefone, tentar por CONTACT_ID como fallback
+        if (!enviado && admin.contactId) {
+          console.log(`[send-whatsapp-report] Fallback: ${admin.nome} via contact_id: ${admin.contactId}`);
+          
+          result = await sendWhatsAppTemplateByContactId(
+            accessToken,
+            admin.contactId,
+            "relatorio_diario_v2",
+            templateParams
+          );
+          
+          // Se falhou com erro de contato banido, tentar habilitar e reenviar
+          if (!result.success && result.error?.toLowerCase().includes("banned")) {
+            console.log(`[send-whatsapp-report] Contato banido, tentando habilitar...`);
+            const enabled = await enableContact(accessToken, admin.contactId);
+            
+            if (enabled) {
+              console.log(`[send-whatsapp-report] Contato habilitado, reenviando...`);
+              result = await sendWhatsAppTemplateByContactId(
+                accessToken,
+                admin.contactId,
+                "relatorio_diario_v2",
+                templateParams
+              );
+            }
+          }
+          
+          if (result.success) {
+            enviado = true;
+            metodoUsado = 'contact_id';
+            contactIdUsado = admin.contactId;
+            console.log(`[send-whatsapp-report] ✓ Sucesso via contact_id para ${admin.nome}`);
+          } else {
+            console.log(`[send-whatsapp-report] ✗ Falha via contact_id: ${result.error}`);
+          }
         }
       }
 

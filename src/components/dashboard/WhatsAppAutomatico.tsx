@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Bell, User, History } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History, Settings } from "lucide-react";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
 import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
 
@@ -78,6 +78,11 @@ export function WhatsAppAutomatico() {
   const [adminsAtivos, setAdminsAtivos] = useState<string[]>([]);
   const [isEnviandoTeste, setIsEnviandoTeste] = useState(false);
   const [filtroHistorico, setFiltroHistorico] = useState("7");
+  // Estados para envio manual
+  const [isEnviandoManual, setIsEnviandoManual] = useState(false);
+  const [metodoManualAtivo, setMetodoManualAtivo] = useState<'phone' | 'contact_id' | null>(null);
+  // Estado para verificação de status
+  const [verificandoStatusId, setVerificandoStatusId] = useState<string | null>(null);
 
   // Buscar configurações existentes
   const {
@@ -172,7 +177,7 @@ export function WhatsAppAutomatico() {
     }
   });
 
-  // Função para enviar teste
+  // Função para enviar teste (lógica automática)
   const enviarTeste = async () => {
     if (adminsAtivos.length === 0) {
       toast.error("Selecione pelo menos um administrador para enviar o teste");
@@ -200,6 +205,84 @@ export function WhatsAppAutomatico() {
       toast.error(`Erro ao enviar teste: ${errorMessage}`);
     } finally {
       setIsEnviandoTeste(false);
+    }
+  };
+
+  // Função para envio manual forçando método específico
+  const enviarTesteManual = async (metodo: 'phone' | 'contact_id') => {
+    if (adminsAtivos.length === 0) {
+      toast.error("Selecione pelo menos um administrador");
+      return;
+    }
+    
+    setIsEnviandoManual(true);
+    setMetodoManualAtivo(metodo);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("send-whatsapp-report", {
+        body: { 
+          isTest: true, 
+          adminsParaTeste: adminsAtivos,
+          metodoForcar: metodo
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast.success(`Teste enviado via ${metodo === 'phone' ? 'telefone' : 'contact ID'}!`);
+        if (data.failCount > 0) {
+          toast.warning(`${data.failCount} envio(s) falharam.`);
+        }
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-report-log"] });
+      } else {
+        toast.error(data.message || "Erro no envio");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro: ${errorMessage}`);
+    } finally {
+      setIsEnviandoManual(false);
+      setMetodoManualAtivo(null);
+    }
+  };
+
+  // Função para verificar status de mensagem via API
+  const verificarStatusMensagem = async (log: ReportLogEntry) => {
+    if (!log.sendpulse_message_id) {
+      toast.error("Message ID não disponível");
+      return;
+    }
+    
+    setVerificandoStatusId(log.id);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("check-message-status", {
+        body: { 
+          messageId: log.sendpulse_message_id, 
+          contactId: log.contact_id_usado,
+          logId: log.id,
+          logTable: 'report'
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.found) {
+        if (data.delivered) {
+          toast.success(`Status: ${data.status} - Entrega confirmada!`);
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-report-log"] });
+        } else {
+          toast.info(`Status: ${data.status}`);
+        }
+      } else {
+        toast.warning(data.message || "Mensagem não encontrada no histórico do SendPulse");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao verificar: ${errorMessage}`);
+    } finally {
+      setVerificandoStatusId(null);
     }
   };
   
@@ -347,6 +430,51 @@ export function WhatsAppAutomatico() {
           </p>
         )}
 
+        {/* Seção de Envio Manual para Depuração */}
+        <Card className="border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Envio Manual (Depuração)
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Força o envio por método específico, ignorando a lógica automática de fallback
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => enviarTesteManual('phone')}
+                disabled={isEnviandoManual || adminsAtivos.length === 0}
+                className="flex-1 gap-2"
+              >
+                {metodoManualAtivo === 'phone' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Phone className="h-4 w-4" />
+                )}
+                Forçar via Telefone
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => enviarTesteManual('contact_id')}
+                disabled={isEnviandoManual || adminsAtivos.length === 0}
+                className="flex-1 gap-2"
+              >
+                {metodoManualAtivo === 'contact_id' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <User className="h-4 w-4" />
+                )}
+                Forçar via Contact ID
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Histórico de Envios - Usando componente compartilhado */}
         <WhatsAppHistoricoTable<ReportLogEntry>
           logs={historicoEnvios || []}
@@ -382,6 +510,8 @@ export function WhatsAppAutomatico() {
             </>
           )}
           getDestinatarioNome={(log) => log.admin_nome}
+          onVerificarStatus={verificarStatusMensagem}
+          verificandoStatusId={verificandoStatusId}
         />
       </TabsContent>
     </Tabs>
