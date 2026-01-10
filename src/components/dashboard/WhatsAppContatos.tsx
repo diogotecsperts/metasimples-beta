@@ -509,7 +509,7 @@ export function WhatsAppContatos() {
                               </Tooltip>
                             </TooltipProvider>
 
-                            {(contact.status === 'nao_existe' || contact.status === 'pendente') && (
+                            {(contact.status === 'nao_existe' || contact.status === 'pendente' || contact.status === 'bloqueado') && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
