@@ -102,9 +102,13 @@ serve(async (req) => {
     if (mensagem) {
       console.log(`[check-message-status] Mensagem encontrada:`, JSON.stringify(mensagem));
       
-      // Determinar status baseado nos dados
-      const statusSendPulse = mensagem.status || mensagem.delivery_status || 'unknown';
-      const isDelivered = ['sent', 'delivered', 'read'].includes(statusSendPulse.toLowerCase());
+      // Determinar status baseado nos dados (status pode ser número ou string)
+      // SendPulse status numérico: 1=sent, 2=delivered, 3=read
+      const rawStatus = mensagem.status ?? mensagem.delivery_status ?? 'unknown';
+      const statusSendPulse = typeof rawStatus === 'number' ? rawStatus : String(rawStatus).toLowerCase();
+      const isDelivered = typeof statusSendPulse === 'number' 
+        ? [1, 2, 3].includes(statusSendPulse) 
+        : ['sent', 'delivered', 'read'].includes(statusSendPulse);
       
       // Se encontrou e foi entregue, atualizar o log no banco
       if (isDelivered && logId && logTable) {
