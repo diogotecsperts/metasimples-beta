@@ -66,12 +66,17 @@ async function getAccessToken(clientId: string, clientSecret: string): Promise<s
   return data.access_token;
 }
 
+interface GetContactResult {
+  contact: SendPulseContact | null;
+  isBanned: boolean;
+}
+
 // Busca contato pelo telefone no SendPulse
 async function getContactByPhone(
   accessToken: string,
   botId: string,
   phone: string
-): Promise<SendPulseContact | null> {
+): Promise<GetContactResult> {
   console.log(`[sync-sendpulse-contacts] Buscando contato pelo telefone ${phone}...`);
   
   const url = `https://api.sendpulse.com/whatsapp/contacts/getByPhone?bot_id=${botId}&phone=${encodeURIComponent(phone)}`;
@@ -86,9 +91,21 @@ async function getContactByPhone(
   const responseText = await response.text();
   console.log(`[sync-sendpulse-contacts] Resposta getContactByPhone:`, response.status, responseText);
 
+  // Verificar se é erro de "banned"
   if (!response.ok) {
+    try {
+      const errorData = JSON.parse(responseText);
+      // Verificar várias formas de indicar banned
+      const errorStr = JSON.stringify(errorData).toLowerCase();
+      if (errorStr.includes("banned") || errorStr.includes("bloqueado")) {
+        console.log(`[sync-sendpulse-contacts] Contato ${phone} está BANIDO`);
+        return { contact: null, isBanned: true };
+      }
+    } catch (e) {
+      // Ignora erro de parse
+    }
     console.log(`[sync-sendpulse-contacts] Contato não encontrado para ${phone}`);
-    return null;
+    return { contact: null, isBanned: false };
   }
 
   try {
@@ -96,17 +113,20 @@ async function getContactByPhone(
     if (data.success && data.data) {
       console.log(`[sync-sendpulse-contacts] Contato encontrado: id=${data.data.id}, status=${data.data.status}`);
       return {
-        id: data.data.id,
-        status: data.data.status,
-        phone: data.data.phone || phone,
-        name: data.data.name
+        contact: {
+          id: data.data.id,
+          status: data.data.status,
+          phone: data.data.phone || phone,
+          name: data.data.name
+        },
+        isBanned: false
       };
     }
   } catch (e) {
     console.error(`[sync-sendpulse-contacts] Erro ao parsear resposta:`, e);
   }
 
-  return null;
+  return { contact: null, isBanned: false };
 }
 
 // Determinar status baseado no status do SendPulse
@@ -208,15 +228,19 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         // Buscar contato no SendPulse
-        const sendpulseContact = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
+        const result = await getContactByPhone(accessToken, sendpulseBotId, normalizedPhone);
 
         let status: 'ativo' | 'bloqueado' | 'nao_existe' | 'pendente';
         let contactId: string | undefined;
 
-        if (sendpulseContact) {
-          status = mapSendPulseStatus(sendpulseContact.status);
-          contactId = sendpulseContact.id;
+        if (result.contact) {
+          status = mapSendPulseStatus(result.contact.status);
+          contactId = result.contact.id;
+        } else if (result.isBanned) {
+          // Contato existe mas está banido
+          status = 'bloqueado';
         } else {
+          // Contato realmente não existe
           status = 'nao_existe';
         }
 
