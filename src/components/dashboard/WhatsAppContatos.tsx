@@ -188,8 +188,7 @@ export function WhatsAppContatos() {
 
   // Gerar link de opt-in para WhatsApp
   const generateOptInLink = (telefone: string) => {
-    // Número do bot SendPulse (extrair do telefone ou usar fixo)
-    const botNumber = "5511999999999"; // TODO: Configurar número do bot
+    const botNumber = "5582981573339"; // Número do WhatsApp Business Tecsperts
     const message = encodeURIComponent("Olá! Quero receber notificações do sistema de vendas.");
     return `https://wa.me/${botNumber}?text=${message}`;
   };
@@ -520,14 +519,18 @@ export function WhatsAppContatos() {
                                       onClick={() => {
                                         const link = generateOptInLink(contact.telefone);
                                         navigator.clipboard.writeText(link);
-                                        toast.success("Link copiado! Envie para o usuário.");
+                                        toast.success("Link copiado! Envie para o usuário por e-mail ou outro canal.");
                                       }}
                                     >
                                       <ExternalLink className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Copiar link de opt-in</p>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="font-medium mb-1">Gerar link de opt-in</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Clique para copiar. Envie para <strong>{profile?.nome || 'o usuário'}</strong> por 
+                                      e-mail ou outro canal. Ao clicar e enviar a mensagem, será registrado no sistema.
+                                    </p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
