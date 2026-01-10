@@ -264,6 +264,56 @@ async function enableContact(
   return response.ok;
 }
 
+// ========== Funções de acesso ao banco sendpulse_contacts ==========
+
+// Busca contact_id do banco de dados
+async function getContactIdFromDB(
+  supabase: any,
+  telefone: string
+): Promise<{ contactId: string | null; status: string | null }> {
+  const { data } = await supabase
+    .from("sendpulse_contacts")
+    .select("sendpulse_contact_id, status")
+    .eq("telefone", telefone)
+    .maybeSingle();
+
+  return {
+    contactId: data?.sendpulse_contact_id || null,
+    status: data?.status || null
+  };
+}
+
+// Atualiza status do contato no banco após envio
+async function updateContactStatus(
+  supabase: any,
+  telefone: string,
+  status: 'ativo' | 'bloqueado',
+  contactId?: string
+): Promise<void> {
+  const updateData: Record<string, any> = { 
+    status,
+    updated_at: new Date().toISOString()
+  };
+  
+  if (status === 'ativo') {
+    updateData.ultimo_envio_sucesso_at = new Date().toISOString();
+    updateData.tentativas_falha_consecutivas = 0;
+  } else if (status === 'bloqueado') {
+    updateData.ultimo_bloqueio_at = new Date().toISOString();
+  }
+  
+  if (contactId) {
+    updateData.sendpulse_contact_id = contactId;
+  }
+  
+  await supabase
+    .from("sendpulse_contacts")
+    .update(updateData)
+    .eq("telefone", telefone);
+}
+
+// ========== Funções de envio SendPulse ==========
+
 // Envia template usando contact_id (em vez de phone)
 async function sendWhatsAppTemplateByContactId(
   accessToken: string,
@@ -651,32 +701,43 @@ const handler = async (req: Request): Promise<Response> => {
     // Get SendPulse access token
     const accessToken = await getAccessToken(sendpulseClientId, sendpulseClientSecret);
 
-    // Mapeamento fixo de telefone -> contact_id para ADMINISTRADORES
-    // Estes são os únicos que recebem relatórios
-    const KNOWN_CONTACTS: Record<string, string> = {
-      "+5582981627838": "69322fead2b7eee6000b2336", // Diogo DEV
-      "+5587981757169": "69370bb93debac0d790a7a42", // Thiago
-      "+5581982882100": "69556ee0143b1c873907e644", // Dyogo
-    };
-
-    // Lista fixa de administradores com seus dados
-    const ADMIN_CONTACTS: { id: string; nome: string; telefone: string; contactId: string }[] = [
-      { id: "ca936b16-8a15-43f4-976d-6be91e294099", nome: "Diogo DEV", telefone: "+5582981627838", contactId: "69322fead2b7eee6000b2336" },
-      { id: "766164b8-23c5-490a-8409-412e8651da33", nome: "Thiago", telefone: "+5587981757169", contactId: "69370bb93debac0d790a7a42" },
-      { id: "687d830b-4bad-4e39-9273-fab71f0d4bd0", nome: "Dyogo", telefone: "+5581982882100", contactId: "69556ee0143b1c873907e644" },
-    ];
-
-    // Filtrar admins: se for teste com lista específica, usar essa lista; senão, usar config do banco
-    let adminsParaEnviar = ADMIN_CONTACTS.filter(admin => 
-      settings.gerentes_ativos.includes(admin.id)
-    );
-
+    // ========== BUSCA DINÂMICA DE ADMINS DO BANCO ==========
+    // Buscar admins ativos do banco de dados (substituindo ADMIN_CONTACTS hardcoded)
+    const adminIds = settings.gerentes_ativos || [];
+    
     // Se for modo teste E recebeu lista específica de admins, usar essa lista
-    if (isTest && adminsParaTeste && Array.isArray(adminsParaTeste) && adminsParaTeste.length > 0) {
+    const idsParaBuscar = (isTest && adminsParaTeste && Array.isArray(adminsParaTeste) && adminsParaTeste.length > 0)
+      ? adminsParaTeste
+      : adminIds;
+
+    if (isTest && adminsParaTeste?.length > 0) {
       console.log(`[send-whatsapp-report] Modo teste com ${adminsParaTeste.length} admins específicos: ${adminsParaTeste.join(', ')}`);
-      adminsParaEnviar = ADMIN_CONTACTS.filter(admin => 
-        adminsParaTeste.includes(admin.id)
-      );
+    }
+
+    // Buscar dados dos admins do banco
+    const { data: adminsData, error: adminsError } = await supabase
+      .from("profiles")
+      .select("id, nome, telefone")
+      .in("id", idsParaBuscar)
+      .not("telefone", "is", null);
+
+    if (adminsError) {
+      console.error("[send-whatsapp-report] Erro ao buscar admins:", adminsError);
+      throw new Error("Erro ao buscar administradores do banco");
+    }
+
+    // Montar lista de admins com contactId do banco sendpulse_contacts
+    const adminsParaEnviar: { id: string; nome: string; telefone: string; contactId: string | null }[] = [];
+    
+    for (const admin of adminsData || []) {
+      const normalizedPhone = normalizePhoneNumber(admin.telefone);
+      const { contactId } = await getContactIdFromDB(supabase, normalizedPhone);
+      adminsParaEnviar.push({
+        id: admin.id,
+        nome: admin.nome,
+        telefone: normalizedPhone,
+        contactId
+      });
     }
 
     console.log(`[send-whatsapp-report] ${adminsParaEnviar.length} administradores para receber relatório`);
@@ -770,6 +831,8 @@ const handler = async (req: Request): Promise<Response> => {
             metodoUsado = 'phone';
             telefoneUsado = admin.telefone;
             console.log(`[send-whatsapp-report] ✓ Sucesso via telefone para ${admin.nome}`);
+            // Atualizar status no banco
+            await updateContactStatus(supabase, admin.telefone, 'ativo');
           } else {
             console.log(`[send-whatsapp-report] ✗ Falha via telefone: ${result.error}`);
           }
@@ -807,8 +870,12 @@ const handler = async (req: Request): Promise<Response> => {
             metodoUsado = 'contact_id';
             contactIdUsado = admin.contactId;
             console.log(`[send-whatsapp-report] ✓ Sucesso via contact_id para ${admin.nome}`);
+            // Atualizar status no banco
+            await updateContactStatus(supabase, admin.telefone, 'ativo', admin.contactId);
           } else {
             console.log(`[send-whatsapp-report] ✗ Falha via contact_id: ${result.error}`);
+            // Marcar como bloqueado se falhou em todos os métodos
+            await updateContactStatus(supabase, admin.telefone, 'bloqueado', admin.contactId);
           }
         }
       }
