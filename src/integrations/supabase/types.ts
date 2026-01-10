@@ -329,6 +329,62 @@ export type Database = {
         }
         Relationships: []
       }
+      sendpulse_contacts: {
+        Row: {
+          created_at: string | null
+          id: string
+          opt_in_at: string | null
+          sendpulse_contact_id: string | null
+          status: string | null
+          telefone: string
+          tentativas_envio: number | null
+          tentativas_falha_consecutivas: number | null
+          ultimo_bloqueio_at: string | null
+          ultimo_envio_sucesso_at: string | null
+          updated_at: string | null
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          opt_in_at?: string | null
+          sendpulse_contact_id?: string | null
+          status?: string | null
+          telefone: string
+          tentativas_envio?: number | null
+          tentativas_falha_consecutivas?: number | null
+          ultimo_bloqueio_at?: string | null
+          ultimo_envio_sucesso_at?: string | null
+          updated_at?: string | null
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          opt_in_at?: string | null
+          sendpulse_contact_id?: string | null
+          status?: string | null
+          telefone?: string
+          tentativas_envio?: number | null
+          tentativas_falha_consecutivas?: number | null
+          ultimo_bloqueio_at?: string | null
+          ultimo_envio_sucesso_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sendpulse_contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
