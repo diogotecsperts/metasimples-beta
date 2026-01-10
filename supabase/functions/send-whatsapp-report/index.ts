@@ -266,7 +266,29 @@ async function enableContact(
 
 // ========== Funções de acesso ao banco sendpulse_contacts ==========
 
-// Busca contact_id do banco de dados
+// Busca contact_id e dados do contato do banco de dados
+async function getContactFromDB(
+  supabase: any,
+  telefone: string
+): Promise<{ 
+  contactId: string | null; 
+  status: string | null;
+  tentativasRecuperacao: number;
+}> {
+  const { data } = await supabase
+    .from("sendpulse_contacts")
+    .select("sendpulse_contact_id, status, tentativas_falha_consecutivas")
+    .eq("telefone", telefone)
+    .maybeSingle();
+
+  return {
+    contactId: data?.sendpulse_contact_id || null,
+    status: data?.status || null,
+    tentativasRecuperacao: data?.tentativas_falha_consecutivas || 0
+  };
+}
+
+// Busca contact_id do banco de dados (wrapper simples para compatibilidade)
 async function getContactIdFromDB(
   supabase: any,
   telefone: string
@@ -288,7 +310,8 @@ async function updateContactStatus(
   supabase: any,
   telefone: string,
   status: 'ativo' | 'bloqueado',
-  contactId?: string
+  contactId?: string,
+  incrementarTentativas: boolean = false
 ): Promise<void> {
   const updateData: Record<string, any> = { 
     status,
@@ -306,10 +329,86 @@ async function updateContactStatus(
     updateData.sendpulse_contact_id = contactId;
   }
   
+  // Incrementar contador de tentativas falhas se solicitado
+  if (incrementarTentativas) {
+    const { data } = await supabase
+      .from("sendpulse_contacts")
+      .select("tentativas_falha_consecutivas")
+      .eq("telefone", telefone)
+      .maybeSingle();
+    
+    updateData.tentativas_falha_consecutivas = (data?.tentativas_falha_consecutivas || 0) + 1;
+  }
+  
   await supabase
     .from("sendpulse_contacts")
     .update(updateData)
     .eq("telefone", telefone);
+}
+
+// Limite máximo de tentativas de recuperação automática
+const MAX_RECOVERY_ATTEMPTS = 3;
+
+// Tenta recuperar um contato bloqueado automaticamente
+async function tryRecoverBlockedContact(
+  supabase: any,
+  accessToken: string,
+  botId: string,
+  telefone: string,
+  contactId: string
+): Promise<{ recovered: boolean; reason: string }> {
+  console.log(`[send-whatsapp-report] Tentando recuperar contato bloqueado: ${telefone}`);
+  
+  // Verificar se já excedeu limite de tentativas
+  const { tentativasRecuperacao } = await getContactFromDB(supabase, telefone);
+  
+  if (tentativasRecuperacao >= MAX_RECOVERY_ATTEMPTS) {
+    console.log(`[send-whatsapp-report] Contato ${telefone} excedeu limite de ${MAX_RECOVERY_ATTEMPTS} tentativas de recuperação`);
+    return { 
+      recovered: false, 
+      reason: `Excedeu limite de ${MAX_RECOVERY_ATTEMPTS} tentativas de recuperação` 
+    };
+  }
+  
+  // Incrementar contador de tentativas antes de tentar
+  await updateContactStatus(supabase, telefone, 'bloqueado', contactId, true);
+  
+  // 1. Tentar habilitar o contato
+  const enabled = await enableContact(accessToken, contactId);
+  if (!enabled) {
+    console.log(`[send-whatsapp-report] Falha ao habilitar contato ${telefone} via API`);
+    return { recovered: false, reason: "Falha ao habilitar via API SendPulse" };
+  }
+  
+  // 2. Verificar status atual no SendPulse
+  const checkUrl = `https://api.sendpulse.com/whatsapp/contacts/getByPhone?bot_id=${botId}&phone=${encodeURIComponent(telefone)}`;
+  
+  try {
+    const response = await fetch(checkUrl, {
+      headers: { "Authorization": `Bearer ${accessToken}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const sendpulseStatus = data.data?.status;
+      
+      console.log(`[send-whatsapp-report] Status do contato ${telefone} no SendPulse: ${sendpulseStatus}`);
+      
+      // Status 1 = ativo no SendPulse
+      if (sendpulseStatus === 1) {
+        await updateContactStatus(supabase, telefone, 'ativo', contactId);
+        console.log(`[send-whatsapp-report] ✓ Contato ${telefone} recuperado com sucesso!`);
+        return { recovered: true, reason: "Contato reativado com sucesso" };
+      }
+    }
+    
+    console.log(`[send-whatsapp-report] Contato ${telefone} ainda bloqueado após tentativa de recuperação`);
+    return { recovered: false, reason: "Contato ainda bloqueado no SendPulse" };
+    
+  } catch (error) {
+    console.error(`[send-whatsapp-report] Erro ao verificar status do contato ${telefone}:`, error);
+    return { recovered: false, reason: "Erro ao verificar status no SendPulse" };
+  }
 }
 
 // ========== Funções de envio SendPulse ==========
@@ -849,19 +948,29 @@ const handler = async (req: Request): Promise<Response> => {
             templateParams
           );
           
-          // Se falhou com erro de contato banido, tentar habilitar e reenviar
+          // Se falhou com erro de contato banido, tentar recuperação automática
           if (!result.success && result.error?.toLowerCase().includes("banned")) {
-            console.log(`[send-whatsapp-report] Contato banido, tentando habilitar...`);
-            const enabled = await enableContact(accessToken, admin.contactId);
+            console.log(`[send-whatsapp-report] Contato banido, iniciando recuperação automática...`);
             
-            if (enabled) {
-              console.log(`[send-whatsapp-report] Contato habilitado, reenviando...`);
+            // Usar a nova função de recuperação com limite de tentativas
+            const recoveryResult = await tryRecoverBlockedContact(
+              supabase,
+              accessToken,
+              sendpulseBotId,
+              admin.telefone,
+              admin.contactId
+            );
+            
+            if (recoveryResult.recovered) {
+              console.log(`[send-whatsapp-report] ✓ Contato recuperado! Reenviando mensagem...`);
               result = await sendWhatsAppTemplateByContactId(
                 accessToken,
                 admin.contactId,
                 "relatorio_diario_v2",
                 templateParams
               );
+            } else {
+              console.log(`[send-whatsapp-report] ✗ Recuperação falhou: ${recoveryResult.reason}`);
             }
           }
           
@@ -874,8 +983,10 @@ const handler = async (req: Request): Promise<Response> => {
             await updateContactStatus(supabase, admin.telefone, 'ativo', admin.contactId);
           } else {
             console.log(`[send-whatsapp-report] ✗ Falha via contact_id: ${result.error}`);
-            // Marcar como bloqueado se falhou em todos os métodos
-            await updateContactStatus(supabase, admin.telefone, 'bloqueado', admin.contactId);
+            // Marcar como bloqueado se falhou em todos os métodos (sem incrementar tentativas, já foi feito no tryRecover)
+            if (!result.error?.toLowerCase().includes("banned")) {
+              await updateContactStatus(supabase, admin.telefone, 'bloqueado', admin.contactId);
+            }
           }
         }
       }
