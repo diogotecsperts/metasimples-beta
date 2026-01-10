@@ -18,7 +18,8 @@ import {
   Users,
   UserCheck,
   UserX,
-  HelpCircle
+  HelpCircle,
+  RotateCcw
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -200,8 +201,27 @@ export function WhatsAppContatos() {
     bloqueados: contacts?.filter(c => c.status === 'bloqueado').length || 0,
     pendentes: contacts?.filter(c => c.status === 'pendente' || c.status === 'nao_existe').length || 0,
     gerentes: contacts?.filter(c => c.user_type === 'gerente').length || 0,
-    admins: contacts?.filter(c => c.user_type === 'admin').length || 0
+    admins: contacts?.filter(c => c.user_type === 'admin').length || 0,
+    limiteExcedido: contacts?.filter(c => (c.tentativas_falha_consecutivas || 0) >= 3).length || 0
   };
+
+  // Mutation para resetar contador de tentativas
+  const resetAttemptsMutation = useMutation({
+    mutationFn: async (telefone: string) => {
+      const { error } = await supabase
+        .from("sendpulse_contacts")
+        .update({ tentativas_falha_consecutivas: 0 })
+        .eq("telefone", telefone);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sendpulse-contacts"] });
+      toast.success("Contador resetado! O sistema tentará reativar no próximo envio.");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro: ${error.message}`);
+    }
+  });
 
   if (isLoadingContacts) {
     return (
@@ -213,8 +233,58 @@ export function WhatsAppContatos() {
 
   return (
     <div className="space-y-6">
-      {/* Alerta de contatos bloqueados */}
-      {stats.bloqueados > 0 && (
+      {/* Alerta CRÍTICO - Contatos que excederam limite de tentativas */}
+      {stats.limiteExcedido > 0 && (
+        <div className="bg-destructive/20 border-2 border-destructive/50 rounded-lg p-4 flex items-start gap-3">
+          <div className="bg-destructive text-destructive-foreground rounded-full p-1.5 mt-0.5 shrink-0">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-destructive flex items-center gap-2">
+              Intervenção Manual Necessária
+              <Badge variant="destructive" className="text-xs">
+                {stats.limiteExcedido}
+              </Badge>
+            </h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              {stats.limiteExcedido} contato{stats.limiteExcedido > 1 ? 's' : ''}{' '}
+              excedeu{stats.limiteExcedido > 1 ? 'ram' : ''} o limite de 3 tentativas de{' '}
+              recuperação automática. O sistema não tentará mais reativar automaticamente.
+            </p>
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-medium text-destructive">
+                Ação necessária:
+              </p>
+              <ol className="text-xs text-muted-foreground list-decimal list-inside space-y-1">
+                <li>O usuário deve abrir o WhatsApp e enviar uma mensagem para o bot</li>
+                <li>Após o usuário iniciar a conversa, clique em "Sincronizar" para atualizar o status</li>
+                <li>Se o problema persistir, verifique se o número está correto</li>
+              </ol>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="mt-3 gap-2"
+                onClick={() => {
+                  const problemContacts = contacts?.filter(c => (c.tentativas_falha_consecutivas || 0) >= 3)
+                    .map(c => {
+                      const profile = profilesMap.get(c.user_id);
+                      return `${profile?.nome || 'Desconhecido'}: ${c.telefone}`;
+                    })
+                    .join('\n');
+                  navigator.clipboard.writeText(problemContacts || '');
+                  toast.success("Lista de contatos copiada!");
+                }}
+              >
+                <Users className="h-4 w-4" />
+                Copiar Lista de Contatos
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de contatos bloqueados (menor prioridade) */}
+      {stats.bloqueados > 0 && stats.limiteExcedido === 0 && (
         <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
           <div className="flex-1">
@@ -325,6 +395,7 @@ export function WhatsAppContatos() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Tentativas</TableHead>
                   <TableHead>Último Envio</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
@@ -332,7 +403,7 @@ export function WhatsAppContatos() {
               <TableBody>
                 {contacts?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       Nenhum contato cadastrado. Clique em "Sincronizar Todos" para buscar.
                     </TableCell>
                   </TableRow>
@@ -341,9 +412,14 @@ export function WhatsAppContatos() {
                     const profile = profilesMap.get(contact.user_id);
                     const statusConfig = STATUS_CONFIG[contact.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente;
                     const StatusIcon = statusConfig.icon;
+                    const tentativas = contact.tentativas_falha_consecutivas || 0;
+                    const limiteExcedido = tentativas >= 3;
 
                     return (
-                      <TableRow key={contact.id}>
+                      <TableRow 
+                        key={contact.id}
+                        className={limiteExcedido ? "bg-destructive/5 border-l-4 border-l-destructive" : ""}
+                      >
                         <TableCell className="font-medium">
                           {profile?.nome || "Desconhecido"}
                         </TableCell>
@@ -374,6 +450,31 @@ export function WhatsAppContatos() {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {tentativas > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge 
+                                    variant={limiteExcedido ? "destructive" : "secondary"}
+                                    className="gap-1"
+                                  >
+                                    {limiteExcedido && <AlertTriangle className="h-3 w-3" />}
+                                    {tentativas}/3
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {limiteExcedido 
+                                    ? "Limite excedido! Precisa de intervenção manual"
+                                    : `${3 - tentativas} tentativa(s) restante(s)`
+                                  }
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {contact.ultimo_envio_sucesso_at ? (
@@ -427,6 +528,31 @@ export function WhatsAppContatos() {
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     <p>Copiar link de opt-in</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {limiteExcedido && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-950"
+                                      onClick={() => resetAttemptsMutation.mutate(contact.telefone)}
+                                      disabled={resetAttemptsMutation.isPending}
+                                    >
+                                      {resetAttemptsMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <RotateCcw className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Resetar contador de tentativas</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
