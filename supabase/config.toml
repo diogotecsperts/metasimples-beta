@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.receive-whatsapp-webhook]
 verify_jwt = false
+
+[functions.sync-sendpulse-contacts]
+verify_jwt = true

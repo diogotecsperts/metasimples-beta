@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableHead } from "@/components/ui/table";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Phone, Bell, User, History, Settings, ChevronsUpDown, TrendingUp } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, Bell, User, History, Settings, ChevronsUpDown, TrendingUp, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { WhatsAppCobranca } from "./WhatsAppCobranca";
 import { WhatsAppHistoricoTable, LogEntryBase } from "./WhatsAppHistoricoTable";
 import { WhatsAppEstatisticas } from "./WhatsAppEstatisticas";
+import { WhatsAppContatos } from "./WhatsAppContatos";
 import { cn } from "@/lib/utils";
 
 interface WhatsAppSettings {
@@ -345,7 +346,7 @@ export function WhatsAppAutomatico() {
   return (
     <Tabs defaultValue="cobrancas" className="space-y-6">
       <TooltipProvider>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <Tooltip>
             <TooltipTrigger asChild>
               <TabsTrigger value="cobrancas" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
@@ -370,6 +371,17 @@ export function WhatsAppAutomatico() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
+              <TabsTrigger value="contatos" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
+                <Users className="h-4 w-4" />
+                Contatos
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Gerenciamento de contatos do SendPulse e status de opt-in</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <TabsTrigger value="estatisticas" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
                 <TrendingUp className="h-4 w-4" />
                 Estatísticas
@@ -384,6 +396,10 @@ export function WhatsAppAutomatico() {
 
       <TabsContent value="cobrancas">
         <WhatsAppCobranca />
+      </TabsContent>
+
+      <TabsContent value="contatos">
+        <WhatsAppContatos />
       </TabsContent>
       
       <TabsContent value="estatisticas">
