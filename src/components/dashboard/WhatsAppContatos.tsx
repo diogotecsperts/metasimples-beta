@@ -213,6 +213,37 @@ export function WhatsAppContatos() {
 
   return (
     <div className="space-y-6">
+      {/* Alerta de contatos bloqueados */}
+      {stats.bloqueados > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <h4 className="font-medium text-destructive">
+              {stats.bloqueados} contato{stats.bloqueados > 1 ? 's' : ''} bloqueado{stats.bloqueados > 1 ? 's' : ''}
+            </h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              Estes contatos não receberão mensagens até serem reativados. 
+              O sistema tenta recuperar automaticamente durante o envio, mas após 3 falhas 
+              consecutivas é necessário que o usuário inicie uma nova conversa com o bot.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-3 gap-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+              onClick={handleSyncAll}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Tentar Reativar Todos
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Header com estatísticas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
