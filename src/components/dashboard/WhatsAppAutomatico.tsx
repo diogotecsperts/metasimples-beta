@@ -527,7 +527,7 @@ export function WhatsAppAutomatico() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              Envio Manual (Depuração)
+              Envio de teste Manual (Depuração)
             </CardTitle>
             <CardDescription className="text-xs">
               Força o envio por método específico, ignorando a lógica automática de fallback
