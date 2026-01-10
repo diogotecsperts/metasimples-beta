@@ -355,14 +355,14 @@ async function enviarParaGerente(
     return { gerente: gerente.nome, success: false, error: `Contato não existe. O número ${normalizedPhone} precisa iniciar conversa com o bot.`, reason: "contato_nao_existe", messageId: result.messageId, sendpulseStatus: result.sendpulseStatus, fullResponse: result.fullResponse };
   }
 
-  // Se contato está banido, tentar recuperação automática com limite de tentativas
+  // Se contato está banido, tentar recuperação automática e fallback via contact_id
   if (result.errorCode === "CONTACT_BANNED") {
     if (dbContactId) {
-      // Usar tryRecoverBlockedContact com limite de tentativas
+      // Primeiro: tentar recuperação automática
       const recovery = await tryRecoverBlockedContact(supabase, accessToken, botId, normalizedPhone, dbContactId);
       
       if (recovery.recovered) {
-        // Contato recuperado, tentar enviar novamente
+        // Contato recuperado, tentar enviar via contact_id
         console.log(`[send-whatsapp-cobranca] Contato ${normalizedPhone} recuperado! Reenviando...`);
         const retryResult = await sendWhatsAppTemplate(accessToken, dbContactId, templateName, parameters);
         if (retryResult.success) {
@@ -373,8 +373,39 @@ async function enviarParaGerente(
         return { gerente: gerente.nome, success: false, error: `Recuperado mas falhou ao enviar: ${retryResult.error}`, reason: "contato_banido", messageId: retryResult.messageId, sendpulseStatus: retryResult.sendpulseStatus, fullResponse: retryResult.fullResponse };
       }
       
-      // Não recuperou
-      return { gerente: gerente.nome, success: false, error: `Contato banido. ${recovery.reason}`, reason: "contato_banido", messageId: result.messageId, sendpulseStatus: result.sendpulseStatus, fullResponse: result.fullResponse };
+      // FALLBACK: Tentar enviar via contact_id mesmo sem recuperação bem-sucedida
+      console.log(`[send-whatsapp-cobranca] Recuperação falhou (${recovery.reason}). Tentando fallback via contact_id: ${dbContactId}`);
+      const fallbackResult = await sendWhatsAppTemplate(accessToken, dbContactId, templateName, parameters);
+      
+      if (fallbackResult.success) {
+        console.log(`[send-whatsapp-cobranca] Fallback via contact_id funcionou para ${normalizedPhone}!`);
+        await updateContactStatus(supabase, normalizedPhone, 'ativo', dbContactId);
+        return { 
+          gerente: gerente.nome, 
+          success: true, 
+          reason: "enviado", 
+          messageId: fallbackResult.messageId, 
+          sendpulseStatus: fallbackResult.sendpulseStatus, 
+          fullResponse: fallbackResult.fullResponse, 
+          metodoEnvio: "contact_id", 
+          contactIdUsado: dbContactId 
+        };
+      }
+      
+      // Ambos métodos falharam
+      console.log(`[send-whatsapp-cobranca] Todos os métodos falharam para ${normalizedPhone}: telefone=BANNED, recovery=${recovery.reason}, fallback=${fallbackResult.error}`);
+      await updateContactStatus(supabase, normalizedPhone, 'bloqueado', dbContactId, true);
+      return { 
+        gerente: gerente.nome, 
+        success: false, 
+        error: `Contato banido. Recuperação: ${recovery.reason}. Fallback contact_id: ${fallbackResult.error}`, 
+        reason: "contato_banido", 
+        messageId: fallbackResult.messageId, 
+        sendpulseStatus: fallbackResult.sendpulseStatus, 
+        fullResponse: fallbackResult.fullResponse,
+        metodoEnvio: "contact_id",
+        contactIdUsado: dbContactId
+      };
     }
     return { gerente: gerente.nome, success: false, error: `Contato banido. Sem contact_id no banco para fallback.`, reason: "contato_banido", messageId: result.messageId, sendpulseStatus: result.sendpulseStatus, fullResponse: result.fullResponse };
   }
