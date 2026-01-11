@@ -221,14 +221,22 @@ export function AuditLogManager() {
     },
   });
 
-  // Mostrar modal de loading apenas quando carregando "Todos"
+  // Mostrar modal de loading para "Todos" ou "Personalizado" com muitos registros
   useEffect(() => {
-    if (period === "all" && isFetching) {
-      setShowLoadingModal(true);
+    const isLongQuery = period === "all" || (period === "custom" && dateRange?.from);
+    
+    if (isLongQuery && isFetching) {
+      // Só mostrar o modal se o total estimado for significativo (> 100 registros)
+      // ou se ainda não sabemos o total (modal começa mostrando "Calculando...")
+      if (loadingProgress.total === 0 || loadingProgress.total > 100) {
+        setShowLoadingModal(true);
+      } else {
+        setShowLoadingModal(false);
+      }
     } else {
       setShowLoadingModal(false);
     }
-  }, [period, isFetching]);
+  }, [period, isFetching, dateRange, loadingProgress.total]);
 
   const { data: alertSettings } = useQuery({
     queryKey: ["audit-alert-settings"],
@@ -528,7 +536,9 @@ export function AuditLogManager() {
             {/* Texto com progresso */}
             <div className="text-center">
               <p className="text-lg font-medium text-foreground">
-                Carregando todos os registros
+                {period === "custom" 
+                  ? "Carregando período selecionado" 
+                  : "Carregando todos os registros"}
               </p>
               {loadingProgress.total > 0 ? (
                 <p className="text-sm text-muted-foreground mt-1">
