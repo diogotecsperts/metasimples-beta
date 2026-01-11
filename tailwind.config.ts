@@ -80,10 +80,25 @@ export default {
             height: "0",
           },
         },
+        "modal-fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "modal-scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.95)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "spinner": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "modal-fade-in": "modal-fade-in 0.2s ease-out",
+        "modal-scale-in": "modal-scale-in 0.3s ease-out",
+        "spinner": "spinner 1s linear infinite",
       },
     },
   },
