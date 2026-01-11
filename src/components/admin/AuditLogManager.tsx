@@ -104,6 +104,7 @@ export function AuditLogManager() {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [periodSelectOpen, setPeriodSelectOpen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 });
   const loadingRef = useRef({ loaded: 0, total: 0 });
   
@@ -780,19 +781,24 @@ export function AuditLogManager() {
       <div className="flex flex-wrap items-center gap-2 p-4 bg-muted/30 rounded-xl border">
         <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
 
-        <Select value={period} onValueChange={(val) => {
-          // Salvar período atual antes de mudar (para permitir cancelamento)
-          if (val === "all" || val === "custom") {
-            setPreviousPeriod(period);
-            setPreviousDateRange(dateRange);
-          }
-          setPeriod(val);
-          if (val === "custom") {
-            setCalendarModalOpen(true);
-          } else {
-            setDateRange(undefined);
-          }
-        }}>
+        <Select 
+          value={period} 
+          open={periodSelectOpen}
+          onOpenChange={setPeriodSelectOpen}
+          onValueChange={(val) => {
+            // Salvar período atual antes de mudar (para permitir cancelamento)
+            if (val === "all" || val === "custom") {
+              setPreviousPeriod(period);
+              setPreviousDateRange(dateRange);
+            }
+            setPeriod(val);
+            if (val === "custom") {
+              setCalendarModalOpen(true);
+            } else {
+              setDateRange(undefined);
+            }
+          }}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue>
               {period === "custom" && dateRange?.from && dateRange?.to 
@@ -806,11 +812,21 @@ export function AuditLogManager() {
               <SelectItem 
                 key={opt.value} 
                 value={opt.value}
-                onSelect={() => {
+                onPointerDown={(e) => {
                   // Se clicar em "Personalizado" quando já está em custom,
-                  // abrir o calendário mesmo assim
+                  // fechar o select e abrir o calendário
                   if (opt.value === "custom" && period === "custom") {
-                    setCalendarModalOpen(true);
+                    e.preventDefault();
+                    setPeriodSelectOpen(false);
+                    setTimeout(() => setCalendarModalOpen(true), 0);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  // Suporte a teclado (Enter/Space)
+                  if (opt.value === "custom" && period === "custom" && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    setPeriodSelectOpen(false);
+                    setTimeout(() => setCalendarModalOpen(true), 0);
                   }
                 }}
               >
