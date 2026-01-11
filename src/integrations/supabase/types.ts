@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_alert_settings: {
+        Row: {
+          acoes_monitoradas: string[]
+          ativo: boolean
+          created_at: string
+          emails: string[]
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          acoes_monitoradas?: string[]
+          ativo?: boolean
+          created_at?: string
+          emails?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          acoes_monitoradas?: string[]
+          ativo?: boolean
+          created_at?: string
+          emails?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string

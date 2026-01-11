@@ -39,6 +39,21 @@ export async function registrarAuditLog({
 
     if (error) {
       console.error("Erro ao registrar log de auditoria:", error);
+      return;
+    }
+
+    // Disparar alerta se for exclusão (fire-and-forget, não bloqueia)
+    if (action === "delete") {
+      supabase.functions.invoke("send-audit-alert", {
+        body: {
+          action,
+          entity,
+          entity_name: entityName,
+          user_nome: userNome,
+          user_role: userRole,
+          details,
+        },
+      }).catch((err) => console.error("Erro ao enviar alerta de auditoria:", err));
     }
   } catch (err) {
     console.error("Erro ao registrar log de auditoria:", err);

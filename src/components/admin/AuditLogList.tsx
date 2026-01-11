@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Pencil, Trash2, Store, Users, Target, Shield, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Store, Users, Target, Shield, Clock, BarChart3 } from "lucide-react";
 import { ACTION_LABELS, ENTITY_LABELS, type AuditAction, type AuditEntity } from "@/lib/auditLog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,8 @@ const getEntityIcon = (entity: AuditEntity) => {
       return <Shield className="h-4 w-4" />;
     case "lancamento":
       return <Clock className="h-4 w-4" />;
+    case "meta_ajuste":
+      return <BarChart3 className="h-4 w-4" />;
   }
 };
 
