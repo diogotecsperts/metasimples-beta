@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import {
   Trash2,
   CalendarIcon,
   X,
+  Ban,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,11 @@ export function AuditLogManager() {
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 });
   const loadingRef = useRef({ loaded: 0, total: 0 });
+  
+  // Estados para cancelamento de carregamento
+  const [previousPeriod, setPreviousPeriod] = useState<string>("7days");
+  const [previousDateRange, setPreviousDateRange] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
@@ -161,6 +167,10 @@ export function AuditLogManager() {
 
       // Para "Todos" ou "Personalizado", usar paginação para buscar todos os registros
       if (period === "all" || period === "custom") {
+        // Criar novo AbortController para esta requisição
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        
         // Primeiro: buscar contagem total
         const countQuery = supabase
           .from("audit_logs")
@@ -191,6 +201,11 @@ export function AuditLogManager() {
         let hasMore = true;
 
         while (hasMore) {
+          // Verificar se a requisição foi cancelada
+          if (controller.signal.aborted) {
+            throw new Error("Cancelled");
+          }
+          
           const query = buildBaseQuery().range(from, from + PAGE_SIZE - 1);
           const { data, error } = await query;
 
@@ -237,6 +252,18 @@ export function AuditLogManager() {
       setShowLoadingModal(false);
     }
   }, [period, isFetching, dateRange, loadingProgress.total]);
+
+  // Função para cancelar carregamento
+  const handleCancelLoading = useCallback(() => {
+    // Abortar a requisição atual
+    abortControllerRef.current?.abort();
+    
+    // Restaurar período anterior
+    setPeriod(previousPeriod);
+    setDateRange(previousDateRange);
+    setShowLoadingModal(false);
+    setLoadingProgress({ loaded: 0, total: 0 });
+  }, [previousPeriod, previousDateRange]);
 
   const { data: alertSettings } = useQuery({
     queryKey: ["audit-alert-settings"],
@@ -560,6 +587,17 @@ export function AuditLogManager() {
                 />
               </div>
             )}
+            
+            {/* Botão de Cancelar */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelLoading}
+              className="mt-2"
+            >
+              <Ban className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
           </div>
         </div>
       )}
@@ -743,6 +781,11 @@ export function AuditLogManager() {
         <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
 
         <Select value={period} onValueChange={(val) => {
+          // Salvar período atual antes de mudar (para permitir cancelamento)
+          if (val === "all" || val === "custom") {
+            setPreviousPeriod(period);
+            setPreviousDateRange(dateRange);
+          }
           setPeriod(val);
           if (val === "custom") {
             setCalendarModalOpen(true);
