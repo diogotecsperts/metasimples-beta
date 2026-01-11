@@ -85,9 +85,9 @@ export function RangeCalendarModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+      {/* Backdrop - sem blur para melhor performance */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-modal-fade-in"
+        className="absolute inset-0 bg-black/50 animate-modal-fade-in"
         onClick={onClose}
       />
       
