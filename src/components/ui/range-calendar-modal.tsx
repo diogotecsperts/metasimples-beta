@@ -130,10 +130,10 @@ export function RangeCalendarModal({
             </AriaButton>
           </header>
           
-          <CalendarGrid className="w-full border-collapse">
+        <CalendarGrid className="w-full [&_td]:p-0">
             <CalendarGridHeader>
               {(day) => (
-                <CalendarHeaderCell className="text-muted-foreground text-sm font-normal w-10 h-10 text-center">
+                <CalendarHeaderCell className="text-muted-foreground text-sm font-normal h-10 text-center">
                   {day}
                 </CalendarHeaderCell>
               )}
@@ -143,22 +143,22 @@ export function RangeCalendarModal({
                 <CalendarCell
                   date={date}
                   className={({ isSelected, isSelectionStart, isSelectionEnd, isDisabled, isFocusVisible, isOutsideMonth }) => cn(
-                    "w-10 h-10 flex items-center justify-center text-sm cursor-pointer transition-colors outline-none",
+                    "w-full h-10 flex items-center justify-center text-sm cursor-pointer transition-colors outline-none",
                     // Hoje - apenas negrito, sem fundo
                     date.compare(today(getLocalTimeZone())) === 0 && !isSelected && "font-bold",
                     // Fora do mês
                     isOutsideMonth && "text-muted-foreground/50",
                     // Desabilitado
                     isDisabled && "text-muted-foreground/30 cursor-not-allowed",
-                    // Meio do range - fundo suave
+                    // Meio do range - faixa contínua SEM arredondamento
                     isSelected && !isSelectionStart && !isSelectionEnd && "bg-primary/20 text-foreground",
-                    // Início do range
-                    isSelectionStart && "bg-primary text-primary-foreground font-medium rounded-l-lg",
-                    // Fim do range
-                    isSelectionEnd && "bg-primary text-primary-foreground font-medium rounded-r-lg",
-                    // Início e fim no mesmo dia
-                    isSelectionStart && isSelectionEnd && "rounded-lg",
-                    // Hover
+                    // Início do range - arredondado apenas à esquerda
+                    isSelectionStart && !isSelectionEnd && "bg-primary text-primary-foreground font-medium rounded-l-lg",
+                    // Fim do range - arredondado apenas à direita
+                    isSelectionEnd && !isSelectionStart && "bg-primary text-primary-foreground font-medium rounded-r-lg",
+                    // Início e fim no mesmo dia - totalmente arredondado
+                    isSelectionStart && isSelectionEnd && "bg-primary text-primary-foreground font-medium rounded-lg",
+                    // Hover (quando não selecionado)
                     !isSelected && !isDisabled && "hover:bg-muted rounded-lg",
                     // Focus
                     isFocusVisible && "ring-2 ring-ring ring-offset-2 rounded-lg"
