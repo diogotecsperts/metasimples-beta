@@ -803,7 +803,17 @@ export function AuditLogManager() {
           </SelectTrigger>
           <SelectContent className="bg-background">
             {PERIOD_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
+              <SelectItem 
+                key={opt.value} 
+                value={opt.value}
+                onSelect={() => {
+                  // Se clicar em "Personalizado" quando já está em custom,
+                  // abrir o calendário mesmo assim
+                  if (opt.value === "custom" && period === "custom") {
+                    setCalendarModalOpen(true);
+                  }
+                }}
+              >
                 {opt.label}
               </SelectItem>
             ))}
