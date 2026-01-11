@@ -779,7 +779,7 @@ export function AuditLogManager() {
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 p-4 bg-muted/30 rounded-xl border">
-        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+        <Filter className="hidden sm:block h-4 w-4 text-muted-foreground shrink-0" />
 
         <Select 
           value={period} 
