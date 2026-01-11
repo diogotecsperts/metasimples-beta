@@ -91,7 +91,8 @@ export function AuditLogManager() {
   const [period, setPeriod] = useState("7days");
   const [actionFilter, setActionFilter] = useState("all");
   const [lojaFilter, setLojaFilter] = useState("all");
-  const [usuarioFilter, setUsuarioFilter] = useState("all");
+  const [gerenteFilter, setGerenteFilter] = useState("all");
+  const [adminFilter, setAdminFilter] = useState("all");
   const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
@@ -193,26 +194,54 @@ export function AuditLogManager() {
     },
   });
 
-  // Extrair lojas únicas dos logs
+  // Buscar lista de gerentes do banco
+  const { data: gerentes = [] } = useQuery({
+    queryKey: ["gerentes-for-filter"],
+    queryFn: async () => {
+      // Buscar user_ids que são gerentes
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "gerente");
+
+      if (rolesError) throw rolesError;
+
+      const gerenteIds = roles?.map((r) => r.user_id) || [];
+      if (gerenteIds.length === 0) return [];
+
+      // Buscar profiles desses gerentes
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("id", gerenteIds)
+        .order("nome");
+
+      if (profilesError) throw profilesError;
+      return profiles || [];
+    },
+  });
+
+  // Buscar lista de admins do banco
+  const { data: adminsList = [] } = useQuery({
+    queryKey: ["admins-for-filter"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("list-admins");
+      if (error) throw error;
+      return data?.admins || [];
+    },
+  });
+
+  // Extrair lojas únicas dos logs (apenas de lançamentos e metas)
   const lojasUnicas = useMemo(() => {
     const lojas = new Set<string>();
     logs.forEach((log) => {
-      if (log.entity_name) {
-        // Extrair nome da loja (antes do " - ")
+      // Extrair lojas APENAS de lançamentos, metas e ajustes de meta
+      if ((log.entity === "lancamento" || log.entity === "meta" || log.entity === "meta_ajuste") && log.entity_name) {
         const lojaNome = log.entity_name.split(" - ")[0].trim();
         if (lojaNome && lojaNome.length > 2) lojas.add(lojaNome);
       }
     });
     return Array.from(lojas).sort();
-  }, [logs]);
-
-  // Extrair usuários únicos dos logs
-  const usuariosUnicos = useMemo(() => {
-    const usuarios = new Map<string, string>();
-    logs.forEach((log) => {
-      usuarios.set(log.user_nome, log.user_role);
-    });
-    return Array.from(usuarios.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [logs]);
 
   // Contadores por tipo
@@ -242,14 +271,27 @@ export function AuditLogManager() {
       // Filtro por tipo (cards)
       if (tipoSelecionado && log.entity !== tipoSelecionado) return false;
 
-      // Filtro por loja
+      // Filtro por loja (aplicar apenas em lançamentos, metas e ajustes)
       if (lojaFilter !== "all") {
-        const lojaNome = log.entity_name?.split(" - ")[0]?.trim() || "";
-        if (lojaNome !== lojaFilter) return false;
+        if (log.entity === "lancamento" || log.entity === "meta" || log.entity === "meta_ajuste") {
+          const lojaNome = log.entity_name?.split(" - ")[0]?.trim() || "";
+          if (lojaNome !== lojaFilter) return false;
+        } else {
+          // Para outras entidades, verificar se há loja nos details
+          const lojaDetails = (log.details as Record<string, unknown>)?.loja_nome || (log.details as Record<string, unknown>)?.loja;
+          if (!lojaDetails || !String(lojaDetails).includes(lojaFilter)) return false;
+        }
       }
 
-      // Filtro por usuário
-      if (usuarioFilter !== "all" && log.user_nome !== usuarioFilter) return false;
+      // Filtro por gerente
+      if (gerenteFilter !== "all") {
+        if (log.user_role !== "gerente" || log.user_nome !== gerenteFilter) return false;
+      }
+
+      // Filtro por admin
+      if (adminFilter !== "all") {
+        if (log.user_role !== "admin" || log.user_nome !== adminFilter) return false;
+      }
 
       // Filtro por busca textual
       if (searchTerm.trim()) {
@@ -262,14 +304,15 @@ export function AuditLogManager() {
 
       return true;
     });
-  }, [logs, tipoSelecionado, lojaFilter, usuarioFilter, searchTerm]);
+  }, [logs, tipoSelecionado, lojaFilter, gerenteFilter, adminFilter, searchTerm]);
 
   // Limpar filtros
   const handleClearFilters = () => {
     setPeriod("7days");
     setActionFilter("all");
     setLojaFilter("all");
-    setUsuarioFilter("all");
+    setGerenteFilter("all");
+    setAdminFilter("all");
     setTipoSelecionado(null);
     setSearchTerm("");
   };
@@ -278,7 +321,8 @@ export function AuditLogManager() {
     period !== "7days" ||
     actionFilter !== "all" ||
     lojaFilter !== "all" ||
-    usuarioFilter !== "all" ||
+    gerenteFilter !== "all" ||
+    adminFilter !== "all" ||
     tipoSelecionado !== null ||
     searchTerm.trim() !== "";
 
@@ -312,11 +356,16 @@ export function AuditLogManager() {
     const periodoLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || period;
     const acaoLabel = ACTION_OPTIONS.find((a) => a.value === actionFilter)?.label || actionFilter;
 
+    // Construir label de usuário para o PDF
+    let usuarioLabel = "Todos";
+    if (gerenteFilter !== "all") usuarioLabel = `${gerenteFilter} (Gerente)`;
+    else if (adminFilter !== "all") usuarioLabel = `${adminFilter} (Admin)`;
+
     await generateAuditReport(logsFiltrados, {
       periodo: periodoLabel,
       acao: acaoLabel,
       loja: lojaFilter === "all" ? "Todas" : lojaFilter,
-      usuario: usuarioFilter === "all" ? "Todos" : usuarioFilter,
+      usuario: usuarioLabel,
       busca: searchTerm,
     });
     toast.success("PDF exportado com sucesso!");
@@ -540,7 +589,7 @@ export function AuditLogManager() {
 
         <Select value={lojaFilter} onValueChange={setLojaFilter}>
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Por loja" />
+            <SelectValue placeholder="Todas lojas" />
           </SelectTrigger>
           <SelectContent className="bg-background">
             <SelectItem value="all">Todas lojas</SelectItem>
@@ -552,15 +601,29 @@ export function AuditLogManager() {
           </SelectContent>
         </Select>
 
-        <Select value={usuarioFilter} onValueChange={setUsuarioFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Por usuário" />
+        <Select value={gerenteFilter} onValueChange={setGerenteFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Todos gerentes" />
           </SelectTrigger>
           <SelectContent className="bg-background">
-            <SelectItem value="all">Todos usuários</SelectItem>
-            {usuariosUnicos.map(([nome, role]) => (
-              <SelectItem key={nome} value={nome}>
-                {nome} {role === "admin" ? "(Admin)" : "(Ger.)"}
+            <SelectItem value="all">Todos gerentes</SelectItem>
+            {gerentes.map((g: { id: string; nome: string }) => (
+              <SelectItem key={g.id} value={g.nome}>
+                {g.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={adminFilter} onValueChange={setAdminFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Todos admins" />
+          </SelectTrigger>
+          <SelectContent className="bg-background">
+            <SelectItem value="all">Todos admins</SelectItem>
+            {adminsList.map((a: { id: string; nome: string }) => (
+              <SelectItem key={a.id} value={a.nome}>
+                {a.nome}
               </SelectItem>
             ))}
           </SelectContent>
