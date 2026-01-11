@@ -778,7 +778,7 @@ export function AuditLogManager() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-center gap-2 p-4 bg-muted/30 rounded-xl border">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 p-4 bg-muted/30 rounded-xl border">
         <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
 
         <Select 
@@ -799,7 +799,7 @@ export function AuditLogManager() {
             }
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue>
               {period === "custom" && dateRange?.from && dateRange?.to 
                 ? `${format(dateRange.from, "dd/MM")} - ${format(dateRange.to, "dd/MM")}`
@@ -851,7 +851,7 @@ export function AuditLogManager() {
         )}
 
         <Select value={actionFilter} onValueChange={setActionFilter}>
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-full sm:w-[130px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-background">
@@ -864,7 +864,7 @@ export function AuditLogManager() {
         </Select>
 
         <Select value={lojaFilter} onValueChange={setLojaFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[140px]">
             <SelectValue placeholder="Todas lojas" />
           </SelectTrigger>
           <SelectContent className="bg-background">
@@ -878,7 +878,7 @@ export function AuditLogManager() {
         </Select>
 
         <Select value={gerenteFilter} onValueChange={setGerenteFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Todos gerentes" />
           </SelectTrigger>
           <SelectContent className="bg-background">
@@ -892,7 +892,7 @@ export function AuditLogManager() {
         </Select>
 
         <Select value={adminFilter} onValueChange={setAdminFilter}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-full sm:w-[150px]">
             <SelectValue placeholder="Todos admins" />
           </SelectTrigger>
           <SelectContent className="bg-background">
@@ -906,7 +906,7 @@ export function AuditLogManager() {
         </Select>
 
         {/* Busca */}
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar..."
