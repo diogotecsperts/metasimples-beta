@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { DateRange } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuditLogList, type AuditLog } from "./AuditLogList";
@@ -67,8 +68,8 @@ const PERIOD_OPTIONS = [
   { value: "today", label: "Hoje" },
   { value: "7days", label: "7 dias" },
   { value: "30days", label: "30 dias" },
-  { value: "custom", label: "Personalizado" },
   { value: "all", label: "Todos" },
+  { value: "custom", label: "Personalizado" },
 ];
 
 const ACTION_OPTIONS = [
@@ -105,14 +106,13 @@ export function AuditLogManager() {
   const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
-  const [customDateStart, setCustomDateStart] = useState<Date | undefined>(undefined);
-  const [customDateEnd, setCustomDateEnd] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
   // Buscar logs do banco
   const { data: logs = [], isLoading } = useQuery({
-    queryKey: ["audit-logs", period, actionFilter, customDateStart, customDateEnd],
+    queryKey: ["audit-logs", period, actionFilter, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       let query = supabase
         .from("audit_logs")
@@ -120,16 +120,14 @@ export function AuditLogManager() {
         .order("created_at", { ascending: false });
 
       // Filtro por período
-      if (period === "custom") {
-        if (customDateStart) {
-          query = query.gte("created_at", customDateStart.toISOString());
-        }
-        if (customDateEnd) {
-          const endOfDay = new Date(customDateEnd);
+      if (period === "custom" && dateRange?.from) {
+        query = query.gte("created_at", dateRange.from.toISOString());
+        if (dateRange.to) {
+          const endOfDay = new Date(dateRange.to);
           endOfDay.setHours(23, 59, 59, 999);
           query = query.lte("created_at", endOfDay.toISOString());
         }
-      } else if (period !== "all") {
+      } else if (period !== "all" && period !== "custom") {
         const now = new Date();
         let startDate: Date;
 
@@ -155,8 +153,9 @@ export function AuditLogManager() {
         query = query.eq("action", actionFilter);
       }
 
-      // Limitar resultados
-      query = query.limit(500);
+      // Limite dinâmico: maior para "Todos" ou período customizado
+      const limitValue = (period === "all" || period === "custom") ? 5000 : 1000;
+      query = query.limit(limitValue);
 
       const { data, error } = await query;
 
@@ -351,8 +350,7 @@ export function AuditLogManager() {
     setAdminFilter("all");
     setTipoSelecionado(null);
     setSearchTerm("");
-    setCustomDateStart(undefined);
-    setCustomDateEnd(undefined);
+    setDateRange(undefined);
   };
 
   const hasActiveFilters =
@@ -363,8 +361,7 @@ export function AuditLogManager() {
     adminFilter !== "all" ||
     tipoSelecionado !== null ||
     searchTerm.trim() !== "" ||
-    customDateStart !== undefined ||
-    customDateEnd !== undefined;
+    dateRange !== undefined;
 
   // Exportar CSV
   const exportarCSV = () => {
@@ -394,8 +391,8 @@ export function AuditLogManager() {
   // Exportar PDF
   const exportarPDF = async () => {
     let periodoLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || period;
-    if (period === "custom" && customDateStart && customDateEnd) {
-      periodoLabel = `${format(customDateStart, "dd/MM/yyyy")} - ${format(customDateEnd, "dd/MM/yyyy")}`;
+    if (period === "custom" && dateRange?.from && dateRange?.to) {
+      periodoLabel = `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`;
     }
     const acaoLabel = ACTION_OPTIONS.find((a) => a.value === actionFilter)?.label || actionFilter;
 
@@ -614,11 +611,10 @@ export function AuditLogManager() {
         <Select value={period} onValueChange={(val) => {
           setPeriod(val);
           if (val !== "custom") {
-            setCustomDateStart(undefined);
-            setCustomDateEnd(undefined);
+            setDateRange(undefined);
           }
         }}>
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-[140px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-background">
@@ -630,61 +626,43 @@ export function AuditLogManager() {
           </SelectContent>
         </Select>
 
-        {/* Calendários para período customizado */}
+        {/* Date Range Picker para período customizado */}
         {period === "custom" && (
-          <>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "w-[130px] justify-start text-left font-normal",
-                    !customDateStart && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {customDateStart ? format(customDateStart, "dd/MM/yyyy") : "Início"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={customDateStart}
-                  onSelect={setCustomDateStart}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                  locale={ptBR}
-                />
-              </PopoverContent>
-            </Popover>
-            <span className="text-muted-foreground text-sm">até</span>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "w-[130px] justify-start text-left font-normal",
-                    !customDateEnd && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {customDateEnd ? format(customDateEnd, "dd/MM/yyyy") : "Fim"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={customDateEnd}
-                  onSelect={setCustomDateEnd}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                  locale={ptBR}
-                />
-              </PopoverContent>
-            </Popover>
-          </>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "w-[260px] justify-start text-left font-normal",
+                  !dateRange && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} - {format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}
+                    </>
+                  ) : (
+                    format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                  )
+                ) : (
+                  <span>Selecione o período</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                locale={ptBR}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         )}
 
         <Select value={actionFilter} onValueChange={setActionFilter}>
