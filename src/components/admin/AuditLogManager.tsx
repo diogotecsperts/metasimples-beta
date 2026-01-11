@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { DateRange } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuditLogList, type AuditLog } from "./AuditLogList";
@@ -18,9 +17,9 @@ import {
   Users,
   Shield,
   BarChart3,
-  X,
   Trash2,
   CalendarIcon,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,12 +48,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { RangeCalendarModal } from "@/components/ui/range-calendar-modal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -106,28 +100,11 @@ export function AuditLogManager() {
   const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
-  const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
   const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 });
   const loadingRef = useRef({ loaded: 0, total: 0 });
-
-  // Handler customizado para seleção de range - terceiro clique reinicia a seleção
-  const handleDateRangeSelect = (range: DateRange | undefined) => {
-    // Se já existe um range completo (from + to), o próximo clique reinicia a seleção
-    if (tempDateRange?.from && tempDateRange?.to) {
-      // Terceiro clique: limpa tudo e começa nova seleção
-      if (range?.from) {
-        setTempDateRange({ from: range.from, to: undefined });
-      } else {
-        setTempDateRange(undefined);
-      }
-    } else {
-      // Comportamento normal quando ainda não há range completo
-      setTempDateRange(range);
-    }
-  };
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
@@ -577,95 +554,20 @@ export function AuditLogManager() {
         </div>
       )}
 
-      {/* Modal de Calendário para Período Personalizado */}
-      {calendarModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop com blur */}
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-modal-fade-in"
-            onClick={() => {
-              setCalendarModalOpen(false);
-              if (!dateRange?.from) setPeriod("7days");
-            }}
-          />
-          
-          {/* Card do Calendário */}
-          <div className="relative z-10 bg-card rounded-2xl shadow-2xl p-6 animate-modal-scale-in border border-border max-w-md w-full mx-4">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">Selecione o período</h3>
-                <p className="text-sm text-muted-foreground">
-                  Clique na data inicial e depois na data final
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setCalendarModalOpen(false);
-                  if (!dateRange?.from) setPeriod("7days");
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {/* Calendário */}
-            <div className="flex justify-center">
-              <Calendar
-                mode="range"
-                selected={tempDateRange}
-                onSelect={handleDateRangeSelect}
-                numberOfMonths={1}
-                locale={ptBR}
-                className="pointer-events-auto"
-                classNames={{
-                  day_range_middle: "bg-primary/20 text-foreground",
-                  day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
-                  day_today: "font-bold text-foreground",
-                }}
-              />
-            </div>
-            
-            {/* Resumo do período selecionado */}
-            {tempDateRange?.from && (
-              <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center">
-                <span className="text-sm font-medium">
-                  {format(tempDateRange.from, "dd MMM yyyy", { locale: ptBR })}
-                  {tempDateRange.to && (
-                    <> → {format(tempDateRange.to, "dd MMM yyyy", { locale: ptBR })}</>
-                  )}
-                </span>
-              </div>
-            )}
-            
-            {/* Botões de ação */}
-            <div className="flex gap-2 mt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setCalendarModalOpen(false);
-                  if (!dateRange?.from) setPeriod("7days");
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={!tempDateRange?.from || !tempDateRange?.to}
-                onClick={() => {
-                  setDateRange(tempDateRange);
-                  setCalendarModalOpen(false);
-                }}
-              >
-                Aplicar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de Calendário para Período Personalizado - React Aria */}
+      <RangeCalendarModal
+        isOpen={calendarModalOpen}
+        onClose={() => {
+          setCalendarModalOpen(false);
+          if (!dateRange?.from) setPeriod("7days");
+        }}
+        onApply={(range) => {
+          setDateRange(range);
+          setCalendarModalOpen(false);
+        }}
+        initialRange={dateRange}
+        maxDate={new Date()}
+      />
 
     <div className="space-y-4">
       {/* Header */}
@@ -833,7 +735,6 @@ export function AuditLogManager() {
         <Select value={period} onValueChange={(val) => {
           setPeriod(val);
           if (val === "custom") {
-            setTempDateRange(dateRange);
             setCalendarModalOpen(true);
           } else {
             setDateRange(undefined);
@@ -862,7 +763,6 @@ export function AuditLogManager() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              setTempDateRange(dateRange);
               setCalendarModalOpen(true);
             }}
             className="text-muted-foreground"
