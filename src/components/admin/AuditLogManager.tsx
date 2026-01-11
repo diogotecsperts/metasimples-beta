@@ -111,58 +111,83 @@ export function AuditLogManager() {
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
-  // Buscar logs do banco
+  const PAGE_SIZE = 1000;
+
+  // Buscar logs do banco com paginação automática para "Todos"
   const { data: logs = [], isLoading, isFetching } = useQuery({
     queryKey: ["audit-logs", period, actionFilter, dateRange?.from, dateRange?.to],
     queryFn: async () => {
-      let query = supabase
-        .from("audit_logs")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Função auxiliar para construir query base com filtros
+      const buildBaseQuery = () => {
+        let query = supabase
+          .from("audit_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }); // Ordenação estável para paginação
 
-      // Filtro por período
-      if (period === "custom" && dateRange?.from) {
-        query = query.gte("created_at", dateRange.from.toISOString());
-        if (dateRange.to) {
-          const endOfDay = new Date(dateRange.to);
-          endOfDay.setHours(23, 59, 59, 999);
-          query = query.lte("created_at", endOfDay.toISOString());
+        // Filtro por período
+        if (period === "custom" && dateRange?.from) {
+          query = query.gte("created_at", dateRange.from.toISOString());
+          if (dateRange.to) {
+            const endOfDay = new Date(dateRange.to);
+            endOfDay.setHours(23, 59, 59, 999);
+            query = query.lte("created_at", endOfDay.toISOString());
+          }
+        } else if (period !== "all" && period !== "custom") {
+          const now = new Date();
+          let startDate: Date;
+
+          switch (period) {
+            case "today":
+              startDate = new Date(now.setHours(0, 0, 0, 0));
+              break;
+            case "7days":
+              startDate = new Date(now.setDate(now.getDate() - 7));
+              break;
+            case "30days":
+              startDate = new Date(now.setDate(now.getDate() - 30));
+              break;
+            default:
+              startDate = new Date(0);
+          }
+
+          query = query.gte("created_at", startDate.toISOString());
         }
-      } else if (period !== "all" && period !== "custom") {
-        const now = new Date();
-        let startDate: Date;
 
-        switch (period) {
-          case "today":
-            startDate = new Date(now.setHours(0, 0, 0, 0));
-            break;
-          case "7days":
-            startDate = new Date(now.setDate(now.getDate() - 7));
-            break;
-          case "30days":
-            startDate = new Date(now.setDate(now.getDate() - 30));
-            break;
-          default:
-            startDate = new Date(0);
+        // Filtro por ação
+        if (actionFilter !== "all") {
+          query = query.eq("action", actionFilter);
         }
 
-        query = query.gte("created_at", startDate.toISOString());
+        return query;
+      };
+
+      // Para "Todos" ou "Personalizado", usar paginação para buscar todos os registros
+      if (period === "all" || period === "custom") {
+        const allLogs: AuditLog[] = [];
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const query = buildBaseQuery().range(from, from + PAGE_SIZE - 1);
+          const { data, error } = await query;
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allLogs.push(...(data as AuditLog[]));
+            from += PAGE_SIZE;
+            hasMore = data.length === PAGE_SIZE;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        return allLogs;
       }
 
-      // Filtro por ação
-      if (actionFilter !== "all") {
-        query = query.eq("action", actionFilter);
-      }
-
-      // Limite dinâmico: sem limite para "Todos", limite alto para customizado
-      if (period === "all") {
-        // Sem limite - mostra todos os registros
-      } else if (period === "custom") {
-        query = query.limit(10000);
-      } else {
-        query = query.limit(1000);
-      }
-
+      // Para períodos curtos, usar limite simples
+      const query = buildBaseQuery().limit(PAGE_SIZE);
       const { data, error } = await query;
 
       if (error) throw error;
