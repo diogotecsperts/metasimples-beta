@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,7 +11,7 @@ import { ArrowLeft, Save, Calendar, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -183,27 +183,16 @@ export function ChangelogItemForm({ item, onSuccess, onCancel }: Props) {
               <FormItem>
                 <FormLabel>Descrição</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <RichTextEditor
+                    value={field.value}
+                    onChange={field.onChange}
                     placeholder="Descreva a novidade em detalhes..."
-                    className="min-h-[120px] max-h-[500px] resize-y"
-                    {...field} 
+                    maxLength={2500}
                   />
                 </FormControl>
-                <div className="flex items-center justify-between gap-2">
-                  <FormDescription>
-                    Descreva o que é a novidade e como ela beneficia os usuários
-                  </FormDescription>
-                  <span className={cn(
-                    "text-xs tabular-nums shrink-0",
-                    (field.value?.length || 0) > 2500 
-                      ? "text-destructive font-medium" 
-                      : (field.value?.length || 0) > 2250 
-                        ? "text-amber-500" 
-                        : "text-muted-foreground"
-                  )}>
-                    {(field.value?.length || 0).toLocaleString('pt-BR')} / 2.500
-                  </span>
-                </div>
+                <FormDescription>
+                  Descreva o que é a novidade e como ela beneficia os usuários. Use a barra de ferramentas para formatar o texto.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
