@@ -113,6 +113,22 @@ export function AuditLogManager() {
   const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 });
   const loadingRef = useRef({ loaded: 0, total: 0 });
 
+  // Handler customizado para seleção de range - terceiro clique reinicia a seleção
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
+    // Se já existe um range completo (from + to), o próximo clique reinicia a seleção
+    if (tempDateRange?.from && tempDateRange?.to) {
+      // Terceiro clique: limpa tudo e começa nova seleção
+      if (range?.from) {
+        setTempDateRange({ from: range.from, to: undefined });
+      } else {
+        setTempDateRange(undefined);
+      }
+    } else {
+      // Comportamento normal quando ainda não há range completo
+      setTempDateRange(range);
+    }
+  };
+
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
   const PAGE_SIZE = 1000;
@@ -600,13 +616,14 @@ export function AuditLogManager() {
               <Calendar
                 mode="range"
                 selected={tempDateRange}
-                onSelect={setTempDateRange}
+                onSelect={handleDateRangeSelect}
                 numberOfMonths={1}
                 locale={ptBR}
                 className="pointer-events-auto"
                 classNames={{
                   day_range_middle: "bg-primary/20 text-foreground",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
+                  day_today: "font-bold text-foreground",
                 }}
               />
             </div>
