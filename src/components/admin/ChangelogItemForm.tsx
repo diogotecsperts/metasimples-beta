@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ArrowLeft, Save, Calendar, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,7 +33,7 @@ import {
 
 const formSchema = z.object({
   titulo: z.string().min(3, "Título deve ter pelo menos 3 caracteres").max(100),
-  descricao: z.string().min(10, "Descrição deve ter pelo menos 10 caracteres").max(1000),
+  descricao: z.string().min(10, "Descrição deve ter pelo menos 10 caracteres").max(2500),
   categoria: z.enum(["disponivel", "desenvolvimento", "indeterminado"]),
   publishNow: z.boolean().default(true),
   scheduledDate: z.string().optional(),
@@ -188,9 +189,21 @@ export function ChangelogItemForm({ item, onSuccess, onCancel }: Props) {
                     {...field} 
                   />
                 </FormControl>
-                <FormDescription>
-                  Descreva o que é a novidade e como ela beneficia os usuários
-                </FormDescription>
+                <div className="flex items-center justify-between gap-2">
+                  <FormDescription>
+                    Descreva o que é a novidade e como ela beneficia os usuários
+                  </FormDescription>
+                  <span className={cn(
+                    "text-xs tabular-nums shrink-0",
+                    (field.value?.length || 0) > 2500 
+                      ? "text-destructive font-medium" 
+                      : (field.value?.length || 0) > 2250 
+                        ? "text-amber-500" 
+                        : "text-muted-foreground"
+                  )}>
+                    {(field.value?.length || 0).toLocaleString('pt-BR')} / 2.500
+                  </span>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
