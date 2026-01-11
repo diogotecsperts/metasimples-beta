@@ -90,8 +90,10 @@ serve(async (req: Request): Promise<Response> => {
                       ${item.titulo}
                     </h2>
                     
-                    <!-- Descrição -->
-                    <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4b5563; text-align: justify;">${item.descricao.trim()}</p>
+                    <!-- Descrição (HTML formatado) -->
+                    <div style="margin: 0; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                      ${item.descricao.trim()}
+                    </div>
                   </td>
                 </tr>
                 

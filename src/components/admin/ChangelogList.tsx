@@ -182,9 +182,10 @@ export function ChangelogList() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="space-y-1 flex-1">
                           <h4 className="font-medium leading-tight">{item.titulo}</h4>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {item.descricao}
-                          </p>
+                          <div 
+                            className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>ul]:pl-4 [&>ol]:pl-4"
+                            dangerouslySetInnerHTML={{ __html: item.descricao }}
+                          />
                         </div>
                         <Badge variant="outline" className="shrink-0 text-xs">
                           {format(new Date(item.published_at), "dd MMM", { locale: ptBR })}
