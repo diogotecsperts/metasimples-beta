@@ -161,9 +161,10 @@ export function AuditLogManager() {
   const { data: admins = [] } = useQuery({
     queryKey: ["admins-for-alerts"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("list-admins");
-      if (error) throw error;
-      return data || [];
+    const { data, error } = await supabase.functions.invoke("list-admins");
+    if (error) throw error;
+    // A edge function retorna { admins: [...] }, extrair o array
+    return data?.admins || [];
     },
     enabled: alertDialogOpen,
   });
