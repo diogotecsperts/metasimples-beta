@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { DateRange } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
@@ -108,6 +108,10 @@ export function AuditLogManager() {
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
+  const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 });
+  const loadingRef = useRef({ loaded: 0, total: 0 });
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
@@ -164,6 +168,31 @@ export function AuditLogManager() {
 
       // Para "Todos" ou "Personalizado", usar paginação para buscar todos os registros
       if (period === "all" || period === "custom") {
+        // Primeiro: buscar contagem total
+        const countQuery = supabase
+          .from("audit_logs")
+          .select("id", { count: "exact", head: true });
+
+        // Aplicar mesmos filtros de período na contagem
+        if (period === "custom" && dateRange?.from) {
+          countQuery.gte("created_at", dateRange.from.toISOString());
+          if (dateRange.to) {
+            const endOfDay = new Date(dateRange.to);
+            endOfDay.setHours(23, 59, 59, 999);
+            countQuery.lte("created_at", endOfDay.toISOString());
+          }
+        }
+
+        if (actionFilter !== "all") {
+          countQuery.eq("action", actionFilter);
+        }
+
+        const { count } = await countQuery;
+        const totalCount = count || 0;
+
+        loadingRef.current = { loaded: 0, total: totalCount };
+        setLoadingProgress({ loaded: 0, total: totalCount });
+
         const allLogs: AuditLog[] = [];
         let from = 0;
         let hasMore = true;
@@ -178,6 +207,10 @@ export function AuditLogManager() {
             allLogs.push(...(data as AuditLog[]));
             from += PAGE_SIZE;
             hasMore = data.length === PAGE_SIZE;
+
+            // Atualizar progresso
+            loadingRef.current.loaded = allLogs.length;
+            setLoadingProgress({ loaded: allLogs.length, total: totalCount });
           } else {
             hasMore = false;
           }
@@ -485,28 +518,133 @@ export function AuditLogManager() {
 
   return (
     <>
-      {/* Modal de Loading para "Todos" */}
+      {/* Modal de Loading para "Todos" com progresso */}
       {showLoadingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop com blur */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-modal-fade-in" />
           
           {/* Card central */}
-          <div className="relative z-10 bg-card rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-modal-scale-in border border-border">
+          <div className="relative z-10 bg-card rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-modal-scale-in border border-border min-w-[280px]">
             {/* Spinner animado moderno */}
             <div className="relative">
               <div className="w-16 h-16 rounded-full border-4 border-muted" />
               <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-transparent border-t-primary animate-spinner" />
             </div>
             
-            {/* Texto */}
+            {/* Texto com progresso */}
             <div className="text-center">
               <p className="text-lg font-medium text-foreground">
                 Carregando todos os registros
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Isso pode levar alguns segundos...
-              </p>
+              {loadingProgress.total > 0 ? (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {loadingProgress.loaded.toLocaleString("pt-BR")} de {loadingProgress.total.toLocaleString("pt-BR")} registros...
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Calculando total...
+                </p>
+              )}
+            </div>
+
+            {/* Barra de progresso */}
+            {loadingProgress.total > 0 && (
+              <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 rounded-full"
+                  style={{ width: `${Math.min((loadingProgress.loaded / loadingProgress.total) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Calendário para Período Personalizado */}
+      {calendarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop com blur */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-modal-fade-in"
+            onClick={() => {
+              setCalendarModalOpen(false);
+              if (!dateRange?.from) setPeriod("7days");
+            }}
+          />
+          
+          {/* Card do Calendário */}
+          <div className="relative z-10 bg-card rounded-2xl shadow-2xl p-6 animate-modal-scale-in border border-border max-w-md w-full mx-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Selecione o período</h3>
+                <p className="text-sm text-muted-foreground">
+                  Clique na data inicial e depois na data final
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setCalendarModalOpen(false);
+                  if (!dateRange?.from) setPeriod("7days");
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Calendário */}
+            <div className="flex justify-center">
+              <Calendar
+                mode="range"
+                selected={tempDateRange}
+                onSelect={setTempDateRange}
+                numberOfMonths={1}
+                locale={ptBR}
+                className="pointer-events-auto"
+                classNames={{
+                  day_range_middle: "bg-primary/20 text-foreground",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
+                }}
+              />
+            </div>
+            
+            {/* Resumo do período selecionado */}
+            {tempDateRange?.from && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center">
+                <span className="text-sm font-medium">
+                  {format(tempDateRange.from, "dd MMM yyyy", { locale: ptBR })}
+                  {tempDateRange.to && (
+                    <> → {format(tempDateRange.to, "dd MMM yyyy", { locale: ptBR })}</>
+                  )}
+                </span>
+              </div>
+            )}
+            
+            {/* Botões de ação */}
+            <div className="flex gap-2 mt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setCalendarModalOpen(false);
+                  if (!dateRange?.from) setPeriod("7days");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!tempDateRange?.from || !tempDateRange?.to}
+                onClick={() => {
+                  setDateRange(tempDateRange);
+                  setCalendarModalOpen(false);
+                }}
+              >
+                Aplicar
+              </Button>
             </div>
           </div>
         </div>
@@ -677,12 +815,20 @@ export function AuditLogManager() {
 
         <Select value={period} onValueChange={(val) => {
           setPeriod(val);
-          if (val !== "custom") {
+          if (val === "custom") {
+            setTempDateRange(dateRange);
+            setCalendarModalOpen(true);
+          } else {
             setDateRange(undefined);
           }
         }}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
+          <SelectTrigger className="w-[180px]">
+            <SelectValue>
+              {period === "custom" && dateRange?.from && dateRange?.to 
+                ? `${format(dateRange.from, "dd/MM")} - ${format(dateRange.to, "dd/MM")}`
+                : PERIOD_OPTIONS.find(p => p.value === period)?.label
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="bg-background">
             {PERIOD_OPTIONS.map((opt) => (
@@ -693,43 +839,19 @@ export function AuditLogManager() {
           </SelectContent>
         </Select>
 
-        {/* Date Range Picker para período customizado */}
-        {period === "custom" && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "w-[260px] justify-start text-left font-normal",
-                  !dateRange && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} - {format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}
-                    </>
-                  ) : (
-                    format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
-                  )
-                ) : (
-                  <span>Selecione o período</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-                locale={ptBR}
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+        {/* Botão para reabrir calendário quando período custom já está selecionado */}
+        {period === "custom" && dateRange?.from && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setTempDateRange(dateRange);
+              setCalendarModalOpen(true);
+            }}
+            className="text-muted-foreground"
+          >
+            <CalendarIcon className="h-4 w-4" />
+          </Button>
         )}
 
         <Select value={actionFilter} onValueChange={setActionFilter}>
