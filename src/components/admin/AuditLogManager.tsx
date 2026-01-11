@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { DateRange } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,11 +107,12 @@ export function AuditLogManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
   // Buscar logs do banco
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: logs = [], isLoading, isFetching } = useQuery({
     queryKey: ["audit-logs", period, actionFilter, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       let query = supabase
@@ -153,9 +154,14 @@ export function AuditLogManager() {
         query = query.eq("action", actionFilter);
       }
 
-      // Limite dinâmico: maior para "Todos" ou período customizado
-      const limitValue = (period === "all" || period === "custom") ? 5000 : 1000;
-      query = query.limit(limitValue);
+      // Limite dinâmico: sem limite para "Todos", limite alto para customizado
+      if (period === "all") {
+        // Sem limite - mostra todos os registros
+      } else if (period === "custom") {
+        query = query.limit(10000);
+      } else {
+        query = query.limit(1000);
+      }
 
       const { data, error } = await query;
 
@@ -164,7 +170,15 @@ export function AuditLogManager() {
     },
   });
 
-  // Buscar configurações de alerta
+  // Mostrar modal de loading apenas quando carregando "Todos"
+  useEffect(() => {
+    if (period === "all" && isFetching) {
+      setShowLoadingModal(true);
+    } else {
+      setShowLoadingModal(false);
+    }
+  }, [period, isFetching]);
+
   const { data: alertSettings } = useQuery({
     queryKey: ["audit-alert-settings"],
     queryFn: async () => {
@@ -445,6 +459,34 @@ export function AuditLogManager() {
   };
 
   return (
+    <>
+      {/* Modal de Loading para "Todos" */}
+      {showLoadingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop com blur */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-modal-fade-in" />
+          
+          {/* Card central */}
+          <div className="relative z-10 bg-card rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-modal-scale-in border border-border">
+            {/* Spinner animado moderno */}
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full border-4 border-muted" />
+              <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-transparent border-t-primary animate-spinner" />
+            </div>
+            
+            {/* Texto */}
+            <div className="text-center">
+              <p className="text-lg font-medium text-foreground">
+                Carregando todos os registros
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Isso pode levar alguns segundos...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -758,5 +800,6 @@ export function AuditLogManager() {
       {/* Lista */}
       <AuditLogList logs={logsFiltrados} isLoading={isLoading} isMaster={isMaster} />
     </div>
+    </>
   );
 }
