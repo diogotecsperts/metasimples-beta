@@ -185,7 +185,7 @@ export function ChangelogItemForm({ item, onSuccess, onCancel }: Props) {
                 <FormControl>
                   <Textarea 
                     placeholder="Descreva a novidade em detalhes..."
-                    className="min-h-[120px] resize-none"
+                    className="min-h-[120px] max-h-[500px] resize-y"
                     {...field} 
                   />
                 </FormControl>
