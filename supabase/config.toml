@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.sync-sendpulse-contacts]
 verify_jwt = true
+
+[functions.send-audit-alert]
+verify_jwt = false
