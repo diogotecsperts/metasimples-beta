@@ -16,9 +16,10 @@ import {
   Target,
   Users,
   Shield,
-  Store,
   BarChart3,
   X,
+  Trash2,
+  CalendarIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,11 +48,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { ACTION_LABELS, ENTITY_LABELS, type AuditAction, type AuditEntity } from "@/lib/auditLog";
 import { generateAuditReport } from "@/lib/generateAuditReport";
+import { cn } from "@/lib/utils";
 
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
@@ -59,6 +67,7 @@ const PERIOD_OPTIONS = [
   { value: "today", label: "Hoje" },
   { value: "7days", label: "7 dias" },
   { value: "30days", label: "30 dias" },
+  { value: "custom", label: "Personalizado" },
   { value: "all", label: "Todos" },
 ];
 
@@ -80,9 +89,9 @@ const COUNTER_TYPES: CounterType[] = [
   { key: "lancamento", label: "Lançamentos", icon: <Clock className="h-4 w-4" />, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
   { key: "meta", label: "Metas", icon: <Target className="h-4 w-4" />, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
   { key: "meta_ajuste", label: "Ajustes", icon: <BarChart3 className="h-4 w-4" />, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-  { key: "gerente", label: "Gerentes", icon: <Users className="h-4 w-4" />, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  { key: "admin", label: "Admins", icon: <Shield className="h-4 w-4" />, color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  { key: "loja", label: "Lojas", icon: <Store className="h-4 w-4" />, color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400" },
+  { key: "role_gerente", label: "Por Gerentes", icon: <Users className="h-4 w-4" />, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  { key: "role_admin", label: "Por Admins", icon: <Shield className="h-4 w-4" />, color: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400" },
+  { key: "delete", label: "Exclusões", icon: <Trash2 className="h-4 w-4" />, color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
 ];
 
 export function AuditLogManager() {
@@ -96,12 +105,14 @@ export function AuditLogManager() {
   const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [customDateStart, setCustomDateStart] = useState<Date | undefined>(undefined);
+  const [customDateEnd, setCustomDateEnd] = useState<Date | undefined>(undefined);
 
   const isMaster = user?.id === MASTER_ADMIN_ID;
 
   // Buscar logs do banco
   const { data: logs = [], isLoading } = useQuery({
-    queryKey: ["audit-logs", period, actionFilter],
+    queryKey: ["audit-logs", period, actionFilter, customDateStart, customDateEnd],
     queryFn: async () => {
       let query = supabase
         .from("audit_logs")
@@ -109,7 +120,16 @@ export function AuditLogManager() {
         .order("created_at", { ascending: false });
 
       // Filtro por período
-      if (period !== "all") {
+      if (period === "custom") {
+        if (customDateStart) {
+          query = query.gte("created_at", customDateStart.toISOString());
+        }
+        if (customDateEnd) {
+          const endOfDay = new Date(customDateEnd);
+          endOfDay.setHours(23, 59, 59, 999);
+          query = query.lte("created_at", endOfDay.toISOString());
+        }
+      } else if (period !== "all") {
         const now = new Date();
         let startDate: Date;
 
@@ -251,15 +271,23 @@ export function AuditLogManager() {
       lancamento: 0,
       meta: 0,
       meta_ajuste: 0,
-      gerente: 0,
-      admin: 0,
-      loja: 0,
+      role_gerente: 0,
+      role_admin: 0,
+      delete: 0,
     };
 
     logs.forEach((log) => {
-      if (log.entity in counts) {
-        counts[log.entity]++;
-      }
+      // Contagem por entidade
+      if (log.entity === "lancamento") counts.lancamento++;
+      if (log.entity === "meta") counts.meta++;
+      if (log.entity === "meta_ajuste") counts.meta_ajuste++;
+
+      // Contagem por role do usuário
+      if (log.user_role === "gerente") counts.role_gerente++;
+      if (log.user_role === "admin") counts.role_admin++;
+
+      // Contagem por ação (exclusões)
+      if (log.action === "delete") counts.delete++;
     });
 
     return counts;
@@ -269,7 +297,15 @@ export function AuditLogManager() {
   const logsFiltrados = useMemo(() => {
     return logs.filter((log) => {
       // Filtro por tipo (cards)
-      if (tipoSelecionado && log.entity !== tipoSelecionado) return false;
+      if (tipoSelecionado) {
+        // Cards de role filtram por user_role
+        if (tipoSelecionado === "role_gerente" && log.user_role !== "gerente") return false;
+        if (tipoSelecionado === "role_admin" && log.user_role !== "admin") return false;
+        // Card de exclusões filtra por action
+        if (tipoSelecionado === "delete" && log.action !== "delete") return false;
+        // Cards de entidade filtram por entity
+        if (!["role_gerente", "role_admin", "delete"].includes(tipoSelecionado) && log.entity !== tipoSelecionado) return false;
+      }
 
       // Filtro por loja (aplicar apenas em lançamentos, metas e ajustes)
       if (lojaFilter !== "all") {
@@ -315,6 +351,8 @@ export function AuditLogManager() {
     setAdminFilter("all");
     setTipoSelecionado(null);
     setSearchTerm("");
+    setCustomDateStart(undefined);
+    setCustomDateEnd(undefined);
   };
 
   const hasActiveFilters =
@@ -324,7 +362,9 @@ export function AuditLogManager() {
     gerenteFilter !== "all" ||
     adminFilter !== "all" ||
     tipoSelecionado !== null ||
-    searchTerm.trim() !== "";
+    searchTerm.trim() !== "" ||
+    customDateStart !== undefined ||
+    customDateEnd !== undefined;
 
   // Exportar CSV
   const exportarCSV = () => {
@@ -353,7 +393,10 @@ export function AuditLogManager() {
 
   // Exportar PDF
   const exportarPDF = async () => {
-    const periodoLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || period;
+    let periodoLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || period;
+    if (period === "custom" && customDateStart && customDateEnd) {
+      periodoLabel = `${format(customDateStart, "dd/MM/yyyy")} - ${format(customDateEnd, "dd/MM/yyyy")}`;
+    }
     const acaoLabel = ACTION_OPTIONS.find((a) => a.value === actionFilter)?.label || actionFilter;
 
     // Construir label de usuário para o PDF
@@ -542,16 +585,23 @@ export function AuditLogManager() {
             onClick={() =>
               setTipoSelecionado(tipoSelecionado === type.key ? null : type.key)
             }
-            className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
+            className={cn(
+              "flex flex-col items-center justify-center p-3 rounded-xl border transition-all",
               tipoSelecionado === type.key
                 ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                : "border-border hover:border-primary/50 hover:bg-muted/50"
-            }`}
+                : "border-border hover:border-primary/50 hover:bg-muted/50",
+              type.key === "delete" && contadores[type.key] > 0 && "border-red-300 dark:border-red-800"
+            )}
           >
             <div className={`p-1.5 rounded-lg ${type.color} mb-1`}>
               {type.icon}
             </div>
-            <span className="text-lg font-bold">{contadores[type.key] || 0}</span>
+            <span className={cn(
+              "text-lg font-bold",
+              type.key === "delete" && contadores[type.key] > 0 && "text-red-600 dark:text-red-400"
+            )}>
+              {contadores[type.key] || 0}
+            </span>
             <span className="text-xs text-muted-foreground">{type.label}</span>
           </button>
         ))}
@@ -561,8 +611,14 @@ export function AuditLogManager() {
       <div className="flex flex-wrap items-center gap-2 p-4 bg-muted/30 rounded-xl border">
         <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
 
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[110px]">
+        <Select value={period} onValueChange={(val) => {
+          setPeriod(val);
+          if (val !== "custom") {
+            setCustomDateStart(undefined);
+            setCustomDateEnd(undefined);
+          }
+        }}>
+          <SelectTrigger className="w-[130px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-background">
@@ -573,6 +629,63 @@ export function AuditLogManager() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Calendários para período customizado */}
+        {period === "custom" && (
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "w-[130px] justify-start text-left font-normal",
+                    !customDateStart && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {customDateStart ? format(customDateStart, "dd/MM/yyyy") : "Início"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={customDateStart}
+                  onSelect={setCustomDateStart}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-muted-foreground text-sm">até</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "w-[130px] justify-start text-left font-normal",
+                    !customDateEnd && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {customDateEnd ? format(customDateEnd, "dd/MM/yyyy") : "Fim"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={customDateEnd}
+                  onSelect={setCustomDateEnd}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
 
         <Select value={actionFilter} onValueChange={setActionFilter}>
           <SelectTrigger className="w-[130px]">
