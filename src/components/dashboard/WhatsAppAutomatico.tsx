@@ -345,12 +345,13 @@ export function WhatsAppAutomatico() {
   const adminsOcultos = ADMINISTRADORES_DESTINATARIOS.length - 3;
   const podeMinimigarAdmins = ADMINISTRADORES_DESTINATARIOS.length > 3;
 
-  // Função helper para classes dinâmicas das abas
+  // Função helper para classes dinâmicas das abas com efeito ripple
   const getTabClass = (tabValue: string) => {
     const isActive = abaAtiva === tabValue;
     return cn(
       "flex items-center gap-2",
       "transition-all duration-200 ease-in-out",
+      "whatsapp-tab-ripple",
       isActive 
         ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.02]" 
         : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
