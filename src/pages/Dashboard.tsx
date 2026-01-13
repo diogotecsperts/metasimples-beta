@@ -25,6 +25,7 @@ import { getTipoOperacionalLabel } from "@/lib/tipoOperacionalLabels";
 import { X, MessageSquare, CalendarDays, Calendar } from "lucide-react";
 import { calcularMetasDiariasComAjustes, type AjusteDiario } from "@/lib/calcularMetaDiariaComAjustes";
 import { fetchLancamentosMensais } from "@/lib/fetchAllPaged";
+import { cn } from "@/lib/utils";
 const MASTER_ADMIN_ID = "ca936b16-8a15-43f4-976d-6be91e294099";
 
 type Loja = {
@@ -74,6 +75,7 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
   const [filtroFechamentoTardio, setFiltroFechamentoTardio] = useState<"todos" | "sim" | "nao">("todos");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
   const [visaoMensal, setVisaoMensal] = useState(false);
+  const [abaAtivaDash, setAbaAtivaDash] = useState("ranking");
   const rankingContainerRef = useRef<HTMLDivElement>(null);
   
   const hoje = new Date();
@@ -486,17 +488,65 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
         />
       )}
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <Tabs defaultValue="ranking" className="w-full">
+        <Tabs value={abaAtivaDash} onValueChange={setAbaAtivaDash} className="w-full">
           <TabsList className={`
             flex flex-col w-full gap-1 mb-6 h-auto p-1
             md:grid md:h-auto ${isMasterAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}
           `}>
-            <TabsTrigger value="ranking" className="w-full justify-center">Ranking</TabsTrigger>
-            <TabsTrigger value="evolucao" className="w-full justify-center">Evolução Mensal</TabsTrigger>
-            <TabsTrigger value="comparacao" className="w-full justify-center">Comparação</TabsTrigger>
-            <TabsTrigger value="relatorios" className="w-full justify-center">Relatórios</TabsTrigger>
+            <TabsTrigger 
+              value="ranking" 
+              className={cn(
+                "w-full justify-center tab-animated",
+                abaAtivaDash === "ranking" 
+                  ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]" 
+                  : "hover:bg-muted/50"
+              )}
+            >
+              Ranking
+            </TabsTrigger>
+            <TabsTrigger 
+              value="evolucao" 
+              className={cn(
+                "w-full justify-center tab-animated",
+                abaAtivaDash === "evolucao" 
+                  ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]" 
+                  : "hover:bg-muted/50"
+              )}
+            >
+              Evolução Mensal
+            </TabsTrigger>
+            <TabsTrigger 
+              value="comparacao" 
+              className={cn(
+                "w-full justify-center tab-animated",
+                abaAtivaDash === "comparacao" 
+                  ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]" 
+                  : "hover:bg-muted/50"
+              )}
+            >
+              Comparação
+            </TabsTrigger>
+            <TabsTrigger 
+              value="relatorios" 
+              className={cn(
+                "w-full justify-center tab-animated",
+                abaAtivaDash === "relatorios" 
+                  ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]" 
+                  : "hover:bg-muted/50"
+              )}
+            >
+              Relatórios
+            </TabsTrigger>
             {isMasterAdmin && (
-              <TabsTrigger value="whatsapp" className="w-full justify-center gap-1.5">
+              <TabsTrigger 
+                value="whatsapp" 
+                className={cn(
+                  "w-full justify-center gap-1.5 tab-animated",
+                  abaAtivaDash === "whatsapp" 
+                    ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]" 
+                    : "hover:bg-muted/50"
+                )}
+              >
                 <MessageSquare className="h-4 w-4" />
                 WhatsApp
               </TabsTrigger>

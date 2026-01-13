@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import Dashboard from "./Dashboard";
 import { useChangelogUnreadCount } from "@/hooks/useChangelogUnreadCount";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 const Admin = () => {
   const { signOut } = useAuth();
@@ -31,6 +32,17 @@ const Admin = () => {
   // Limpar badge quando clicar em novidades
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+  };
+
+  // Função helper para classes dinâmicas das abas com animação
+  const getAdminTabClass = (tabValue: string) => {
+    const isActive = activeTab === tabValue;
+    return cn(
+      "gap-2 tab-animated",
+      isActive 
+        ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]" 
+        : "hover:bg-muted/50"
+    );
   };
 
   return (
@@ -52,35 +64,35 @@ const Admin = () => {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <div className="flex justify-center">
             <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="dashboard" className="gap-2">
+            <TabsTrigger value="dashboard" className={getAdminTabClass("dashboard")}>
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="lojas" className="gap-2">
+            <TabsTrigger value="lojas" className={getAdminTabClass("lojas")}>
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Lojas</span>
             </TabsTrigger>
-            <TabsTrigger value="gerentes" className="gap-2">
+            <TabsTrigger value="gerentes" className={getAdminTabClass("gerentes")}>
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Gerentes</span>
             </TabsTrigger>
-            <TabsTrigger value="metas" className="gap-2">
+            <TabsTrigger value="metas" className={getAdminTabClass("metas")}>
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Metas</span>
             </TabsTrigger>
-            <TabsTrigger value="lancamentos" className="gap-2">
+            <TabsTrigger value="lancamentos" className={getAdminTabClass("lancamentos")}>
               <ClipboardList className="h-4 w-4" />
               <span className="hidden sm:inline">Lançamentos</span>
             </TabsTrigger>
-            <TabsTrigger value="admins" className="gap-2">
+            <TabsTrigger value="admins" className={getAdminTabClass("admins")}>
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Admins</span>
             </TabsTrigger>
-            <TabsTrigger value="auditoria" className="gap-2">
+            <TabsTrigger value="auditoria" className={getAdminTabClass("auditoria")}>
               <ScrollText className="h-4 w-4" />
               <span className="hidden sm:inline">Auditoria</span>
             </TabsTrigger>
-            <TabsTrigger value="novidades" className="gap-2 relative">
+            <TabsTrigger value="novidades" className={cn(getAdminTabClass("novidades"), "relative")}>
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:inline">Novidades</span>
               {unreadCount > 0 && activeTab !== "novidades" && (
