@@ -43,8 +43,15 @@ const getAvailableYears = () => {
 export function PeriodComparison() {
   const [mesA, setMesA] = useState(new Date().getMonth() + 1);
   const [anoA, setAnoA] = useState(new Date().getFullYear());
-  const [mesB, setMesB] = useState(new Date().getMonth());
-  const [anoB, setAnoB] = useState(new Date().getFullYear());
+  const [mesB, setMesB] = useState(() => {
+    const mesAtual = new Date().getMonth() + 1; // 1-12
+    return mesAtual === 1 ? 12 : mesAtual - 1; // Dezembro se Janeiro
+  });
+  const [anoB, setAnoB] = useState(() => {
+    const mesAtual = new Date().getMonth() + 1;
+    const anoAtual = new Date().getFullYear();
+    return mesAtual === 1 ? anoAtual - 1 : anoAtual; // Ano anterior se Janeiro
+  });
   
   // Estado de loading dinâmico
   const [loadingStage, setLoadingStage] = useState<LoadingStage>('idle');
@@ -171,8 +178,8 @@ export function PeriodComparison() {
     const stageLabels: Record<LoadingStage, string> = {
       idle: 'Preparando...',
       lojas: 'Carregando farmácias...',
-      periodoA: `Carregando ${mesesNomes[mesA - 1]}/${anoA}...`,
-      periodoB: `Carregando ${mesesNomes[mesB - 1]}/${anoB}...`,
+      periodoA: `Carregando ${mesesNomes[Math.max(0, mesA - 1)] || 'período'}/${anoA}...`,
+      periodoB: `Carregando ${mesesNomes[Math.max(0, mesB - 1)] || 'período'}/${anoB}...`,
       complete: 'Finalizando...',
     };
 
