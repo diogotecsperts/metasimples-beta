@@ -92,6 +92,8 @@ export function WhatsAppAutomatico() {
   const [confirmandoManualId, setConfirmandoManualId] = useState<string | null>(null);
   // Estado para expandir/minimizar lista de admins
   const [listaAdminsExpandida, setListaAdminsExpandida] = useState(false);
+  // Estado controlado para aba ativa
+  const [abaAtiva, setAbaAtiva] = useState("cobrancas");
 
   // Buscar configurações existentes
   const {
@@ -342,14 +344,26 @@ export function WhatsAppAutomatico() {
     : ADMINISTRADORES_DESTINATARIOS.slice(0, 3);
   const adminsOcultos = ADMINISTRADORES_DESTINATARIOS.length - 3;
   const podeMinimigarAdmins = ADMINISTRADORES_DESTINATARIOS.length > 3;
+
+  // Função helper para classes dinâmicas das abas
+  const getTabClass = (tabValue: string) => {
+    const isActive = abaAtiva === tabValue;
+    return cn(
+      "flex items-center gap-2",
+      "transition-all duration-200 ease-in-out",
+      isActive 
+        ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.02]" 
+        : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+    );
+  };
   
   return (
-    <Tabs defaultValue="cobrancas" className="space-y-6">
+    <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-6">
       <TooltipProvider>
         <TabsList className="grid w-full grid-cols-4">
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="cobrancas" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
+              <TabsTrigger value="cobrancas" className={getTabClass("cobrancas")}>
                 <Bell className="h-4 w-4" />
                 Cobranças
               </TabsTrigger>
@@ -360,7 +374,7 @@ export function WhatsAppAutomatico() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="relatorios" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
+              <TabsTrigger value="relatorios" className={getTabClass("relatorios")}>
                 <MessageSquare className="h-4 w-4" />
                 Relatórios
               </TabsTrigger>
@@ -371,7 +385,7 @@ export function WhatsAppAutomatico() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="contatos" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
+              <TabsTrigger value="contatos" className={getTabClass("contatos")}>
                 <Users className="h-4 w-4" />
                 Contatos
               </TabsTrigger>
@@ -382,7 +396,7 @@ export function WhatsAppAutomatico() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <TabsTrigger value="estatisticas" className="flex items-center gap-2 data-[state=active]:!bg-white data-[state=active]:!shadow-md data-[state=active]:border data-[state=active]:border-border dark:data-[state=active]:!bg-zinc-800">
+              <TabsTrigger value="estatisticas" className={getTabClass("estatisticas")}>
                 <TrendingUp className="h-4 w-4" />
                 Estatísticas
               </TabsTrigger>
