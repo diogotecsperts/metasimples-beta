@@ -350,10 +350,9 @@ export function WhatsAppAutomatico() {
     const isActive = abaAtiva === tabValue;
     return cn(
       "flex items-center gap-2",
-      "transition-all duration-200 ease-in-out",
-      "whatsapp-tab-ripple",
+      "tab-animated whatsapp-tab-ripple",
       isActive 
-        ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.02]" 
+        ? "bg-white text-foreground shadow-md border border-border dark:bg-zinc-800 scale-[1.01]"
         : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
     );
   };
