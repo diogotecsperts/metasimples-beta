@@ -109,6 +109,55 @@ Deno.serve(async (req) => {
 
     console.log('Successfully deleted user', userId);
 
+    // Limpar referências órfãs nas tabelas de configuração
+    console.log('Cleaning orphan references for deleted user', userId);
+
+    // Limpar de whatsapp_cobranca_settings.gerentes_ativos
+    const { data: cobrancaSettings } = await supabaseAdmin
+      .from('whatsapp_cobranca_settings')
+      .select('id, gerentes_ativos')
+      .limit(1)
+      .maybeSingle();
+
+    if (cobrancaSettings && cobrancaSettings.gerentes_ativos?.includes(userId)) {
+      const novoArray = cobrancaSettings.gerentes_ativos.filter((id: string) => id !== userId);
+      await supabaseAdmin
+        .from('whatsapp_cobranca_settings')
+        .update({ gerentes_ativos: novoArray })
+        .eq('id', cobrancaSettings.id);
+      console.log('Removed user from whatsapp_cobranca_settings.gerentes_ativos');
+    }
+
+    // Limpar de whatsapp_report_settings.gerentes_ativos
+    const { data: reportSettings } = await supabaseAdmin
+      .from('whatsapp_report_settings')
+      .select('id, gerentes_ativos')
+      .limit(1)
+      .maybeSingle();
+
+    if (reportSettings && reportSettings.gerentes_ativos?.includes(userId)) {
+      const novoArrayReport = reportSettings.gerentes_ativos.filter((id: string) => id !== userId);
+      await supabaseAdmin
+        .from('whatsapp_report_settings')
+        .update({ gerentes_ativos: novoArrayReport })
+        .eq('id', reportSettings.id);
+      console.log('Removed user from whatsapp_report_settings.gerentes_ativos');
+    }
+
+    // Limpar da tabela sendpulse_contacts
+    const { error: deleteContactError } = await supabaseAdmin
+      .from('sendpulse_contacts')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (deleteContactError) {
+      console.warn('Failed to delete sendpulse_contacts entry:', deleteContactError);
+    } else {
+      console.log('Removed user from sendpulse_contacts');
+    }
+
+    console.log('Cleanup completed for deleted user', userId);
+
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
