@@ -363,6 +363,7 @@ export type Database = {
           opt_in_at: string | null
           sendpulse_contact_id: string | null
           status: string | null
+          status_id: string | null
           telefone: string
           tentativas_envio: number | null
           tentativas_falha_consecutivas: number | null
@@ -378,6 +379,7 @@ export type Database = {
           opt_in_at?: string | null
           sendpulse_contact_id?: string | null
           status?: string | null
+          status_id?: string | null
           telefone: string
           tentativas_envio?: number | null
           tentativas_falha_consecutivas?: number | null
@@ -393,6 +395,7 @@ export type Database = {
           opt_in_at?: string | null
           sendpulse_contact_id?: string | null
           status?: string | null
+          status_id?: string | null
           telefone?: string
           tentativas_envio?: number | null
           tentativas_falha_consecutivas?: number | null

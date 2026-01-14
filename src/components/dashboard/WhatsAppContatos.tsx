@@ -31,6 +31,7 @@ interface SendPulseContact {
   telefone: string;
   sendpulse_contact_id: string | null;
   status: string;
+  status_id: string | null;
   opt_in_at: string | null;
   ultimo_bloqueio_at: string | null;
   ultimo_envio_sucesso_at: string | null;
@@ -393,7 +394,8 @@ export function WhatsAppContatos() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Status Tel.</TableHead>
+                  <TableHead>Status ID</TableHead>
                   <TableHead className="text-center">Tentativas</TableHead>
                   <TableHead>Último Envio</TableHead>
                   <TableHead>Ações</TableHead>
@@ -401,8 +403,8 @@ export function WhatsAppContatos() {
               </TableHeader>
               <TableBody>
                 {contacts?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Nenhum contato cadastrado. Clique em "Sincronizar Todos" para buscar.
                     </TableCell>
                   </TableRow>
@@ -440,15 +442,58 @@ export function WhatsAppContatos() {
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>{statusConfig.description}</p>
-                                {contact.sendpulse_contact_id && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    ID: {contact.sendpulse_contact_id}
-                                  </p>
-                                )}
+                                <p>Verificado pelo telefone</p>
+                                <p className="text-xs text-muted-foreground mt-1">{statusConfig.description}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                        </TableCell>
+                        <TableCell>
+                          {contact.sendpulse_contact_id ? (
+                            contact.status_id ? (
+                              (() => {
+                                const statusIdConfig = STATUS_CONFIG[contact.status_id as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente;
+                                const StatusIdIcon = statusIdConfig.icon;
+                                return (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge className={`gap-1 ${statusIdConfig.color}`}>
+                                          <StatusIdIcon className="h-3 w-3" />
+                                          {statusIdConfig.label}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Verificado via Contact ID</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          ID: {contact.sendpulse_contact_id}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              })()
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="gap-1 text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
+                                      Pendente
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Sincronize para verificar status por ID</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      ID: {contact.sendpulse_contact_id}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           {tentativas > 0 ? (
@@ -583,8 +628,12 @@ export function WhatsAppContatos() {
                 para identificar quem está ativo, bloqueado ou pendente de opt-in.
               </p>
               <p>
-                <strong>Status "Não Existe":</strong> O usuário precisa iniciar uma conversa com o bot do WhatsApp
-                para ser registrado no SendPulse. Use o botão de link para gerar um convite.
+                <strong>Status Tel.:</strong> Verificação pelo número de telefone - como o Meta/WhatsApp "enxerga" o contato.
+                Se o telefone mudou ou expirou, pode aparecer como "Não Existe".
+              </p>
+              <p>
+                <strong>Status ID:</strong> Verificação pelo Contact ID interno do SendPulse, usado no fallback de envio.
+                Se o Status Tel. mostra "Não Existe" mas o Status ID mostra "Ativo", os envios ainda funcionam via ID.
               </p>
               <p>
                 <strong>Status "Bloqueado":</strong> O contato foi banido pelo SendPulse (geralmente por não interação).
