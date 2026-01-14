@@ -130,6 +130,21 @@ export function GerentesManager() {
         entityName: nome,
       });
 
+      // Sincronizar novo gerente com SendPulse (fire-and-forget)
+      if (gerenteId) {
+        supabase.functions.invoke('sync-sendpulse-contacts', {
+          body: { userIds: [gerenteId], userType: 'gerente' }
+        }).then(({ data, error }) => {
+          if (error) {
+            console.warn('[GerentesManager] Erro ao sincronizar SendPulse:', error);
+          } else {
+            console.log('[GerentesManager] SendPulse sincronizado:', data);
+          }
+        }).catch(err => {
+          console.warn('[GerentesManager] Erro ao sincronizar SendPulse:', err);
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["gerentes"] });
       setIsDialogOpen(false);
       toast({

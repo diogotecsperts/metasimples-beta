@@ -761,7 +761,7 @@ export function WhatsAppCobranca() {
         headerIcon={<History className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
         headerBgClass="bg-amber-100 dark:bg-amber-900"
         renderDestinatario={(log) => {
-          const gerenteNome = gerentesMap[log.gerente_id] || "Gerente";
+          const gerenteNome = gerentesMap[log.gerente_id] || "Gerente excluído";
           const lojaNome = lojasMap[log.loja_id] || "";
           return (
             <div>
@@ -793,7 +793,7 @@ export function WhatsAppCobranca() {
             </td>
           </>
         )}
-        getDestinatarioNome={(log) => gerentesMap[log.gerente_id] || "Gerente"}
+        getDestinatarioNome={(log) => gerentesMap[log.gerente_id] || "Gerente excluído"}
         onVerificarStatus={verificarStatusMensagem}
         verificandoStatusId={verificandoStatusId}
         onToggleConfirmacao={toggleConfirmacaoManual}
