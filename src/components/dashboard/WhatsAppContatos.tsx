@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { 
   RefreshCw, 
@@ -19,10 +22,13 @@ import {
   UserCheck,
   UserX,
   HelpCircle,
-  RotateCcw
+  RotateCcw,
+  Pencil
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { registrarAuditLog } from "@/lib/auditLog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SendPulseContact {
   id: string;
@@ -76,8 +82,14 @@ const STATUS_CONFIG = {
 
 export function WhatsAppContatos() {
   const queryClient = useQueryClient();
+  const { user, userName } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncingUserId, setSyncingUserId] = useState<string | null>(null);
+  
+  // Estado para edição de contato
+  const [editingContact, setEditingContact] = useState<SendPulseContact | null>(null);
+  const [editTelefone, setEditTelefone] = useState("");
+  const [editContactId, setEditContactId] = useState("");
 
   // Buscar contatos do SendPulse
   const { data: contacts, isLoading: isLoadingContacts, refetch: refetchContacts } = useQuery({
@@ -222,6 +234,85 @@ export function WhatsAppContatos() {
       toast.error(`Erro: ${error.message}`);
     }
   });
+
+  // Mutation para atualizar contato manualmente
+  const updateContactMutation = useMutation({
+    mutationFn: async ({ 
+      contactId, 
+      telefone, 
+      sendpulseContactId,
+      oldTelefone,
+      oldContactId,
+      contactName
+    }: { 
+      contactId: string; 
+      telefone: string; 
+      sendpulseContactId: string;
+      oldTelefone: string;
+      oldContactId: string | null;
+      contactName: string;
+    }) => {
+      const { error } = await supabase
+        .from("sendpulse_contacts")
+        .update({
+          telefone: telefone,
+          sendpulse_contact_id: sendpulseContactId || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", contactId);
+      
+      if (error) throw error;
+
+      // Registrar auditoria
+      if (user && userName) {
+        await registrarAuditLog({
+          userId: user.id,
+          userNome: userName,
+          userRole: "admin",
+          action: "update",
+          entity: "sendpulse_contact" as any,
+          entityId: contactId,
+          entityName: contactName,
+          details: {
+            telefone_anterior: oldTelefone,
+            telefone_novo: telefone,
+            contact_id_anterior: oldContactId,
+            contact_id_novo: sendpulseContactId || null
+          }
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sendpulse-contacts"] });
+      toast.success("Contato atualizado com sucesso!");
+      setEditingContact(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao atualizar: ${error.message}`);
+    }
+  });
+
+  // Abrir dialog de edição
+  const handleOpenEdit = (contact: SendPulseContact) => {
+    setEditingContact(contact);
+    setEditTelefone(contact.telefone);
+    setEditContactId(contact.sendpulse_contact_id || "");
+  };
+
+  // Salvar edição
+  const handleSaveEdit = () => {
+    if (!editingContact) return;
+    const profile = profilesMap.get(editingContact.user_id);
+    
+    updateContactMutation.mutate({
+      contactId: editingContact.id,
+      telefone: editTelefone.trim(),
+      sendpulseContactId: editContactId.trim(),
+      oldTelefone: editingContact.telefone,
+      oldContactId: editingContact.sendpulse_contact_id,
+      contactName: profile?.nome || "Desconhecido"
+    });
+  };
 
   if (isLoadingContacts) {
     return (
@@ -531,7 +622,24 @@ export function WhatsAppContatos() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenEdit(contact)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Editar contato</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -643,6 +751,115 @@ export function WhatsAppContatos() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog de Edição de Contato */}
+      <Dialog open={!!editingContact} onOpenChange={(open) => !open && setEditingContact(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Contato SendPulse</DialogTitle>
+            <DialogDescription>
+              Altere o telefone ou Contact ID do contato.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingContact && (
+            <div className="space-y-4 py-4">
+              {/* Informações somente leitura */}
+              <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground">Nome</p>
+                  <p className="font-medium">{profilesMap.get(editingContact.user_id)?.nome || "Desconhecido"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Tipo</p>
+                  <Badge variant={editingContact.user_type === 'admin' ? 'default' : 'secondary'}>
+                    {editingContact.user_type === 'admin' ? 'Admin' : 'Gerente'}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status Tel.</p>
+                  {(() => {
+                    const statusConfig = STATUS_CONFIG[editingContact.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente;
+                    return (
+                      <Badge className={`gap-1 ${statusConfig.color}`}>
+                        {statusConfig.label}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status ID</p>
+                  {editingContact.status_id ? (
+                    (() => {
+                      const statusIdConfig = STATUS_CONFIG[editingContact.status_id as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente;
+                      return (
+                        <Badge className={`gap-1 ${statusIdConfig.color}`}>
+                          {statusIdConfig.label}
+                        </Badge>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Campos editáveis */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-telefone">Telefone *</Label>
+                  <Input
+                    id="edit-telefone"
+                    value={editTelefone}
+                    onChange={(e) => setEditTelefone(e.target.value)}
+                    placeholder="+5581999999999"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Formato internacional com código do país (ex: +5581999999999)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-contact-id">Contact ID SendPulse</Label>
+                  <Input
+                    id="edit-contact-id"
+                    value={editContactId}
+                    onChange={(e) => setEditContactId(e.target.value)}
+                    placeholder="69556ee0143b1c873907e644"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco para remover o ID. Sincronize após salvar para obter automaticamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditingContact(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={updateContactMutation.isPending || !editTelefone.trim()}
+            >
+              {updateContactMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
