@@ -442,6 +442,21 @@ export function AuditLogManager() {
     });
   }, [logs, tipoSelecionado, lojaFilter, gerenteFilter, adminFilter, searchTerm]);
 
+  // Processar logs para ocultar senha_alterada para não-Master
+  const logsProcessados = useMemo(() => {
+    return logsFiltrados.map((log) => {
+      // Se não é Master e o log tem senha_alterada nos detalhes, remover
+      if (!isMaster && log.details && typeof log.details === 'object' && 'senha_alterada' in (log.details as Record<string, unknown>)) {
+        const { senha_alterada, ...detailsSemSenha } = log.details as Record<string, unknown>;
+        return {
+          ...log,
+          details: detailsSemSenha,
+        };
+      }
+      return log;
+    });
+  }, [logsFiltrados, isMaster]);
+
   // Limpar filtros
   const handleClearFilters = () => {
     setPeriod("7days");
@@ -941,7 +956,7 @@ export function AuditLogManager() {
       </div>
 
       {/* Lista */}
-      <AuditLogList logs={logsFiltrados} isLoading={isLoading} isMaster={isMaster} />
+      <AuditLogList logs={logsProcessados} isLoading={isLoading} isMaster={isMaster} />
     </div>
     </>
   );

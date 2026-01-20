@@ -76,7 +76,7 @@ export function AdminsManager() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: async (values: AdminEditValues & { userId: string }) => {
+    mutationFn: async (values: AdminEditValues & { userId: string; adminOriginal: Admin }) => {
       const { data, error } = await supabase.functions.invoke('update-admin', {
         body: {
           userId: values.userId,
@@ -88,10 +88,51 @@ export function AdminsManager() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return { id: values.userId, nome: values.nome };
+      return { 
+        id: values.userId, 
+        nome: values.nome,
+        valoresAnteriores: {
+          nome: values.adminOriginal.nome,
+          email: values.adminOriginal.email,
+          username: values.adminOriginal.username,
+        },
+        valoresNovos: {
+          nome: values.nome,
+          email: values.email,
+          username: values.username,
+          senhaAlterada: !!values.senha && values.senha.length > 0,
+        },
+      };
     },
-    onSuccess: async ({ id, nome }) => {
+    onSuccess: async ({ id, nome, valoresAnteriores, valoresNovos }) => {
       const { data: profile } = await supabase.from("profiles").select("nome").eq("id", user?.id).single();
+      
+      // Construir detalhes das alterações
+      const camposAlterados: string[] = [];
+      const detalhes: Record<string, unknown> = {};
+
+      if (valoresNovos.nome !== valoresAnteriores.nome) {
+        camposAlterados.push("nome");
+        detalhes.nome_anterior = valoresAnteriores.nome;
+        detalhes.nome_novo = valoresNovos.nome;
+      }
+      if (valoresNovos.email !== valoresAnteriores.email) {
+        camposAlterados.push("email");
+        detalhes.email_anterior = valoresAnteriores.email;
+        detalhes.email_novo = valoresNovos.email;
+      }
+      if (valoresNovos.username !== valoresAnteriores.username) {
+        camposAlterados.push("username");
+        detalhes.username_anterior = valoresAnteriores.username;
+        detalhes.username_novo = valoresNovos.username;
+      }
+
+      // Indicar se senha foi alterada (sem armazenar a senha!)
+      const senhaAlterada = valoresNovos.senhaAlterada;
+      if (senhaAlterada) {
+        camposAlterados.push("senha");
+      }
+
       await registrarAuditLog({
         userId: user?.id || "",
         userNome: profile?.nome || "Admin",
@@ -100,6 +141,11 @@ export function AdminsManager() {
         entity: "admin",
         entityId: id,
         entityName: nome,
+        details: {
+          campos_alterados: camposAlterados,
+          senha_alterada: senhaAlterada,
+          ...detalhes,
+        },
       });
       queryClient.invalidateQueries({ queryKey: ["admins"] });
       setIsDialogOpen(false);
@@ -140,7 +186,11 @@ export function AdminsManager() {
 
   const handleSubmit = async (values: AdminFormValues | AdminEditValues) => {
     if (editingAdmin) {
-      await updateMutation.mutateAsync({ ...values, userId: editingAdmin.id } as AdminEditValues & { userId: string });
+      await updateMutation.mutateAsync({ 
+        ...values, 
+        userId: editingAdmin.id,
+        adminOriginal: editingAdmin,
+      } as AdminEditValues & { userId: string; adminOriginal: Admin });
     } else {
       await createMutation.mutateAsync(values as AdminFormValues);
     }
