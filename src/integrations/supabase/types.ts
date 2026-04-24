@@ -659,23 +659,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      export_auth_users_for_migration: {
-        Args: never
-        Returns: {
-          aud: string
-          created_at: string
-          email: string
-          email_confirmed_at: string
-          encrypted_password: string
-          has_password: boolean
-          id: string
-          instance_id: string
-          raw_app_meta_data: Json
-          raw_user_meta_data: Json
-          role: string
-          updated_at: string
-        }[]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
