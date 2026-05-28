@@ -1,103 +1,81 @@
 
-# Plano Final: Faltante Diário e Faltante Mensal — apenas nos exports do Ranking MENSAL
+# Ajuste: Faltante Diário/Mensal no card compacto (Admin Compacto, mensal)
 
-## Escopo (revisado)
+## Problema atual
 
-Adicionar duas novas linhas dentro de cada card de loja **somente** nos exports gerados a partir do **Ranking Mensal**:
+Hoje as linhas de Faltante Diário e Faltante Mensal usam um único flex row com `justify-between`. Quando o valor é curto, ele fica colado ao rótulo; quando o nome do outro lado é maior, o valor "quebra" para baixo só em alguns casos. Resultado: inconsistente entre cards. Além disso o "Faltante Mensal" não fica alinhado verticalmente com "Vendido".
 
-- **Faltante Diário** → logo abaixo da linha "Meta Mensal" / "Meta"
-- **Faltante Mensal** → logo abaixo da linha "Total do Mês" / "Vendido"
+## Padrão novo (uniforme, sempre igual)
 
-Afeta os formatos:
-- ✅ **Desktop** (mensal)
-- ✅ **Admin Compacto** (mensal)
-- ❌ **Gerente Compacto** (continua minimalista — sem alteração)
-- ❌ **Todos os exports do Ranking Diário** (intactos)
+Linha de Meta/Vendido continua exatamente como está hoje (rótulo + valor na mesma linha, lado a lado).
 
-## Layout exemplo — Admin Compacto (Mensal)
+Linha de Faltantes vira um **grid de 2 colunas iguais**, espelhando a coluna esquerda (Meta) e a coluna direita (Vendido). Em cada coluna:
 
-```text
-┌────────────────────────────────────────────┐
-│  #3                          82.4%   ●     │
-│              Loja Centro                   │
-│ ────────────────────────────────────────── │
-│ Meta: R$ 150.000        Vendido: R$ 123.600│
-│ Faltante Diário: R$ 880 Faltante Mensal:   │
-│                              R$ 26.400     │
-└────────────────────────────────────────────┘
-```
+- Linha 1: rótulo ("Faltante Diário:" / "Faltante Mensal:")
+- Linha 2: valor em negrito, **logo abaixo** do rótulo
 
-## Layout exemplo — Desktop (Mensal)
+Isso é aplicado **sempre**, independente do tamanho do valor. Nada de inline, nada de quebra condicional.
+
+A coluna da direita começa exatamente no mesmo eixo X que "Vendido:" da linha acima (mesmo grid de 2 colunas iguais → o "F" de "Faltante Mensal" fica alinhado com o "V" de "Vendido").
+
+## Layout exemplo
 
 ```text
-┌─────────────────────────────────────────────┐
-│  #3              Loja Centro                │
-│                                             │
-│  Meta Mensal:                  R$ 150.000   │
-│  Faltante Diário:              R$ 880       │
-│  Total do Mês:                 R$ 123.600   │
-│  Faltante Mensal:              R$ 26.400    │
-│  ─────────────────────────────────────────  │
-│  Atingimento:                      82.4%    │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  #3                            82.4%   ●     │
+│              Loja Centro                     │
+│ ──────────────────────────────────────────── │
+│ Meta: R$ 150.000          Vendido: R$ 123.600│
+│ Faltante Diário:          Faltante Mensal:   │
+│ R$ 880                    R$ 26.400          │
+└──────────────────────────────────────────────┘
 ```
 
-Tipografia/cor herdada exatamente das linhas vizinhas:
-- Admin Compacto: `text-[10px] text-gray-600` (mesmo da linha Meta/Vendido)
-- Desktop: label `fontSize: 14, color: #6b7280` / valor `fontSize: 18, fontWeight: 600, color: #1f2937`
+Quando o faltante for 0 (loja bateu), o valor abaixo aparece em verde (mantém regra atual).
 
-Quando o faltante for `≤ 0` (loja já bateu a meta), o valor aparece em verde (`#22c55e`) como `R$ 0` — sem alterar layout.
+## Arquivo a alterar
 
-## Origem dos dados (parte técnica)
+Apenas **`src/components/dashboard/RankingCardCompact.tsx`**.
 
-**Cálculo 100% no frontend. Zero alteração em banco, edge functions ou queries.**
+Trocar o bloco atual:
 
-Hoje em `src/pages/Dashboard.tsx`:
+```tsx
+<div className="flex items-center justify-between text-[10px] text-gray-600">
+  <span>Faltante Diário: <span>...</span></span>
+  <span>Faltante Mensal: <span>...</span></span>
+</div>
+```
 
-- O `useMemo` do `ranking` (diário) já tem `metaDiaria` e `totalVendido` por loja.
-- O `useMemo` do `rankingMensal` já tem `metaMensal` e `totalVendidoMes` por loja.
+Por um grid de 2 colunas, cada célula com `flex-col`:
 
-O que vou fazer:
+```tsx
+<div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600">
+  <div className="flex flex-col leading-tight">
+    <span>Faltante Diário:</span>
+    <span className={cn("font-semibold", faltanteDiario === 0 && "text-green-600")}>
+      {formatCurrencyCompact(faltanteDiario)}
+    </span>
+  </div>
+  <div className="flex flex-col leading-tight">
+    <span>Faltante Mensal:</span>
+    <span className={cn("font-semibold", faltanteMensal === 0 && "text-green-600")}>
+      {formatCurrencyCompact(faltanteMensal)}
+    </span>
+  </div>
+</div>
+```
 
-1. **Enriquecer o `rankingMensal`** com os dois campos diários, fazendo lookup por `lojaId` no `ranking` diário já existente — apenas combinação em memória.
+`grid-cols-2` garante que as duas colunas tenham a mesma largura, espelhando o flex `justify-between` da linha Meta/Vendido acima → alinhamento vertical perfeito do "F" com o "V".
 
-2. No componente do card (ambos os exports), calcular:
-   - `faltanteDiario = max(0, metaDiaria - totalVendido)`
-   - `faltanteMensal = max(0, metaMensal - totalVendidoMes)`
+## Garantias
 
-Sem nova chamada de rede, sem nova RLS, sem nova migration.
+- Só toca o modo mensal do card compacto (bloco já guardado por `showFaltantes`).
+- Não altera Desktop, Gerente Compacto, export diário, nem cálculo de dados.
+- Tipografia/cor idênticas (`text-[10px] text-gray-600`, verde quando 0).
+- Sem mudança em banco, queries ou edge functions.
 
-## Arquivos a modificar (4 arquivos, frontend puro)
+## Validação
 
-1. **`src/pages/Dashboard.tsx`**
-   - No `useMemo` do `rankingMensal`, adicionar lookup no `ranking` diário e anexar `metaDiaria` + `totalVendidoDiario` por loja.
-   - Atualizar o objeto passado ao `ExportRankingButton` no fluxo mensal (linhas ~749, onde `ranking` é montado para o botão a partir do `rankingMensal`).
-
-2. **`src/components/dashboard/ExportRankingButton.tsx`**
-   - Estender o type `RankingItem` local com `metaMensal?: number`, `totalVendidoMes?: number`, `metaDiaria` e `totalVendido` já existem.
-   - Repassar tudo sem alteração para os dois componentes export afetados.
-
-3. **`src/components/dashboard/ExportableRanking.tsx`** + **`src/components/dashboard/RankingCardCompact.tsx`** (Admin Compacto)
-   - `ExportableRanking` repassa os campos novos ao card **apenas quando `isMensal=true`**.
-   - `RankingCardCompact` recebe props opcionais `faltanteDiario` e `faltanteMensal` e renderiza uma 2ª linha abaixo da atual com a mesma estética. Se não vierem (modo diário), nada muda.
-
-4. **`src/components/dashboard/ExportableRankingDesktop.tsx`**
-   - Em `RankingCardDesktop`, inserir as duas novas linhas (Faltante Diário após Meta; Faltante Mensal após Total do Mês) **somente quando `isMensal=true`**.
-
-## Garantias de segurança
-
-| Risco | Mitigação |
-|---|---|
-| Quebrar export diário | Toda a renderização nova é guarded por `isMensal` |
-| Quebrar Gerente Compacto | Não toco em `ExportableRankingSimple`/`RankingCardSimple` |
-| Quebrar cálculo de ranking/metas | Não altero a lógica de `metaDiaria`/`metaMensal`/`totalVendido` — apenas leio |
-| Quebrar tipos do projeto | Campos novos são opcionais (`?:`), retrocompatíveis |
-| Performance | Lookup `O(n)` em memória sobre arrays já carregados |
-| Banco / RLS / Edge functions | Nenhuma mudança |
-
-## Validação após implementar
-
-- Exportar Desktop e Admin Compacto **no modo mensal** → conferir que as duas novas linhas aparecem corretas.
-- Exportar Desktop e Admin Compacto **no modo diário** → conferir que ficou idêntico ao atual (sem as linhas novas).
-- Exportar Gerente Compacto (mensal e diário) → conferir que está inalterado.
-- Conferir aritmética: `Meta − Vendido = Faltante` em pelo menos 2 lojas.
+- Exportar Admin Compacto mensal → conferir que em todos os cards o valor fica embaixo do rótulo e "Faltante Mensal" alinha com "Vendido".
+- Conferir card com faltante longo (ex.: R$ 999.999) e curto (R$ 0) → layout idêntico.
+- Conferir export diário e Gerente Compacto inalterados.
