@@ -91,19 +91,19 @@ export function RankingCardCompact({
 
       {/* Linha 4: Faltante Diário e Faltante Mensal (somente mensal) */}
       {showFaltantes && (
-        <div className="flex items-center justify-between text-[10px] text-gray-600">
-          <span>
-            Faltante Diário:{" "}
+        <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600">
+          <div className="flex flex-col leading-tight">
+            <span>Faltante Diário:</span>
             <span className={cn("font-semibold", faltanteDiario === 0 && "text-green-600")}>
               {formatCurrencyCompact(faltanteDiario)}
             </span>
-          </span>
-          <span>
-            Faltante Mensal:{" "}
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span>Faltante Mensal:</span>
             <span className={cn("font-semibold", faltanteMensal === 0 && "text-green-600")}>
               {formatCurrencyCompact(faltanteMensal)}
             </span>
-          </span>
+          </div>
         </div>
       )}
     </div>
