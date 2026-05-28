@@ -7,6 +7,8 @@ type RankingCardCompactProps = {
   temMeta: boolean;
   metaDiaria?: number;
   totalVendido?: number;
+  faltanteDiario?: number;
+  faltanteMensal?: number;
 };
 
 const formatCurrencyCompact = (value: number) => {
@@ -25,6 +27,8 @@ export function RankingCardCompact({
   temMeta,
   metaDiaria,
   totalVendido,
+  faltanteDiario,
+  faltanteMensal,
 }: RankingCardCompactProps) {
   const percentualFormatado = temMeta ? `${percentualAtingimento.toFixed(1)}%` : "—";
 
@@ -50,6 +54,7 @@ export function RankingCardCompact({
   };
 
   const showFinancials = metaDiaria !== undefined && totalVendido !== undefined;
+  const showFaltantes = faltanteDiario !== undefined && faltanteMensal !== undefined;
 
   return (
     <div
@@ -81,6 +86,24 @@ export function RankingCardCompact({
         <div className="flex items-center justify-between text-[10px] text-gray-600 border-t border-gray-200 pt-1 mt-0.5">
           <span>Meta: <span className="font-semibold">{formatCurrencyCompact(metaDiaria)}</span></span>
           <span>Vendido: <span className="font-semibold">{formatCurrencyCompact(totalVendido)}</span></span>
+        </div>
+      )}
+
+      {/* Linha 4: Faltante Diário e Faltante Mensal (somente mensal) */}
+      {showFaltantes && (
+        <div className="flex items-center justify-between text-[10px] text-gray-600">
+          <span>
+            Faltante Diário:{" "}
+            <span className={cn("font-semibold", faltanteDiario === 0 && "text-green-600")}>
+              {formatCurrencyCompact(faltanteDiario)}
+            </span>
+          </span>
+          <span>
+            Faltante Mensal:{" "}
+            <span className={cn("font-semibold", faltanteMensal === 0 && "text-green-600")}>
+              {formatCurrencyCompact(faltanteMensal)}
+            </span>
+          </span>
         </div>
       )}
     </div>
