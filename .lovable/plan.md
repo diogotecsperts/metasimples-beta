@@ -1,53 +1,103 @@
 
+# Plano Final: Faltante Diário e Faltante Mensal — apenas nos exports do Ranking MENSAL
 
-# Plano: Gerar SQL de Bootstrap dos 20 Usuários (auth.users)
+## Escopo (revisado)
 
-## Objetivo
+Adicionar duas novas linhas dentro de cada card de loja **somente** nos exports gerados a partir do **Ranking Mensal**:
 
-Resolver o erro `profiles_id_fkey` no novo ambiente Supabase, populando a tabela `auth.users` **antes** de rodar o dump principal de 23 mil linhas.
+- **Faltante Diário** → logo abaixo da linha "Meta Mensal" / "Meta"
+- **Faltante Mensal** → logo abaixo da linha "Total do Mês" / "Vendido"
 
-## Abordagem
+Afeta os formatos:
+- ✅ **Desktop** (mensal)
+- ✅ **Admin Compacto** (mensal)
+- ❌ **Gerente Compacto** (continua minimalista — sem alteração)
+- ❌ **Todos os exports do Ranking Diário** (intactos)
 
-Vou consultar o banco atual via `psql` direto na tabela `auth.users` (que normalmente não é exposta nas tools de leitura padrão, mas é acessível via conexão direta com o `SUPABASE_DB_URL`) e extrair os 20 usuários com **todos os campos vitais de autenticação** preservados:
-
-| Campo | Origem | Observação |
-|---|---|---|
-| `id` | `auth.users.id` | UUID original (mesmo do `profiles.id`) |
-| `instance_id` | `auth.users.instance_id` | Normalmente `00000000-0000-0000-0000-000000000000` |
-| `aud` | `auth.users.aud` | Tipicamente `authenticated` |
-| `role` | `auth.users.role` | Tipicamente `authenticated` |
-| `email` | `auth.users.email` | Email original |
-| `encrypted_password` | `auth.users.encrypted_password` | **Hash bcrypt original** — preserva senha sem reset |
-| `email_confirmed_at` | `auth.users.email_confirmed_at` | Mantém status de confirmação |
-| `raw_app_meta_data` | `auth.users.raw_app_meta_data` | Provider info (ex: `{"provider":"email"}`) |
-| `raw_user_meta_data` | `auth.users.raw_user_meta_data` | Metadata customizada (ex: `nome`) |
-| `created_at` | `auth.users.created_at` | Data original |
-| `updated_at` | `auth.users.updated_at` | Data original |
-
-## Garantias
-
-- **Senhas preservadas**: Como o `encrypted_password` é o hash bcrypt original, os 20 usuários (7 admins + 13 gerentes) continuarão fazendo login com as mesmas credenciais sem precisar resetar.
-- **Email confirmado**: O campo `email_confirmed_at` será mantido, então não haverá necessidade de re-verificar emails.
-- **UUIDs idênticos**: Os IDs serão exatamente os mesmos do dump principal, garantindo que o FK `profiles_id_fkey` resolva corretamente quando o dump rodar em seguida.
-- **Uso de `ON CONFLICT (id) DO NOTHING`**: Para idempotência — caso algum usuário já exista no destino, o script não falha.
-
-## Entrega
-
-- Arquivo único: `/mnt/documents/auth_users_bootstrap.sql`
-- Tamanho esperado: pequeno (~20 linhas de INSERT, < 50KB)
-- Bloco SQL formatado para copiar/colar direto no SQL Editor do Supabase de destino
-- Wrapper `BEGIN; ... COMMIT;` para execução atômica
-
-## Ordem de execução no destino (recomendada)
+## Layout exemplo — Admin Compacto (Mensal)
 
 ```text
-1º) auth_users_bootstrap.sql      ← este novo arquivo (20 INSERTs em auth.users)
-2º) meta_simples_dump_v2.sql      ← dump principal (23.244 INSERTs)
+┌────────────────────────────────────────────┐
+│  #3                          82.4%   ●     │
+│              Loja Centro                   │
+│ ────────────────────────────────────────── │
+│ Meta: R$ 150.000        Vendido: R$ 123.600│
+│ Faltante Diário: R$ 880 Faltante Mensal:   │
+│                              R$ 26.400     │
+└────────────────────────────────────────────┘
 ```
 
-## Observação técnica importante
+## Layout exemplo — Desktop (Mensal)
 
-O `encrypted_password` é um hash bcrypt — **não** é a senha em texto. O Supabase Auth valida logins comparando o hash, portanto migrar o hash preserva totalmente a capacidade de login. Nenhum usuário precisará trocar senha.
+```text
+┌─────────────────────────────────────────────┐
+│  #3              Loja Centro                │
+│                                             │
+│  Meta Mensal:                  R$ 150.000   │
+│  Faltante Diário:              R$ 880       │
+│  Total do Mês:                 R$ 123.600   │
+│  Faltante Mensal:              R$ 26.400    │
+│  ─────────────────────────────────────────  │
+│  Atingimento:                      82.4%    │
+└─────────────────────────────────────────────┘
+```
 
-Caso algum usuário no banco atual tenha `encrypted_password` NULL (login só por OAuth, por exemplo), o script tratará isso como NULL no destino — mas pelo histórico do projeto (login email/senha + username), é esperado que todos os 20 tenham hash válido. Vou validar isso na extração.
+Tipografia/cor herdada exatamente das linhas vizinhas:
+- Admin Compacto: `text-[10px] text-gray-600` (mesmo da linha Meta/Vendido)
+- Desktop: label `fontSize: 14, color: #6b7280` / valor `fontSize: 18, fontWeight: 600, color: #1f2937`
 
+Quando o faltante for `≤ 0` (loja já bateu a meta), o valor aparece em verde (`#22c55e`) como `R$ 0` — sem alterar layout.
+
+## Origem dos dados (parte técnica)
+
+**Cálculo 100% no frontend. Zero alteração em banco, edge functions ou queries.**
+
+Hoje em `src/pages/Dashboard.tsx`:
+
+- O `useMemo` do `ranking` (diário) já tem `metaDiaria` e `totalVendido` por loja.
+- O `useMemo` do `rankingMensal` já tem `metaMensal` e `totalVendidoMes` por loja.
+
+O que vou fazer:
+
+1. **Enriquecer o `rankingMensal`** com os dois campos diários, fazendo lookup por `lojaId` no `ranking` diário já existente — apenas combinação em memória.
+
+2. No componente do card (ambos os exports), calcular:
+   - `faltanteDiario = max(0, metaDiaria - totalVendido)`
+   - `faltanteMensal = max(0, metaMensal - totalVendidoMes)`
+
+Sem nova chamada de rede, sem nova RLS, sem nova migration.
+
+## Arquivos a modificar (4 arquivos, frontend puro)
+
+1. **`src/pages/Dashboard.tsx`**
+   - No `useMemo` do `rankingMensal`, adicionar lookup no `ranking` diário e anexar `metaDiaria` + `totalVendidoDiario` por loja.
+   - Atualizar o objeto passado ao `ExportRankingButton` no fluxo mensal (linhas ~749, onde `ranking` é montado para o botão a partir do `rankingMensal`).
+
+2. **`src/components/dashboard/ExportRankingButton.tsx`**
+   - Estender o type `RankingItem` local com `metaMensal?: number`, `totalVendidoMes?: number`, `metaDiaria` e `totalVendido` já existem.
+   - Repassar tudo sem alteração para os dois componentes export afetados.
+
+3. **`src/components/dashboard/ExportableRanking.tsx`** + **`src/components/dashboard/RankingCardCompact.tsx`** (Admin Compacto)
+   - `ExportableRanking` repassa os campos novos ao card **apenas quando `isMensal=true`**.
+   - `RankingCardCompact` recebe props opcionais `faltanteDiario` e `faltanteMensal` e renderiza uma 2ª linha abaixo da atual com a mesma estética. Se não vierem (modo diário), nada muda.
+
+4. **`src/components/dashboard/ExportableRankingDesktop.tsx`**
+   - Em `RankingCardDesktop`, inserir as duas novas linhas (Faltante Diário após Meta; Faltante Mensal após Total do Mês) **somente quando `isMensal=true`**.
+
+## Garantias de segurança
+
+| Risco | Mitigação |
+|---|---|
+| Quebrar export diário | Toda a renderização nova é guarded por `isMensal` |
+| Quebrar Gerente Compacto | Não toco em `ExportableRankingSimple`/`RankingCardSimple` |
+| Quebrar cálculo de ranking/metas | Não altero a lógica de `metaDiaria`/`metaMensal`/`totalVendido` — apenas leio |
+| Quebrar tipos do projeto | Campos novos são opcionais (`?:`), retrocompatíveis |
+| Performance | Lookup `O(n)` em memória sobre arrays já carregados |
+| Banco / RLS / Edge functions | Nenhuma mudança |
+
+## Validação após implementar
+
+- Exportar Desktop e Admin Compacto **no modo mensal** → conferir que as duas novas linhas aparecem corretas.
+- Exportar Desktop e Admin Compacto **no modo diário** → conferir que ficou idêntico ao atual (sem as linhas novas).
+- Exportar Gerente Compacto (mensal e diário) → conferir que está inalterado.
+- Conferir aritmética: `Meta − Vendido = Faltante` em pelo menos 2 lojas.
