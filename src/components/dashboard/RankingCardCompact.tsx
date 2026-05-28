@@ -83,7 +83,7 @@ export function RankingCardCompact({
 
       {/* Linha 3: Meta e Vendido */}
       {showFinancials && (
-        <div className="flex items-center justify-between text-[10px] text-gray-600 border-t border-gray-200 pt-1 mt-0.5">
+        <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600 border-t border-gray-200 pt-1 mt-0.5">
           <span>Meta: <span className="font-semibold">{formatCurrencyCompact(metaDiaria)}</span></span>
           <span>Vendido: <span className="font-semibold">{formatCurrencyCompact(totalVendido)}</span></span>
         </div>
