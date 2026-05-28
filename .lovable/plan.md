@@ -1,81 +1,77 @@
 
-# Ajuste: Faltante Diário/Mensal no card compacto (Admin Compacto, mensal)
+# Correção do alinhamento "Vendido" ↔ "Faltante Mensal"
 
-## Problema atual
+## Causa do problema
 
-Hoje as linhas de Faltante Diário e Faltante Mensal usam um único flex row com `justify-between`. Quando o valor é curto, ele fica colado ao rótulo; quando o nome do outro lado é maior, o valor "quebra" para baixo só em alguns casos. Resultado: inconsistente entre cards. Além disso o "Faltante Mensal" não fica alinhado verticalmente com "Vendido".
+Hoje a linha de Meta/Vendido usa `flex justify-between`:
 
-## Padrão novo (uniforme, sempre igual)
+```tsx
+<div className="flex items-center justify-between ...">
+  <span>Meta: <b>R$ X</b></span>
+  <span>Vendido: <b>R$ Y</b></span>
+</div>
+```
 
-Linha de Meta/Vendido continua exatamente como está hoje (rótulo + valor na mesma linha, lado a lado).
+Com `justify-between`, a palavra "Vendido:" é empurrada para a direita até onde o valor terminar. Como o valor de "Vendido" varia de tamanho entre lojas (R$ 1.234 vs R$ 123.456), a posição X de "Vendido:" muda de card para card.
 
-Linha de Faltantes vira um **grid de 2 colunas iguais**, espelhando a coluna esquerda (Meta) e a coluna direita (Vendido). Em cada coluna:
+Já a linha de Faltantes usa `grid grid-cols-2`, então "Faltante Mensal:" começa **sempre exatamente em 50%** da largura do card. Resultado: desalinhamento visível.
 
-- Linha 1: rótulo ("Faltante Diário:" / "Faltante Mensal:")
-- Linha 2: valor em negrito, **logo abaixo** do rótulo
+Meta/Faltante Diário já alinham porque ambos começam na borda esquerda (x = 0).
 
-Isso é aplicado **sempre**, independente do tamanho do valor. Nada de inline, nada de quebra condicional.
+## Solução
 
-A coluna da direita começa exatamente no mesmo eixo X que "Vendido:" da linha acima (mesmo grid de 2 colunas iguais → o "F" de "Faltante Mensal" fica alinhado com o "V" de "Vendido").
+Trocar a linha de Meta/Vendido para usar **o mesmo `grid grid-cols-2 gap-2`** da linha de Faltantes. Assim "Vendido:" também passa a começar fixo em 50%, exatamente acima de "Faltante Mensal:".
 
-## Layout exemplo
+### Arquivo único alterado
+
+`src/components/dashboard/RankingCardCompact.tsx`
+
+### Mudança
+
+De:
+
+```tsx
+<div className="flex items-center justify-between text-[10px] text-gray-600 border-t border-gray-200 pt-1 mt-0.5">
+  <span>Meta: <span className="font-semibold">{formatCurrencyCompact(metaDiaria)}</span></span>
+  <span>Vendido: <span className="font-semibold">{formatCurrencyCompact(totalVendido)}</span></span>
+</div>
+```
+
+Para:
+
+```tsx
+<div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600 border-t border-gray-200 pt-1 mt-0.5">
+  <span>Meta: <span className="font-semibold">{formatCurrencyCompact(metaDiaria)}</span></span>
+  <span>Vendido: <span className="font-semibold">{formatCurrencyCompact(totalVendido)}</span></span>
+</div>
+```
+
+Mesmas classes de tipografia, cor, borda e espaçamento. Só muda `flex items-center justify-between` → `grid grid-cols-2 gap-2`, espelhando a linha de Faltantes logo abaixo.
+
+## Resultado visual
 
 ```text
 ┌──────────────────────────────────────────────┐
 │  #3                            82.4%   ●     │
 │              Loja Centro                     │
 │ ──────────────────────────────────────────── │
-│ Meta: R$ 150.000          Vendido: R$ 123.600│
-│ Faltante Diário:          Faltante Mensal:   │
-│ R$ 880                    R$ 26.400          │
+│ Meta: R$ 150.000      Vendido: R$ 123.600    │
+│ Faltante Diário:      Faltante Mensal:       │
+│ R$ 880                R$ 26.400              │
 └──────────────────────────────────────────────┘
 ```
 
-Quando o faltante for 0 (loja bateu), o valor abaixo aparece em verde (mantém regra atual).
-
-## Arquivo a alterar
-
-Apenas **`src/components/dashboard/RankingCardCompact.tsx`**.
-
-Trocar o bloco atual:
-
-```tsx
-<div className="flex items-center justify-between text-[10px] text-gray-600">
-  <span>Faltante Diário: <span>...</span></span>
-  <span>Faltante Mensal: <span>...</span></span>
-</div>
-```
-
-Por um grid de 2 colunas, cada célula com `flex-col`:
-
-```tsx
-<div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600">
-  <div className="flex flex-col leading-tight">
-    <span>Faltante Diário:</span>
-    <span className={cn("font-semibold", faltanteDiario === 0 && "text-green-600")}>
-      {formatCurrencyCompact(faltanteDiario)}
-    </span>
-  </div>
-  <div className="flex flex-col leading-tight">
-    <span>Faltante Mensal:</span>
-    <span className={cn("font-semibold", faltanteMensal === 0 && "text-green-600")}>
-      {formatCurrencyCompact(faltanteMensal)}
-    </span>
-  </div>
-</div>
-```
-
-`grid-cols-2` garante que as duas colunas tenham a mesma largura, espelhando o flex `justify-between` da linha Meta/Vendido acima → alinhamento vertical perfeito do "F" com o "V".
+"Vendido:" e "Faltante Mensal:" agora começam exatamente no mesmo eixo X em todos os cards, independente do tamanho do valor.
 
 ## Garantias
 
-- Só toca o modo mensal do card compacto (bloco já guardado por `showFaltantes`).
-- Não altera Desktop, Gerente Compacto, export diário, nem cálculo de dados.
-- Tipografia/cor idênticas (`text-[10px] text-gray-600`, verde quando 0).
-- Sem mudança em banco, queries ou edge functions.
+- Apenas o card compacto (`RankingCardCompact.tsx`) é tocado.
+- Não afeta Desktop, Gerente Compacto, export diário, cálculos, queries, edge functions ou banco.
+- Tipografia, cores, bordas e espaçamento permanecem idênticos.
+- Funciona tanto no modo diário (sem linha de Faltantes) quanto mensal — no diário o grid de Meta/Vendido continua funcionando exatamente igual ao flex anterior, só com posicionamento fixo em 50/50.
 
 ## Validação
 
-- Exportar Admin Compacto mensal → conferir que em todos os cards o valor fica embaixo do rótulo e "Faltante Mensal" alinha com "Vendido".
-- Conferir card com faltante longo (ex.: R$ 999.999) e curto (R$ 0) → layout idêntico.
-- Conferir export diário e Gerente Compacto inalterados.
+- Exportar Admin Compacto mensal com lojas de valores curtos e longos → "Vendido" e "Faltante Mensal" alinhados em todos.
+- Exportar Admin Compacto diário → linha Meta/Vendido continua legível e bem distribuída.
+- Conferir Gerente Compacto e Desktop inalterados.
