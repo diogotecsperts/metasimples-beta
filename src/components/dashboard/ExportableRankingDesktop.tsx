@@ -10,6 +10,8 @@ type RankingItem = {
   isEmAlerta?: boolean;
   ultimaAtualizacao?: string;
   ultimoHorario?: string | null;
+  faltanteDiario?: number;
+  faltanteMensal?: number;
 };
 
 type ExportableRankingDesktopProps = {
