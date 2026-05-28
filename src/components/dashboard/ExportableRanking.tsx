@@ -7,6 +7,8 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
+  faltanteDiario?: number;
+  faltanteMensal?: number;
 };
 
 type ExportableRankingProps = {
