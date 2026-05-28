@@ -743,13 +743,21 @@ const Dashboard = ({ embedded = false }: DashboardProps) => {
 
                       {visaoMensal ? (
                         <ExportRankingButton
-                          ranking={rankingMensal.map(item => ({
-                            lojaId: item.lojaId,
-                            nomeLoja: item.nomeLoja,
-                            metaDiaria: item.metaMensal || 0,
-                            totalVendido: item.totalVendidoMes,
-                            percentualAtingimento: item.percentualAtingimento || 0,
-                          }))}
+                          ranking={rankingMensal.map(item => {
+                            const daily = ranking.find(r => r.lojaId === item.lojaId);
+                            const metaDiariaLoja = daily?.metaDiaria ?? 0;
+                            const totalVendidoDia = daily?.totalVendido ?? 0;
+                            const metaMensalLoja = item.metaMensal || 0;
+                            return {
+                              lojaId: item.lojaId,
+                              nomeLoja: item.nomeLoja,
+                              metaDiaria: metaMensalLoja,
+                              totalVendido: item.totalVendidoMes,
+                              percentualAtingimento: item.percentualAtingimento || 0,
+                              faltanteDiario: Math.max(0, metaDiariaLoja - totalVendidoDia),
+                              faltanteMensal: Math.max(0, metaMensalLoja - item.totalVendidoMes),
+                            };
+                          })}
                           dataFormatada={`${nomeMesSelecionado.charAt(0).toUpperCase() + nomeMesSelecionado.slice(1)} de ${anoSelecionado}`}
                           metaTotal={rankingMensal.filter(r => r.metaMensal !== null).reduce((acc, r) => acc + (r.metaMensal || 0), 0)}
                           vendasTotal={rankingMensal.reduce((acc, r) => acc + r.totalVendidoMes, 0)}
