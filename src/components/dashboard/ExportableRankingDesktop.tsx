@@ -10,6 +10,8 @@ type RankingItem = {
   isEmAlerta?: boolean;
   ultimaAtualizacao?: string;
   ultimoHorario?: string | null;
+  faltanteDiario?: number;
+  faltanteMensal?: number;
 };
 
 type ExportableRankingDesktopProps = {
@@ -137,12 +139,30 @@ function RankingCardDesktop({ posicao, item, isMensal = false }: RankingCardDesk
           </span>
         </div>
 
+        {isMensal && item.faltanteDiario !== undefined && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: 14, color: "#6b7280" }}>Faltante Diário:</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: item.faltanteDiario === 0 ? "#22c55e" : "#1f2937" }}>
+              {formatCurrency(item.faltanteDiario)}
+            </span>
+          </div>
+        )}
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontSize: 14, color: "#6b7280" }}>{isMensal ? "Total do Mês:" : "Total Vendido:"}</span>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#1f2937" }}>
             {formatCurrency(item.totalVendido)}
           </span>
         </div>
+
+        {isMensal && item.faltanteMensal !== undefined && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: 14, color: "#6b7280" }}>Faltante Mensal:</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: item.faltanteMensal === 0 ? "#22c55e" : "#1f2937" }}>
+              {formatCurrency(item.faltanteMensal)}
+            </span>
+          </div>
+        )}
 
         <div
           style={{

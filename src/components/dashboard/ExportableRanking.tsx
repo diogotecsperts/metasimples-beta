@@ -7,6 +7,8 @@ type RankingItem = {
   metaDiaria: number;
   totalVendido: number;
   percentualAtingimento: number;
+  faltanteDiario?: number;
+  faltanteMensal?: number;
 };
 
 type ExportableRankingProps = {
@@ -81,6 +83,8 @@ export const ExportableRanking = forwardRef<HTMLDivElement, ExportableRankingPro
               temMeta={item.metaDiaria > 0}
               metaDiaria={item.metaDiaria}
               totalVendido={item.totalVendido}
+              faltanteDiario={isMensal ? item.faltanteDiario : undefined}
+              faltanteMensal={isMensal ? item.faltanteMensal : undefined}
             />
           ))}
         </div>
